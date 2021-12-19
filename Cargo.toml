@@ -1,0 +1,29 @@
+[package]
+name = "gkvocabdb-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jeremy March <jmarch@gradcenter.cuny.edu>"]
+
+
+[dependencies]
+actix-web = { version = "4.0.0-beta.15" }
+actix-files = "0.6.0-beta.10"
+
+env_logger = "0.9"
+futures = "0.3.18"
+
+sqlx = { version = "0.5.9", features = ["sqlite", "runtime-actix-rustls", "any", "macros"] }
+serde = { version = "1.0.117", features = ["derive"] }
+serde_json = "1.0.59"
+
+regex = "1.5.4"
+percent-encoding = "2.1.0"
+
+thiserror = "1.0.30"
+
+[dev-dependencies]
+actix-rt = "2.4.0"
+
+[profile.release]
+opt-level = 3
+#lto = true
