@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<title>Greek Vocab DB</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+<script type="text/javascript" src="jquery.min.js"></script>
+  <script type="text/javascript" src="wordtree.js?v10"></script>
+<script>
+/*
+<?php 
+if ( isset($_GET["wordid"]) ) {
+    echo "var landingWordId = " . $_GET["wordid"] . ";\n";
+}
+
+?>
+*/
+var landingWordId = -1;
+
+      //https://github.com/le717/microajax
+      function microAjax(options) {
+      "use strict";
+
+      // Default to GET
+      if (!options.method) {
+        options.method = "GET";
+      }
+
+      // Default empty functions for the callbacks
+      function noop() {}
+      if (!options.success) {
+        options.success = noop;
+      }
+      if (!options.warning) {
+        options.warning = noop;
+      }
+      if (!options.error) {
+        options.error = noop;
+      }
+
+      var request = new XMLHttpRequest();
+      request.open(options.method, options.url, true);
+      request.send(options.data);
+
+      request.onload = function() {
+        // Success!
+        if (request.readyState === 4 && request.status === 200) {
+          options.success(request.responseText);
+
+          // We reached our target destination, but it returned an error
+        } else {
+          options.warning(request.responseText);
+        }
+      };
+
+      // There was a connection error of some sort
+      request.onerror = options.error;
+    }
+
+function wasmSupported() {
+    try {
+        if (typeof WebAssembly === "object"
+            && typeof WebAssembly.instantiate === "function") {
+            const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
+            if (module instanceof WebAssembly.Module) {
+                console.log("WebAssembly is supported");
+                return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
+            }
+        }
+    } catch (e) {
+        return false;
+    }
+    console.log("WebAssembly is not supported");
+    return false;
+}
+
+    function loadWebAssembly(filename, imports) {
+      // Fetch the file and compile it
+        /*
+        const importObject = {
+          imports: {
+            imported_func: function(arg) {
+              console.log(arg);
+            }
+          }
+        };
+        */
+        if ( typeof(fetch) == "function" ) {
+            return fetch(filename)
+                .then(function(response){ return response.arrayBuffer()})
+                .then(function(buffer){ return WebAssembly.compile(buffer)})
+                .then(function(module){ return WebAssembly.instantiate(module)});
+        }
+        else {
+            return false;
+        }
+    }
+
+function stripDiacriticsLocal(origChars) {
+    
+    var len = origChars.length;
+    //add letter and any combining diacritics to the buffer as code points
+    for (var i = 0; i < len; i++) {
+        wasmBuffer[i] = origChars.codePointAt(i);
+    }
+
+    len = stripDiacritics2(wasmBuffer.byteOffset, len, 1);
+    //transform the returned code points back to a string
+    var newLetter = "";
+    for (var i = 0; i < len; i++) {
+        newLetter += String.fromCodePoint(wasmBuffer[i]);
+    }
+    return newLetter;
+}
+
+var wasmBuffer;
+var wasmBuffer1;
+var wasmBuffer2;
+var accentSyllableWASM;
+var stripDiacritics2;
+var compareWASM;
+
+try {
+loadWebAssembly('hoplitekb.wasm')
+  .then(function(instance) {
+    var exports = instance.exports;
+    accentSyllableWASM = exports.accentSyllable2;
+    stripDiacritics2 = exports.stripDiacritics;
+    compareWASM = exports.compare;
+    var memory = exports.memory;
+
+    wasmBuffer = new Uint16Array(memory.buffer, 0, 1024);
+    wasmBuffer1 = new Uint16Array(memory.buffer, 1024, 1024);
+    wasmBuffer2 = new Uint16Array(memory.buffer, 2048, 1024);
+    /*
+    // now we are ready, set up the button so the user can run the code
+    var button = document.getElementById('b');
+    button.value = 'Call a method in the WebAssembly module';
+    button.addEventListener('click', compareLocal);
+    */
+  },function(){console.log("error")}
+);
+} catch(e) { console.log(e.message)};
+
+var la = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+var gr = ["α","β","ψ","δ","ε","φ","γ","η","ι","ξ","κ","λ","μ","ν","ο","π","","ρ","σ","τ","θ","ω","ς","χ","υ","ζ","Α","Β","Ψ","Δ","Ε","Φ","Γ","Η","Ι","Ξ","Κ","Λ","Μ","Ν","Ο","Π","","Ρ","Σ","Τ","Θ","Ω","Σ","Χ","Υ","Ζ"];
+var forceLowercase = false;
+function transliterate(char)
+{
+    var theChar = (forceLowercase) ? char.toLowerCase() : char;
+    var idx = la.indexOf(theChar);
+    if (idx > -1) {
+        return gr[idx];
+    }
+    else {
+        return char;
+    }
+}
+
+function accentSyllable(origChars, key) {
+    var len = origChars.length;
+    //add letter and any combining diacritics to the buffer as code points
+    for (var i = 0; i < len; i++) {
+        wasmBuffer[i] = origChars.codePointAt(i);
+    }
+
+    len = accentSyllableWASM(wasmBuffer.byteOffset, len, key, 1, parseInt(unicodeMode) );
+
+    //transform the returned code points back to a string
+    var newLetter = "";
+    for (var i = 0; i < len; i++) {
+        newLetter += String.fromCodePoint(wasmBuffer[i]);
+    }
+
+    //let win1251decoder = new TextDecoder('utf-16le');
+    return [len, newLetter];
+}
+
+var unicodeMode = 1; //pua
+function handleKey(evt) {
+    var val = this.value;
+    evt = evt || window.event;
+
+    if (typeof(accentSyllableWASM) != "function") {
+        return true;
+    }
+
+    var charCode = typeof(evt.which) == "number" ? evt.which : evt.keyCode;
+
+    if (charCode && charCode > 64 && charCode < 123) //letter
+    {
+        var start = this.selectionStart;
+        var end = this.selectionEnd;
+        var key = String.fromCharCode(charCode);
+
+        var mappedChar = transliterate(key);
+        var charsToReplace = 0;
+        this.value = val.slice(0, start - charsToReplace) + mappedChar + val.slice(end);
+        // Move the caret
+        this.selectionStart = this.selectionEnd = start + 1 - charsToReplace;
+        return false;
+    }
+    else if (charCode && charCode > /*47 blocking underdot here*/47 && charCode < 58) { //number: 0-9 are 48-57
+        var key = String.fromCharCode(charCode);
+        var hckey = 0;
+        switch( parseInt(key) ) {
+            case 1:
+                hckey = 5; //rough
+                break;
+            case 2:
+                hckey = 6; //smooth
+                break;
+            case 3:
+                hckey = 1; //acute
+                break;
+            case 4:
+                hckey = 3; //grave
+                break;
+            case 5:
+                hckey = 2; //circumflex
+                break;
+            case 6:
+                hckey = 4; //macron
+                break;
+            case 7:
+                hckey = 10; //breve
+                break;
+            case 8:
+                hckey = 7; //iota subscript
+                break;
+            case 9:
+                hckey = 9; //diaeresis
+                break;
+            case 0:
+                hckey = 11; //underdot
+                break;
+        }
+        var start, end;
+        if (typeof(this.selectionStart) == "number" && typeof(this.selectionEnd) == "number") {
+            // Non-IE browsers and IE 9+
+            start = this.selectionStart;
+            end = this.selectionEnd;
+
+            var combining = [0x0300, 0x0301, 0x0304, 0x0306, 0x0308, 0x0313, 0x0314, 0x0323, 0x0342, 0x0345];
+            var off = 1;
+            for (var i = start; i > -1; i--)
+            {
+                if (combining.indexOf(val.codePointAt(i - 1)) > -1) {
+                    off++;
+                }
+                else {
+                    break;
+                }
+            }
+            //0 pre
+            //1 pua
+            //2 comp
+            //unicodeMode = 1;//$("input:radio[name='unicodeMode']:checked").val();
+
+            var ret = accentSyllable(val.slice(start - off, start), hckey.toString());
+            var newLetter = ret[1];
+            var charsToReplace = start - (start - off);
+ 
+            if (ret[0] > 0 && newLetter != "")
+            {
+                //update the input/textarea
+                this.value = val.slice(0, start - charsToReplace) + newLetter + val.slice(end);
+                // Move the caret
+                this.selectionStart = this.selectionEnd = (start - charsToReplace) + ret[0];
+            }
+
+        } 
+        return false;
+    }
+    return true;
+}
+
+    var lemmaListWordTree = null;
+    function onload()
+    {
+        /*
+        var blah = new Array();
+        for (var i = 0; i < 2000; i++)
+        {
+            blah.push(["blah",i]);
+        }
+        var t = "";
+        blah.forEach(function (i,v) {
+            var a = document.getElementById("wordscontents"); 
+            
+            var b = document.createElement("div"); 
+            b.id = "word" + i[1];
+            b.className += "listword";
+            b.setAttribute("tabindex","0");
+            b.innerHTML = i[0] + i[1];
+            a.appendChild(b);
+            t += "<span id='text" + i[1] + "' class='textword'>" + i[0] + "<\/span>"+ "<span class='superscript'>" + i[1] + "<\/span> ";
+        });
+        var text = document.getElementById("textcontents"); 
+        text.innerHTML = t;
+        $(".textword").click(function() {scrollToTextID(this.id)});
+        $(".listword").click(function() {scrollToWordID(this.id)});
+        //$("#words").css("border","2px solid green");
+        */
+
+//
+
+        var thisText = getCookie("selectedText");
+        if (thisText === null || parseInt(thisText) < 1/* || parseInt(thisText) > 116*/)
+        {
+            thisText = 1;
+        }
+        if ( typeof(landingWordId) != "undefined" ) {
+            getTextByWordId(landingWordId);
+        }
+        else
+        {
+            getwords(parseInt(thisText));//ion = 2
+        }
+        $("#selectText").val(thisText);
+        $("#selectText").change(function() { 
+            getwords(this.value);
+            setCookie("selectedText", this.value, 60);
+            //var val = $('#selectedText option:selected').val();
+            //alert(this.value);
+        });
+
+        getAssignments();
+        
+        var w = new wordtree("test1", 480, $(document).height() - 36);
+        //w.columnOffsets = [0,240,0,0];
+        w.columnOffsets = [0,0,0,0];
+        w.params.lexicon = "hqvocab";
+        w.params.mode = "context";
+        w.div.style.borderRadius = "14px";
+        w.div.style.margin = "10px";
+        w.div.style.border = "2px solid black";
+        w.div.style.zIndex = "990";
+        w.show(document.getElementById("leftlist"));
+        lemmaListWordTree = w;
+        w.hideFunction = hideLemmaList;
+
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideLemmaList()'><div style='padding:6px;'>X</div></div></div>";
+        w.title.innerHTML = title;
+
+        w.refresh();
+        w.onEnterActivate = addLemmaIDEnter;//addWordToList;
+        //w.onEnterActivate = removeDuplicate;
+        //w.onClickActivate = act;
+        //w.onSelectionChanged = act;
+
+        $("#test1Entry").css("font-size", "14pt").addClass("gkinput");
+        $(".gkinput").keypress(handleKey);
+    }
+
+    function selectLemmaFormToggle()
+    {
+        /*if (selectedWordInList === null)
+        {
+            alert("First select a word.");
+            return;
+        }*/
+        if ( $("#leftlist").is(":visible") ) {
+            hideLemmaList();
+        }
+        else {
+            showLemmaList();
+        }
+    }
+
+    function showNoClick()
+    {
+        $("#noclick").css("display", "block");
+    }
+    function hideNoClick()
+    {
+        $("#noclick").css("display", "none");
+    }
+
+    function annotateGloss() {
+        if (selectedWordInList === null)
+        {
+            alert("You must select a word to edit.");
+            return;
+        }
+        var a = $("#word" + selectedWordInList);
+        if (a.length < 1)
+        {
+            alert("Try re-selecting your word and try again.");
+            return;
+        }        
+
+        if ( $("#annotateformcontainer").is(":visible") ) {
+            annotateFormClose();
+        }
+        else {
+            getAnnotateData(selectedWordInList);
+            annotateFormShow();
+        }  
+    }
+    function annotateFormShow()
+    {
+        annotateFormClear();
+        $("#annotateformcontainer").show();
+        $("#annotateform").show();
+        $("#AnnotateInput").focus();
+        showNoClick();
+    }    
+    function annotateFormClose()
+    {
+        $("#annotateformcontainer").hide();
+        $("#annotateform").hide();
+        hideNoClick();
+    }
+    function annotateFormClear()
+    {
+        $("#AnnotateInput").val("");
+    }
+
+    function editLemmaFormToggle()
+    {
+        if (selectedWordInList === null)
+        {
+            alert("You must select a word to edit.");
+            return;
+        }
+        var a = $("#word" + selectedWordInList);
+        if (a.length < 1)
+        {
+            alert("Try re-selecting your word and try again.");
+            return;
+        }
+        var lemmaid = a.attr("lemmaid");
+        if (typeof(lemmaid) == "undefined" || lemmaid === null || lemmaid == "")
+        {
+            alert("A gloss must be set on a word before you can edit it.  Use Select Gloss.");
+            return;
+        }
+
+        if ( $("#editformcontainer").is(":visible") ) {
+            newLemmaFormClose();
+        }
+        else {
+            $("#editFormTitle").html("<b>Edit</b>");
+            $("#EditInputHQID").html(""); //clear before loading
+            getEditLemmaData(lemmaid);
+
+            newLemmaFormShow();
+        }        
+    }
+
+    function editLemmaFormToggle2(lemmaid) {
+        $("#editFormTitle").html("<b>Edit</b>");
+        $("#EditInputHQID").html(""); //clear before loading
+        getEditLemmaData(lemmaid);
+
+        newLemmaFormShow();
+    }
+
+    function newLemmaFormToggle()
+    {
+        if ( $("#editformcontainer").is(":visible") ) {
+            newLemmaFormClose();
+        }
+        else {
+            $("#editFormTitle").html("<b>New</b>");
+            $("#EditInputHQID").html(""); //clear before loading
+            newLemmaFormShow();
+        }
+    }
+    function newLemmaFormShow()
+    {
+    	newLemmaFormClear();
+    	$("#arrowedrow").hide();
+    	$("#editformcontainer").show();
+    	$("#editform").show();
+        $("#EditInputLemma").focus();
+        showNoClick();
+    }
+    function newLemmaFormClose()
+    {
+    	$("#editformcontainer").hide();
+    	$("#editform").hide();
+        hideNoClick();
+    }
+	function newLemmaFormClear()
+	{
+		$("#EditInputGloss").val("");
+		$("#EditInputPOS").val("");
+        $("#EditInputNote").val("");
+        //$("#EditInputNotef").val("");
+		$("#EditInputLemma").val("");
+		$("#EditInputArrowed").attr("checked",false);
+	}
+    
+    function showLemmaList()
+    {
+        $("#test1Entry")[0].value = "";
+        //lemmaListWordTree.refresh();
+
+        $("#leftlist").css("display", "");
+        $("#test1Entry").focus();
+        showNoClick();
+    }
+    function hideLemmaList()
+    {
+        $("#test1Entry")[0].value = "";
+        $("#leftlist").css("display", "none");
+        lemmaListWordTree.refresh();
+        hideNoClick();
+    }
+
+    function toggleLemmaList(wordid)
+    {
+        /*
+        $("#listheadword" + wordid).attr('contentEditable',true);
+        $("#listpos" + wordid).attr('contentEditable',true);
+        $("#listdef" + wordid).attr('contentEditable',true);
+        */
+        if ( $("#listheadword" + wordid).is(":visible") )
+        {
+            $("#listheadword" + wordid).css("display","none");
+            $("#listpos" + wordid).css("display","none");
+            $("#listdef" + wordid).css("display","none");
+            var a = $("#editform").detach();
+            a.css("display","");
+            $("#word" + wordid).prepend(a);
+
+            $("#EditInputLemma").val( $("#listheadword" + wordid).html() );
+            $("#EditInputPOS").val( $("#listpos" + wordid).html() );
+            $("#EditInputGloss").val( $("#listdef" + wordid).html() );
+
+/*
+            var l = $("<input></input>");
+            l.addClass("wordInput");
+            l.attr("id", "wordInput" + wordid);
+            l.attr("type", "text");
+            $("#word" + wordid).prepend(l);
+
+            var a = $("<input></input>");
+            a.addClass("wordInput");
+            a.attr("id", "wordInput" + wordid);
+            a.attr("type", "text");
+            $("#word" + wordid).prepend(a);
+
+            var a1 = $("<input></input>");
+            a1.addClass("wordInput");
+            a1.attr("id", "wordInput" + wordid);
+            a1.attr("type", "text");
+            $("#word" + wordid).prepend(a1);
+
+            var a2 = $("<input></input>");
+            a2.addClass("wordInput");
+            a2.attr("id", "wordInput" + wordid);
+            a2.attr("type", "text");
+            $("#word" + wordid).prepend(a2);
+            */
+        }
+        else
+        {
+            var a = $("#editform").detach();
+            a.css("display","none");
+            $("#editformcontainer").append(a);
+
+            $("#listheadword" + wordid).css("display","");
+            $("#listpos" + wordid).css("display","");
+            $("#listdef" + wordid).css("display","");
+        }
+        /*
+        if ($("#leftlist").is(":visible") == true)
+        {
+            hideLemmaList();
+        }
+        else
+        {
+            showLemmaList();
+        }
+        */
+    }
+
+    var selectedWordInList = null;
+    //click on wordlist
+    function scrollToWordID(id)
+    {   
+        if ( $("#" + id).hasClass("selectedWord") ) {
+            return;
+        }
+        selectedWordInList = null;
+
+        var match = id.match(/word(\d+)/);
+        if (match && match.length > 1)
+        {
+            var wordsid = "text" + match[1];
+            selectedWordInList = match[1];
+            console.log("Selected word from list: " + selectedWordInList);
+
+            //alert(selectedWordInList);
+            $(".selectedWord").removeClass("selectedWord");
+            $("#" + id).addClass("selectedWord");
+            //$("#" + id).html("<input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/><br><input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/>");
+            $("#" + wordsid).addClass("selectedWord");
+            
+            
+            var a = document.getElementById(wordsid);
+            if (a) {
+                a.scrollIntoView({
+                    behavior: 'auto',
+                    block: 'center',
+                    inline: 'center'
+                });
+            }
+
+            $("#editbutton").remove();
+            /* remove edit button for now
+            if ( $("#" + id).hasClass("hqListWord") )
+            {
+	            $("#" + id).append("<div id='editbutton'><button onclick='toggleLemmaList(" + match[1] + ")'>edit</button></div>");
+        	}
+        	*/
+        }
+    }
+    
+    function scrollToTextID(id)
+    {
+        var match = id.match(/text(\d+)/);
+        if (match && match.length > 1)
+        {
+            var wordsid = "word" + match[1];
+            selectedWordInList = match[1];
+            console.log("Selected word from text: " + selectedWordInList);
+
+            $(".selectedWord").removeClass("selectedWord");
+            $("#" + id).addClass("selectedWord");
+            $("#" + wordsid).addClass("selectedWord");
+            
+            var a = document.getElementById(wordsid);
+            if (a) {
+                a.scrollIntoView({
+                    behavior: 'auto',
+                    block: 'center',
+                    inline: 'center'
+                });
+            }
+        }
+    }
+
+    function getTextByWordId(wordid)
+    {
+        console.log("getting words from text by wordid: " + wordid);
+        var url = "query?wordid=" + wordid + "&text=0";;
+        $.ajax({
+            url: url,
+            type: "GET",
+            data: {},
+            dataType: "text",//JSON automatically deserializes json
+            success: function (data, textStatus, jqXHR){ 
+                procResponse(data, textStatus); 
+            },
+            error: function(response) {
+                console.log("error getting words by wordid... trying again...");
+                getwords(url); //redo request on error
+
+            }
+        });
+    }
+    
+    function getwords(text)
+    {
+        console.log("getting words from text: " + text);
+        var url = "query?text=" + text + "&wordid=0";
+    	$.ajax({
+    		url: url,
+    		type: "GET",
+    		data: {},
+    		dataType: "text",//JSON automatically deserializes json
+    		success: function (data, textStatus, jqXHR){ 
+    			procResponse(data, textStatus); 
+    		},
+    		error: function(response) {
+                console.log("error getting words... trying again...");
+    			//getwords(url); //redo request on error
+                return;
+
+    		}
+	    });
+    }
+
+    function getAssignments()
+    {
+        console.log("getting words from text: " + text);
+        var url = "assignments";
+    	$.ajax({
+    		url: url,
+    		type: "GET",
+    		data: {},
+    		dataType: "text",//JSON automatically deserializes json
+    		success: function (data, textStatus, jqXHR){ 
+    			procGetAssignments(data, textStatus); 
+    		},
+    		error: function(response) {
+                console.log("error getting assignments");
+    			return;
+    		}
+	    });
+    }
+
+    function insertSpaceBefore(w) {
+        //if (w == ">" || w == ";" || w == ";" || w == "·" || w == "." || w == "," || w == "·" || w == ";") {
+
+        var punc = [">", ";"/*037E*/, "·"/*0387*/, ";", "·", ".", ",", "·", ";"];
+        if (punc.indexOf(w) > -1) {
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+
+    function procGetAssignments(str, status)
+    {
+        //console.log("Proc Response: " + str);
+        //alert(str);
+        
+        var returnObj;
+        try {
+            if (typeof JSON != "undefined") {
+                returnObj = JSON.parse(str);
+            }
+            else {
+                return;
+            }
+        }
+        catch(e) { alert("Error: " + e.message + "\n" + str); return};
+        
+        if (!returnObj)
+            return;
+
+        if (returnObj.error) {
+            console.log(returnObj.error);
+            return;
+        }
+
+        var select = document.getElementById("selectText");
+        for (var i = 0; i < returnObj.length; i++) {
+            var o = document.createElement("option");
+            o.value = returnObj[i].id;
+            o.innerHTML = returnObj[i].assignment;
+            select.appendChild(o);
+        }
+    }
+
+    function procResponse(str, status)
+    {
+        //console.log("Proc Response: " + str);
+        //alert(str);
+        
+        var returnObj;
+        try {
+            if (typeof JSON != "undefined") {
+                returnObj = JSON.parse(str);
+            }
+            else {
+                return;
+            }
+        }
+        catch(e) { alert("Error: " + e.message + "\n" + str); return};
+        
+        if (!returnObj)
+            return;
+
+        if (returnObj.error) {
+            console.log(returnObj.error);
+            return;
+        }
+            
+        //alert(returnObj.blah[2].word);
+//types
+//0 word
+//1 punct
+//2 speaker
+//4 section
+//5 new line for verse #
+//6 new para with indent
+//7 work title
+//8 section title centered
+//9 inline speaker, so 2, but inline
+//10 new para without indent
+        
+        var t = "";
+        var a = document.getElementById("wordscontents"); 
+        a.innerHTML = ""; //clear old content
+        var firstOfSection = true;
+        if (returnObj.thisText) {
+           $("#selectText").val(returnObj.thisText);
+        }
+        if (returnObj.words && Array.isArray(returnObj.words)) {
+            returnObj.words.forEach(function (i,v) {
+
+                if (i.t < 1 )//&& !i.l)
+                {
+                    var b = document.createElement("div"); 
+                    b.id = "word" + i.i;
+                    if (i.hqid !== null)
+                    {
+                        b.setAttribute("lemmaid", i.hqid);
+                    }
+                    //b.setAttribute("seq", i.s);
+                    
+                    b.className += "listword";
+                    //b.setAttribute("tabindex","0");
+                    
+                    if (i.l) //parseInt(i.u) < 21)
+                    {
+                        b.className += " hqListWord";
+                    }
+                    if (!i.l) //lemma is null
+                    {
+                        b.innerHTML = "<div class='clickablelistword'><span class='listheadword'>" + i.w + "</span><span style='display:none;' id='lemmaAdd" + i.i + "'>" + i.l1 + "</span></div>";
+                    }
+                    else
+                    {
+                        var arrowedClass = "";
+                        if (i.s2 === i.s) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
+                            b.className += " arrowedHere";
+                        }
+                        else if (i.s2 !== null && parseInt(i.s2) < parseInt(i.s)) //hideable
+                        {
+                            b.className += " alreadyArrowed";
+                        }
+
+                        if (i.if && parseInt(i.if) == 1) {
+                            b.className += " flagged";
+                        }
+                        //setListRow(textwordid, lemmaid, lemma, pos, def, arrowed, seq);
+                        b.innerHTML = getListWordString(i.i, i.l, i.pos, i.def, i.rc, i.c);//"<div id='arrow" + i.i + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + i.i + "'>" + i.l + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + i.i + "'>" + i.pos + "</span>) </span><span class='listdef' id='listdef" + i.i + "'>" + i.def + "</span> <a class='listfrequency' href=''>[" + i.rc + " of " + i.c + "]</a></div>";
+                    }
+
+                    a.appendChild(b);
+                }
+                if (i.t == 2 || i.t == 4)
+                {
+                    if (firstOfSection) {
+                        firstOfSection = false;
+                    }
+                    else {
+                        t += "<br><br>"; //not for first section
+                    }
+
+                    i.w = "<b style='font-family:helvetica,arial;'>" + i.w + "</b><br>";
+                    t += i.w.replace("[section]", "");
+                }
+                else if (i.t == 5)
+                {
+                    t += "<br>" + i.w.replace("[line]", "") + "&nbsp;&nbsp;&nbsp;";
+                }
+                else
+                {
+                    t += (insertSpaceBefore(i.w) ? " " : "") + "<span id='text" + i.i + "' class='textword'>" + i.w + "<\/span>" /*+ "<span class='superscript'>" + i.i + "<\/span> "*/;
+                }
+            });
+        }
+        var text = document.getElementById("textcontents");
+        text.innerHTML = t;
+        if (returnObj.selectedid && parseInt(returnObj.selectedid) > 0) {
+
+            scrollToWordID("word" + returnObj.selectedid);
+            scrollToTextID("text" + returnObj.selectedid);
+            
+        }
+        else {
+            $("#text").scrollTop(0);
+            $("#words").scrollTop(0);
+        }
+        $(".textword").click(function() {scrollToTextID(this.id)});
+        $(".clickablelistword").click(function() {scrollToWordID(this.parentNode.id)});
+        $(".listarrow").click(toggleArrow);
+        
+        //$("#words").css("border","2px solid green");
+    }
+    /*
+    function addGloss(id)
+    {
+    	selectedWordInList = id;
+        //alert(selectedWordInList);
+    	showLemmaList();
+    }
+    */
+
+    function hide1()
+    {
+        $(".alreadyArrowed").css("display","none");
+        $("#hideButton").css("display","none");
+        $("#showButton").css("display","");
+    }
+    function show1()
+    {
+        $(".alreadyArrowed").css("display","block");
+        $("#showButton").css("display","none");
+        $("#hideButton").css("display","");
+    }
+
+    function showToast(msg) {
+  // Get the snackbar DIV
+  var x = document.getElementById("snackbar");
+  if (msg)
+  {
+    x.innerHTML = msg;
+    }
+  x.className = "show";
+  // After 3 seconds, remove the show class from DIV
+  setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+} 
+
+/**** ajax calls to db ******/
+function removeDuplicate(lex, id) 
+{     
+    var vlemmaid = id[1];
+    
+    //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
+    //hideLemmaList();
+
+    //console.log("xxx");//selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
+    realRemoveDuplicate(selectedWordInList, vlemmaid);
+}
+
+function addLemmaIDEnter(lex, id) 
+{     
+    if (selectedWordInList === null)
+    {
+        alert("First select a word.");
+        return;
+    }
+    var vlemmaid = id[2];
+    var vlemmastr = "";
+    var a = $("#lemmaAdd" + selectedWordInList);
+    if (a.length > 0) {
+        vlemmastr = a[0].innerHTML;
+    }
+    
+    //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
+    hideLemmaList();
+
+    console.log("addLemmaIDEnter: " + selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
+    realAddLemmaIDEnter(selectedWordInList, vlemmaid, vlemmastr);
+}
+
+function annotateFormSubmit()
+{
+    alert("Doesn't work yet!");
+    annotateFormClose();
+    return;
+
+    var id = $("#AnnotateWordID").html();
+    var newNote = $("#AnnotateInput").val();
+
+    //remove returns, tabs, and trim
+    newNote = newNote.replace(/---/g, "—");
+    newNote = newNote.replace(/[\t\n\r\b]/g, "").replace(/  +/g, ' ').trim();
+
+    if (id !== null && id != "")
+    {
+        console.log("edit annotation: " + id);
+        realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote);
+    }
+    annotateFormClose();
+}
+
+function newLemmaFormSubmit()
+{
+    var editHQID = $("#EditInputHQID").html();
+    var newLemma = $("#EditInputLemma").val();
+    var newPOS = $("#EditInputPOS").val();
+    var newGloss = $("#EditInputGloss").val();
+    var newNote = $("#EditInputNote").val();
+
+    if (!newLemma || newLemma.length < 1)
+    {
+        alert("Lemma field cannot be empty.");
+        return;
+    }
+    if (!newPOS || newPOS.length < 1)
+    {
+        alert("POS field cannot be empty.");
+        return;
+    }
+    if (!newGloss || newGloss.length < 1)
+    {
+        alert("Gloss field cannot be empty.");
+        return;
+    }
+
+    //remove returns, tabs, and trim
+    newLemma = newLemma.replace(/---/g, "—");
+    newLemma = newLemma.replace(/[\t\n\r\b]/g, "").replace(/  +/g, ' ').trim();
+    newPOS = newPOS.replace(/[\t\n\r\b]/g, "").replace(/  +/g, ' ').trim();
+    newGloss = newGloss.replace(/---/g, "—");
+    newGloss = newGloss.replace(/[\t\n\r\b]/g, "").replace(/  +/g, ' ').trim();
+    newNote = newNote.replace(/---/g, "—");
+    newNote = newNote.replace(/[\t\n\r\b]/g, "").replace(/  +/g, ' ').trim();
+
+    if (editHQID !== null && editHQID != "")
+    {
+        console.log("edit: " + editHQID);
+        realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote);
+    }
+    else
+    {
+        console.log("insert");
+        realNewLemmaFormSubmit(newLemma, newPOS, newGloss, newNote);
+    }
+    newLemmaFormClose();
+}
+
+var vToggleArrowPending = false;
+function toggleArrow() 
+{
+    if (vToggleArrowPending) {
+        return;
+    }
+    var arrowID = this.id;
+    var textwordid = arrowID.substring(5); //without "arrow" prefix
+    var lemmaid = this.parentNode.getAttribute("lemmaid");
+    var toggleOff = ( $("#" + arrowID).parents(".arrowedHere").length > 0 );
+
+    realToggleArrow(textwordid, lemmaid, toggleOff);
+}
+
+/***** real ajax functions ******/
+
+function getAnnotateData(vWordid)
+{
+    console.log("get annotation: " + vWordid);
+   $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:"getWordAnnotation",wordid:vWordid },
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){ 
+            //procResponse(data, textStatus); 
+            //showToast("success: " + data);
+            console.log("get annotation: " + data);
+            var returnObj;
+            try {
+                if (typeof JSON != "undefined") {
+                    returnObj = JSON.parse(data);
+                }
+                else {
+                    returnObj = eval("(" + data + ")");
+                }
+            }
+            catch(e) { alert("Error: " + e.message + "\n" + data); return};
+            
+            if (!returnObj)
+                return;
+
+            var w = returnObj.words;
+
+            for (var i = 0; i < w.length; i++)
+            {
+                $("#AnnotateWordID").html(w[i].wid);
+                $("#AnnotateInput").val(w[i].an);    
+            }
+        },
+        error: function(response) {
+            //getwords(url); //redo request on error
+            showToast("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+            console.log("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+        }
+    });
+}
+function getEditLemmaData(vLemmaid)
+{
+    console.log("get lemmaid: " + vLemmaid);
+   $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:"getLemma",lemmaid:vLemmaid },
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){ 
+            //procResponse(data, textStatus); 
+            //showToast("success: " + data);
+            console.log("get lemma: " + data);
+            var returnObj;
+            try {
+                if (typeof JSON != "undefined") {
+                    returnObj = JSON.parse(data);
+                }
+                else {
+                    returnObj = eval("(" + data + ")");
+                }
+            }
+            catch(e) { alert("Error: " + e.message + "\n" + data); return};
+            
+            if (!returnObj)
+                return;
+
+            var w = returnObj.words;
+
+            for (var i = 0; i < w.length; i++)
+            {
+                //var wid = w[i].i;
+                $("#EditInputHQID").html(w[i].hqid);
+                $("#EditInputLemma").val(w[i].l);
+                $("#EditInputPOS").val(w[i].pos);
+                $("#EditInputGloss").val(w[i].g);
+                $("#EditInputNote").val(w[i].n);
+                //var lemmaid = w[i].hqid
+                //var lemma = w[i].l;
+                //var pos = w[i].pos;
+                //var gloss = w[i].g;     
+            }
+        },
+        error: function(response) {
+            //getwords(url); //redo request on error
+            showToast("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+            console.log("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+        }
+    });
+}
+
+function realRemoveDuplicate(vTextWordID, vlemmaid)
+{
+    return;
+   $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:"removeDuplicate",textwordid:vTextWordID, lemmaid:vlemmaid},
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){  
+            showToast("success: " + data);
+            console.log("remove duplicate: " + data);
+        },
+        error: function(response) {
+            showToast("error in realRemoveDuplicate: " + vlemmaid);
+        }
+    });
+}
+
+function realAddLemmaIDEnter(vTextWordID, vlemmaid, vlemmastr)
+{
+   $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr},
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){ 
+            //procResponse(data, textStatus); 
+            
+            console.log("update lemma: " + data);
+            var returnObj;
+            try {
+                if (typeof JSON != "undefined") {
+                    returnObj = JSON.parse(data);
+                }
+                else {
+                    returnObj = eval("(" + data + ")");
+                }
+            }
+            catch(e) { alert("Error: " + e.message + "\n" + data); return};
+            
+            showToast("gloss updated: " + returnObj.success);
+
+            if (!returnObj || returnObj.affectedrows < 1)
+                return;
+
+            var w = returnObj.words;
+
+            for (var i = 0; i < w.length; i++)
+            {
+                var wid = w[i].i;
+                var lemmaid = w[i].hqid;
+                var lemma = w[i].l;
+                var pos = w[i].pos;
+                var gloss = w[i].g;
+                //var seq = w[i].seq;
+
+                if ( updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, w[i].rc, w[i].fr, w[i].ls, w[i].ws, w[i].fl) ) {
+                    $("#word" + wid + " .clickablelistword").click(function() {scrollToWordID(this.parentNode.id)});
+                    $("#arrow" + wid).click(toggleArrow);
+                }
+                //alert("(" + w[i].rc + " of " + w[i].fr + ") " + w[i].ws + ", " + w[i].ls);
+            }
+            
+            /*
+            else {
+                console.log("error");
+                return;
+            }
+            */
+        },
+        error: function(response) {
+            //getwords(url); //redo request on error
+            showToast("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+        }
+    });
+}
+
+function updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid)
+{
+    $(".listword[lemmaid='" + lemmaid + "']").each(function(idx,el){
+        var $e = $(el);
+        $e.find(".listheadword").html(lemma);
+        $e.find(".listpos").html(pos);
+        $e.find(".listdef").html(gloss);
+    });
+}
+
+function getListWordString(wid, lemma, pos, gloss, count, total) {
+    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href=''>[" + count + " of " + total + "]</a></div>";
+}
+
+function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, lemmaSeq, wordSeq, flagged)
+{
+    var $a = $("#word" + wid);
+    if ($a.length > 0) {
+
+        $a.id = "word" + wid;
+        $a.removeClass();
+        $a.addClass("listword hqListWord");
+        $a.attr("lemmaid", lemmaid);
+        //$a.attr("seq", seq);
+
+        if (lemmaSeq === wordSeq) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
+            $a.addClass("arrowedHere");
+        }
+        else if (lemmaSeq !== null && parseInt(lemmaSeq) < parseInt(wordSeq)) //hideable
+        {
+            $a.addClass("alreadyArrowed");
+        }
+
+        if (flagged == "1") {
+            $a.addClass("flagged");
+        }
+        else {
+            $a.removeClass("flagged");
+        }
+        
+        var row = getListWordString(wid, lemma, pos, gloss, count, total);
+        $a.html(row);
+        return true;
+    }
+    return false;
+}
+
+function realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote)
+{
+    if (typeof(accentSyllableWASM) != "function") {
+        console.log("Error: does not support editing: no wasm.");
+        return;
+    }
+    var newLemmaStripped = stripDiacriticsLocal(newLemma);
+    console.log("stripped: " + newLemmaStripped);
+
+    var editOrInsert = "";
+    var localEditHQID = 0;
+    if (parseInt(editHQID) && parseInt(editHQID) > 0)
+    {
+        editOrInsert = "editlemma";
+        localEditHQID = editHQID;
+    }
+    else {
+        editOrInsert = "newlemma";
+    }
+
+    $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:editOrInsert,hqid:localEditHQID, lemma:newLemma, strippedLemma:newLemmaStripped, pos:newPOS, def:newGloss, note:newNote},
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){ 
+            //procResponse(data, textStatus); 
+            showToast("success: " + data);
+            console.log("realEditLemmaFormSubmit1: " + data);
+
+
+            var returnObj;
+            try {
+                if (typeof JSON != "undefined") {
+                    returnObj = JSON.parse(data);
+                }
+                else {
+                    returnObj = eval("(" + data + ")");
+                }
+            }
+            catch(e) { alert("Error: " + e.message + "\n" + data); return};
+            
+            if (!returnObj || returnObj.affectedrows < 1)
+                return;
+
+            var w = returnObj.words;
+
+            for (var i = 0; w && i < w.length; i++)
+            {
+                //var wid = w[i].i;
+                var lemmaid = w[i].hqid
+                var lemma = w[i].l;
+                var pos = w[i].pos;
+                var gloss = w[i].g;
+                //var seq = w[i].seq;
+
+                updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid);
+            }
+        },
+        error: function(response) {
+            //getwords(url); //redo request on error
+            showToast("error in realEditLemmaFormSubmit.");
+            console.log("realEditLemmaFormSubmit2");
+        }
+    });
+}
+
+function realNewLemmaFormSubmit(newLemma, newPOS, newGloss, newNote)
+{
+    realEditLemmaFormSubmit(null, newLemma, newPOS, newGloss, newNote);
+}
+
+function realToggleArrow(vTextWordID, vLemmaID, toggleOff)
+{
+    var vTextWordIdOrZero = (toggleOff) ? 0 : vTextWordID;
+    vToggleArrowPending = true;
+    $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:"arrowWord",setArrowedIDTo:vTextWordIdOrZero, forLemmaID:vLemmaID},
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){ 
+            var returnObj = JSON.parse(data);
+            if (returnObj.affectedRows == "1") {
+                //clear arrow from all with this lemmaid first, so we never end up with multiple arrows displaying for same lemma
+                $(".listword[lemmaid='" + vLemmaID + "'] > .listarrow").html(""); 
+
+                //add or remove arrow to this word
+                if (toggleOff) {        
+                    $("#arrow" + vTextWordID).parent().removeClass("arrowedHere");
+                }
+                else {
+                    $("#arrow" + vTextWordID).parent().addClass("arrowedHere");
+                }
+                //show or hide rows with same lemmaid after this row.
+                //fix me, we are using id rather than seq.  should use seq
+                $(".listword[lemmaid='" + vLemmaID + "']").each(function(idx,el){
+                    if ( parseInt( el.id.substring(4) ) > parseInt( vTextWordID ) ) {
+                        if (toggleOff) {
+                            $(this).removeClass("alreadyArrowed");
+                        }
+                        else {
+                            $(this).addClass("alreadyArrowed");
+                        }
+                    }   
+                 });
+
+                console.log(data);
+            }
+            else {
+                showToast("error1 updating arrow for: arrow" + vTextWordID);
+                console.log(data);
+            }
+            vToggleArrowPending = false;
+        },
+        error: function(response) {
+            //getwords(url); //redo request on error
+            showToast("error2 updating arrow for: arrow" + vTextWordID);
+            console.log("error updating arrow for: arrow" + vTextWordID);
+            vToggleArrowPending = false;
+        }
+    });
+}
+
+var vToggleFlagPending = false;
+function realToggleFlag(vTextWordID, flagged)
+{
+    var vIsFlagged = (flagged == 1) ? 1 : 0;
+    vToggleFlagPending = true;
+    $.ajax({
+        url: "addLemmaID.php",
+        type: "POST",
+        data: {qtype:"flagUnflagWord",isFlagged:vIsFlagged, forWordID:vTextWordID},
+        dataType: "text",//JSON automatically deserializes json
+        success: function (data, textStatus, jqXHR){ 
+            var returnObj = JSON.parse(data);
+            if (returnObj.success) {
+                //add or remove flag to this word
+                if (returnObj.isFlagged == "1") {        
+                    $("#word" + vTextWordID).addClass("flagged");
+                }
+                else {
+                    $("#word" + vTextWordID).removeClass("flagged");
+                }
+
+                console.log(data);
+            }
+            else {
+                showToast("error1 updating flag for: " + vTextWordID);
+                console.log(data);
+            }
+            vToggleFlagPending = false;
+        },
+        error: function(response) {
+            //getwords(url); //redo request on error
+            showToast("error2 updating arrow for: arrow" + vTextWordID);
+            console.log("error updating arrow for: arrow" + vTextWordID);
+            vToggleFlagPending = false;
+        }
+    });
+}
+
+function setCookie(name, value, days) 
+{
+    if (days) 
+    {
+        var date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        var expires = "; expires=" + date.toGMTString();
+    }
+    else 
+    {
+        var expires = "";
+    }
+    document.cookie = name + "=" + value + expires + "; path=/";
+}
+
+function getCookie(name)
+{
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+
+    for (var i = 0; i < ca.length; i++) 
+    {
+        var c = ca[i];
+
+        while (c.charAt(0) == ' ') 
+            c = c.substring(1, c.length);
+
+        if (c.indexOf(nameEQ) == 0) 
+            return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+
+function eraseCookie(name) 
+{
+    setCookie(name, "", -1);
+}
+
+function flagToggle() {
+    if (vToggleFlagPending) {
+        return;
+    }
+    var a = $("#word" + selectedWordInList);
+    if ( a.length == 1) {
+
+        var isFlagged = (a.hasClass("flagged")) ? 0 : 1; //invert
+        realToggleFlag(selectedWordInList, isFlagged);
+    }
+}
+
+</script>
+<style>
+
+.arrowedHere .listarrow::after {
+    content:"→";
+}
+.flagged { border:2px solid red; }
+.gkinput {font-family: WebIFAO, WebNewAthenaUnicode,NewAthenaUnicode, helvetica,arial;}
+.alreadyArrowed { display:none;color:#999; } /*default*/
+.alreadyArrowed .listarrow { display:none; }
+#editbutton {float:right;}
+.listpos {font-style: italic;}
+.listpos[contenteditable="true"] {font-style: italic;background-color:white;}
+.listheadword[contenteditable="true"] {font-weight: bold;background-color:white;}
+.listdef[contenteditable="true"] {background-color:white;}
+.listheadword {font-weight: bold;}
+.listposwrapper {display:none;}
+.listword:not(.hqListWord) .listheadword {
+	color:red;
+	font-weight: bold;
+}
+
+.wordlemma { color:red;}
+.selectedWord { background-color:orange !important; }
+.listword.selectedWord { }
+
+.listword {cursor:pointer;
+  position:relative;
+  margin-left:30px;
+  margin-top: 6px;
+}
+.clickablelistword {padding:4px;
+  padding-left: 30px ;
+  text-indent: -30px ;}
+.listarrow {position:absolute;
+top:4px;
+left:-30px;
+font-size: 11pt;
+height: 20px;
+width: 20px;
+border: 1px solid #ddd;
+text-indent:0px;
+text-align:center;
+}
+.textword { cursor:pointer;}
+.textword:hover { background-color:yellow;}
+
+.superscript { 
+    vertical-align: super;
+    font-size: smaller;
+}
+html {
+    height:100%;
+    width:100%;
+    overflow: hidden;
+    position: fixed;
+    margin:0px; 
+    padding:0px;
+    }
+    BODY { 
+    font-family: WebIFAO, NewAthenaUnicode, WebNewAthenaUnicode,helvetica,arial;
+    font-size:12pt;
+    overflow:hidden;
+    margin:0px; 
+    padding:0px;
+    height:100%;
+    width:100%;
+    position: relative;
+    background-color:#ccc;
+    
+    }
+    #text { 
+    position:absolute;
+    left:10px;
+    top:33px;
+    /*border:2px solid blue;*/
+    border-radius:6px;
+    width:calc(50% - 15px);
+    height:calc(100% - 43px); 
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; 
+    padding:0px;
+    background-color:white;
+    }
+    #textcontents {
+        margin:10px;
+        line-height:1.4;
+    }
+    textarea {
+    resize: none;
+    }
+    #selectText {
+    height: 25px;
+    border: 2px solid black;
+    border-radius: 6px;
+    margin-right: 4px;
+    }
+    #words { 
+    position:absolute;
+    right:10px;
+    top:33px;
+    /*border:2px solid red;*/
+    border-radius:6px;
+    width:calc(50% - 15px);
+    height:calc(100% - 43px); 
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;   
+    padding:0px;
+    background-color:white;
+    }
+    #wordscontents {
+        margin:10px;
+    }
+    @font-face {
+      font-family: 'WebNewAthenaUnicode';
+      src: url('./newathu5_8.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'WebIFAO';
+      src: url('./IFAOGrec.ttf') format('truetype');
+    }
+
+     /* The snackbar - position it at the bottom and in the middle of the screen */
+#snackbar {
+  visibility: hidden; /* Hidden by default. Visible on click */
+  min-width: 250px; /* Set a default minimum width */
+  margin-left: -125px; /* Divide value of min-width by 2 */
+  background-color: #333; /* Black background color */
+  color: #fff; /* White text color */
+  text-align: center; /* Centered text */
+  border-radius: 2px; /* Rounded borders */
+  padding: 16px; /* Padding */
+  position: fixed; /* Sit on top of the screen */
+  z-index: 1; /* Add a z-index if needed */
+  left: 50%; /* Center the snackbar */
+  bottom: 30px; /* 30px from the bottom */
+}
+
+/* Show the snackbar when clicking on a button (class added with JavaScript) */
+#snackbar.show {
+  visibility: visible; /* Show the snackbar */
+  /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
+  However, delay the fade out process for 2.5 seconds */
+  -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+/* Animations to fade the snackbar in and out */
+@-webkit-keyframes fadein {
+  from {bottom: 0; opacity: 0;}
+  to {bottom: 30px; opacity: 1;}
+}
+
+@keyframes fadein {
+  from {bottom: 0; opacity: 0;}
+  to {bottom: 30px; opacity: 1;}
+}
+
+@-webkit-keyframes fadeout {
+  from {bottom: 30px; opacity: 1;}
+  to {bottom: 0; opacity: 0;}
+}
+
+@keyframes fadeout {
+  from {bottom: 30px; opacity: 1;}
+  to {bottom: 0; opacity: 0;}
+} 
+
+.editformlabel {width:70px;font-family:helvetica;font-size:10pt;}
+#editformcontainer, #annotateformcontainer {
+position: absolute;
+background-color: lightgray;
+position: absolute;
+top: 50%;
+left: 50%;
+margin-top: -150px;
+margin-left: -300px;
+width: 600px;
+/*height: 220px;*/
+padding: 14px;
+display:none;
+border: 2px solid black;
+border-radius: 10px;
+z-index:999;
+}
+button {margin:1px 4px;border: 2px solid black;
+border-radius: 6px;
+height: 25px;}
+.inputText { font-size:16pt;font-family:WebIFAO,WebNewAthenaUnicode,helvetica; }
+#noclick {z-index:888;position:absolute;top:0px;left:0px;height:100%;width:100%;background-color:#222;opacity:0.5;display:none;}
+</style>
+</head>
+<body onload="onload()">
+<div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
+    <select id="selectText">
+    	<!--<option value="1">H&Q</option>-->
+        <!--
+    	<option value="2">Ion</option>
+    	<option value="3">Medea</option>
+    	<option value="4">Xenophon's Apology</option>
+    	<option value="5">Lysias 1</option>
+    	<option value="6">Phaedrus</option>
+    	<option value="7">Thucydides 2</option>
+    	<option value="8">Ajax</option>-->
+    </select> 
+    <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen Glosses</button> 
+    <button id="showButton"  onclick="show1()">Show All Glosses</button> 
+    <button id="newLemmaButton" onclick="newLemmaFormToggle()" style="">New Gloss</button> 
+    <button id="editLemmaButton" onclick="editLemmaFormToggle()" style="">Edit Gloss</button> 
+    <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" style="">Select Gloss</button>
+    <button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>
+    <button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button> 
+</div>
+<div id="text">
+    <div id="textcontents"></div>
+</div>
+<div id="words">
+    <div id="wordscontents"></div>
+</div>
+  <div id="leftlist" style="display:none;position:absolute;top:0px;left:0px;height:100%;width:220px;"></div>
+  <div id="snackbar"></div>
+<div id="editformcontainer">
+    <div id="editform" style="display:none;">
+        <table style="width:100%;">
+            <tr><td colspan="2" class="editformlabel" id="editFormTitle"></td>
+            </tr>
+        <tr>
+            <td class="editformlabel">Lemma</td><td><input class="inputText gkinput" id="EditInputLemma" style="width:90%" type="text"/><span style="display:none;" id="EditInputHQID"></span></td>
+        </tr>
+        <!--<tr>
+            <td class="editformlabel">Parent</td><td><button id="EditInputParentWord">Set Parent</button></td>
+        </tr>-->
+        <tr id="arrowedrow">
+            <td class="editformlabel">Arrowed</td><td><input id="EditInputArrowed" type="checkbox"/></td>
+        </tr>
+        <tr>
+            <td class="editformlabel">PoS</td><td><input class="inputText" id="EditInputPOS" style="width:90%" type="text"/></td>
+        </tr>
+        <tr>
+            <td class="editformlabel">Gloss</td><td><textarea class="inputText" id="EditInputGloss" style="width:90%;height:96px;"></textarea></td>
+        </tr>
+        <tr>
+            <td class="editformlabel">Internal Note</td><td><textarea class="inputText" id="EditInputNote" style="width:90%;height:96px;"></textarea></td>
+        </tr>
+        <tr>
+            <td colspan="2" align="center"><button onclick="newLemmaFormClose()">Cancel</button><button onclick="newLemmaFormSubmit()">Submit</button></td>
+        </tr>
+        </table>
+    </div>
+</div>
+<div id="annotateformcontainer">
+    <div id="annotateform" style="display:none;">
+    <table style="width:100%;">
+        <tr>
+            <td class="editformlabel">Note</td><td>
+        <span style="display:none;" id="AnnotateWordID"></span>
+        <textarea class="inputText" id="AnnotateInput" style="width:90%;height:96px;"></textarea>
+</td>
+        </tr>
+        <tr>
+            <td colspan="2" align="center"><button onclick="annotateFormClose()">Cancel</button><button onclick="annotateFormSubmit()">Submit</button></td>
+        </tr>
+        </table>
+    </div>
+</div>
+<div id="noclick"></div>
+</body>
+</html>

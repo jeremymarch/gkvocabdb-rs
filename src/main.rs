@@ -53,8 +53,8 @@ struct QueryResponse {
 
 #[derive(Deserialize)]
 pub struct QueryRequest {
-    pub text: u32,
-    pub wordid: u32,
+    pub text: i32,
+    pub wordid: i32,
 }
 /*
 #[derive(Deserialize)]
@@ -98,6 +98,15 @@ async fn philologus_words((info, req): (web::Query<QueryRequest>, HttpRequest)) 
     Ok(HttpResponse::Ok().json(res))
 }
 
+#[allow(clippy::eval_order_dependence)]
+async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+
+    let w = get_assignment_rows(db).await.map_err(map_sqlx_error)?;
+
+    Ok(HttpResponse::Ok().json(w))
+}
+
 fn get_user_agent(req: &HttpRequest) -> Option<&str> {
     req.headers().get("user-agent")?.to_str().ok()
 }
@@ -139,6 +148,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/query")
                     .route(web::get().to(philologus_words)),
+            )
+            .service(
+                web::resource("/assignments")
+                    .route(web::get().to(get_assignments)),
             )
             .service(
                 web::resource("/healthzzz")

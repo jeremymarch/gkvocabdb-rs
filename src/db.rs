@@ -37,24 +37,42 @@ pub struct DefRow {
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct WordRow {
+    #[serde(rename(serialize = "i"))]
     pub wordid:u32,
+    #[serde(rename(serialize = "w"))]
     pub word:String,
+    #[serde(rename(serialize = "t"))]
     pub word_type:u8,
+    #[serde(rename(serialize = "l"))]
     pub lemma:String,
+    #[serde(rename(serialize = "l1"))]
     pub lemma1:String,
     pub def:String,
+    #[serde(rename(serialize = "u"))]
     pub unit:u8,
     pub pos:String,
+    #[serde(rename(serialize = "a"))]
     pub arrowed_id:u32,
     pub hqid:u32,
+    #[serde(rename(serialize = "s"))]
     pub seq:u32,
+    #[serde(rename(serialize = "s2"))]
     pub arrowed_seq: u32,
+    #[serde(rename(serialize = "c"))]
     pub freq: u32, 
+    #[serde(rename(serialize = "rc"))]
     pub runningcount: u32,
+    #[serde(rename(serialize = "if"))]
     pub is_flagged: bool
 }
 
-pub async fn get_words(pool: &SqlitePool, _textid:u32) -> Result<Vec<WordRow>, sqlx::Error> {
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+pub struct AssignmentRow {
+  pub id:u32,
+  pub assignment:String
+}
+
+pub async fn get_words(pool: &SqlitePool, _textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
 
     let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
     B.freq, A.runningcount,A.isFlagged \
@@ -89,6 +107,16 @@ pub async fn get_words(pool: &SqlitePool, _textid:u32) -> Result<Vec<WordRow>, s
     .await;
 
     res
+}
+
+pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>, sqlx::Error> {
+  let query = format!("SELECT id,title,wordcount FROM gkvocabAssignments ORDER BY id;");
+  let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("id"), assignment: rec.get("title")} )
+  .fetch_all(pool)
+  .await;
+
+  res
 }
 
 pub async fn get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Error> {
