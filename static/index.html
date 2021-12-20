@@ -19,7 +19,7 @@ if ( isset($_GET["wordid"]) ) {
 
 ?>
 */
-var landingWordId = -1;
+//var landingWordId = -1;
 
       //https://github.com/le717/microajax
       function microAjax(options) {
@@ -308,12 +308,14 @@ function handleKey(evt) {
         */
 
 //
+        getAssignments();
 
-        var thisText = getCookie("selectedText");
+        var thisText = getCookie("selectedText");     
         if (thisText === null || parseInt(thisText) < 1/* || parseInt(thisText) > 116*/)
         {
             thisText = 1;
         }
+        //fix me get landingWord from wordid GET variable if present, else it should be left undefined
         if ( typeof(landingWordId) != "undefined" ) {
             getTextByWordId(landingWordId);
         }
@@ -323,13 +325,13 @@ function handleKey(evt) {
         }
         $("#selectText").val(thisText);
         $("#selectText").change(function() { 
-            getwords(parseInt(this.value));
+            getwords(this.value);
             setCookie("selectedText", this.value, 60);
-            //var val = $('#selectedText option:selected').val();
-            //alert(this.value);
+            var val = $('#selectedText option:selected').val();
+            alert(this.value);
         });
 
-        getAssignments();
+        
         
         var w = new wordtree("test1", 480, $(document).height() - 36);
         //w.columnOffsets = [0,240,0,0];
