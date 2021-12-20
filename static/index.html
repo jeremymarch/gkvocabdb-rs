@@ -348,8 +348,8 @@ function handleKey(evt) {
 
 	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideLemmaList()'><div style='padding:6px;'>X</div></div></div>";
         w.title.innerHTML = title;
-
-        w.refresh();
+        
+        //w.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
         w.onEnterActivate = addLemmaIDEnter;//addWordToList;
         //w.onEnterActivate = removeDuplicate;
         //w.onClickActivate = act;
