@@ -72,7 +72,9 @@ pub struct AssignmentRow {
   pub assignment:String
 }
 
-pub async fn get_words(pool: &SqlitePool, _textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
+pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
+
+    let (start,end) = get_start_end(pool, textid).await?;
 
     let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
     B.freq, A.runningcount,A.isFlagged \
@@ -81,7 +83,7 @@ pub async fn get_words(pool: &SqlitePool, _textid:i32) -> Result<Vec<WordRow>, s
     LEFT JOIN gkvocabdb C on B.arrowedID = C.wordid \
     WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", start=0,end=1000);
+    LIMIT 55000;", start=start,end=end);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
@@ -127,6 +129,26 @@ pub async fn get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Er
     .await;
 
     res
+}
+
+pub async fn get_text_id_for_word_id(pool: &SqlitePool, wordid:i32) -> Result<i32, sqlx::Error> {
+  let query = "SELECT A.id FROM gkvocabAssignments A INNER JOIN gkvocabdb B ON A.start = B.wordid INNER JOIN gkvocabdb C ON A.end = C.wordid WHERE B.seq <= (SELECT seq FROM gkvocabdb WHERE wordid = $wordid) AND C.seq >= (SELECT seq FROM gkvocabdb WHERE wordid = $wordid) LIMIT 1;";
+  
+  let rec: (i32,) = sqlx::query_as(&query)
+  .fetch_one(pool)
+  .await?; //else 0
+  
+  Ok(rec.0)
+}
+
+pub async fn get_start_end(pool: &SqlitePool, textid:i32) -> Result<(u32,u32), sqlx::Error> {
+  let query = format!("SELECT b.seq, c.seq FROM gkvocabAssignments a INNER JOIN gkvocabdb b ON a.start = b.wordid INNER JOIN gkvocabdb c ON a.end = c.wordid WHERE a.id = {};", textid);
+  
+  let rec: (u32,u32) = sqlx::query_as(&query)
+  .fetch_one(pool)
+  .await?;
+
+  Ok(rec)
 }
 
 /*

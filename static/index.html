@@ -323,7 +323,7 @@ function handleKey(evt) {
         }
         $("#selectText").val(thisText);
         $("#selectText").change(function() { 
-            getwords(this.value);
+            getwords(parseInt(this.value));
             setCookie("selectedText", this.value, 60);
             //var val = $('#selectedText option:selected').val();
             //alert(this.value);

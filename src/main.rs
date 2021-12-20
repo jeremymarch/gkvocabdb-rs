@@ -68,12 +68,19 @@ pub struct WordQuery {
 }
 */
 #[allow(clippy::eval_order_dependence)]
-async fn philologus_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
 
-    let w = get_words(db, info.text).await.map_err(map_sqlx_error)?;
+    let text_id = match info.wordid {
+        0 => info.text,
+        _ => {
+            get_text_id_for_word_id(db, info.wordid).await.map_err(map_sqlx_error)?
+        }
+    };
+
+    let w = get_words(db, text_id).await.map_err(map_sqlx_error)?;
 
 /*
     $j = new \stdClass();
@@ -147,7 +154,7 @@ async fn main() -> io::Result<()> {
             //.wrap(error_handlers)
             .service(
                 web::resource("/query")
-                    .route(web::get().to(philologus_words)),
+                    .route(web::get().to(get_text_words)),
             )
             .service(
                 web::resource("/assignments")
@@ -265,7 +272,7 @@ mod tests {
             )
             .service(
                 web::resource("/query")
-                    .route(web::get().to(philologus_words)),
+                    .route(web::get().to(get_text_words)),
         )).await;
 
         let resp = test::TestRequest::get()
