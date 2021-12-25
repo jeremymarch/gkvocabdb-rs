@@ -52,12 +52,12 @@ pub struct WordRow {
     pub unit:u8,
     pub pos:String,
     #[serde(rename(serialize = "a"))]
-    pub arrowed_id:u32,
+    pub arrowed_id: Option<u32>,
     pub hqid:u32,
     #[serde(rename(serialize = "s"))]
     pub seq:u32,
     #[serde(rename(serialize = "s2"))]
-    pub arrowed_seq: u32,
+    pub arrowed_seq: Option<u32>,
     #[serde(rename(serialize = "c"))]
     pub freq: u32, 
     #[serde(rename(serialize = "rc"))]
@@ -93,8 +93,8 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
     LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
     LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id \
     LEFT JOIN gkvocabdb E on E.wordid = D.word_id \
-    LEFT JOIN text_sequence_x_text F on E.text = F.text_id and F.seq_id = 1 \
-    LEFT JOIN text_sequence_x_text G on A.text = G.text_id and G.seq_id = 1 \
+    LEFT JOIN text_sequence_x_text F on (E.text = F.text_id and F.seq_id = 1) \
+    LEFT JOIN text_sequence_x_text G on (A.text = G.text_id and G.seq_id = 1) \
     WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1   \
     ORDER BY A.seq \
     LIMIT 55000;", 
