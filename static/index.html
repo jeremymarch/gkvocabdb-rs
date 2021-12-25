@@ -328,7 +328,7 @@ function handleKey(evt) {
             getwords(this.value);
             setCookie("selectedText", this.value, 60);
             var val = $('#selectedText option:selected').val();
-            alert(this.value);
+            //alert(this.value);
         });
 
         
@@ -693,7 +693,7 @@ function handleKey(evt) {
 
     function getAssignments()
     {
-        console.log("getting words from text: " + text);
+        console.log("getting assignments");
         var url = "assignments";
     	$.ajax({
     		url: url,
@@ -796,9 +796,10 @@ function handleKey(evt) {
         var a = document.getElementById("wordscontents"); 
         a.innerHTML = ""; //clear old content
         var firstOfSection = true;
+        /*
         if (returnObj.thisText) {
            $("#selectText").val(returnObj.thisText);
-        }
+        }*/
         if (returnObj.words && Array.isArray(returnObj.words)) {
             returnObj.words.forEach(function (i,v) {
 
@@ -953,6 +954,7 @@ function addLemmaIDEnter(lex, id)
 function annotateFormSubmit()
 {
     alert("Doesn't work yet!");
+    /*
     annotateFormClose();
     return;
 
@@ -969,6 +971,7 @@ function annotateFormSubmit()
         realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote);
     }
     annotateFormClose();
+    */
 }
 
 function newLemmaFormSubmit()
@@ -1127,6 +1130,7 @@ function getEditLemmaData(vLemmaid)
 function realRemoveDuplicate(vTextWordID, vlemmaid)
 {
     return;
+    /*
    $.ajax({
         url: "addLemmaID.php",
         type: "POST",
@@ -1140,6 +1144,7 @@ function realRemoveDuplicate(vTextWordID, vlemmaid)
             showToast("error in realRemoveDuplicate: " + vlemmaid);
         }
     });
+    */
 }
 
 function realAddLemmaIDEnter(vTextWordID, vlemmaid, vlemmastr)
@@ -1422,7 +1427,7 @@ function setCookie(name, value, days)
     {
         var expires = "";
     }
-    document.cookie = name + "=" + value + expires + "; path=/";
+    document.cookie = name + "=" + value + expires + "; path=/;SameSite=Strict";
 }
 
 function getCookie(name)
