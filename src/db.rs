@@ -76,14 +76,29 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
 
     let (start,end) = get_start_end(pool, textid).await?;
 
-    let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
+    let query2 = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
     B.freq, A.runningcount,A.isFlagged \
     FROM gkvocabdb A \
     LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
     LEFT JOIN gkvocabdb C on B.arrowedID = C.wordid \
     WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", start=start,end=end);
+    LIMIT 55000;", 
+    start=start,end=end);
+
+
+    let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.hqid,A.seq,E.seq AS arrowedSeq, \
+    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowedtextseq \
+    FROM gkvocabdb A \
+    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
+    LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id \
+    LEFT JOIN gkvocabdb E on E.wordid = D.word_id \
+    LEFT JOIN text_sequence_x_text F on E.text = F.text_id and F.seq_id = 1 \
+    LEFT JOIN text_sequence_x_text G on A.text = G.text_id and G.seq_id = 1 \
+    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1   \
+    ORDER BY A.seq \
+    LIMIT 55000;", 
+    start=start,end=end);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
@@ -150,13 +165,59 @@ pub async fn get_start_end(pool: &SqlitePool, textid:i32) -> Result<(u32,u32), s
 
   Ok(rec)
 }
-
 /*
-CREATE TABLE IF NOT EXISTS sequences (seq_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-CREATE TABLE IF NOT EXISTS text (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-CREATE TABLE IF NOT EXISTS sequence_x_text (seq_id INTEGER NOT NULL, text_id INTEGER NOT NULL;
-CREATE TABLE sqlite_sequence(name,seq);
-CREATE TABLE IF NOT EXISTS words (word_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, text_id INTEGER NOT NULL, sequence_in_text INTEGER NOT NULL, word ΤΕΧΤ NOT NULL...)
+"SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
+    B.freq, A.runningcount,A.isFlagged \
+    FROM gkvocabdb A \
+    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
+    LEFT JOIN gkvocabdb C on B.arrowedID = C.wordid \
+    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 \
+    ORDER BY A.seq \
+    LIMIT 55000;"
+    
+
+
+    
+"SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id,B.hqid,A.seq,E.seq AS arrowedSeq, \
+    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowedtextseq \
+    FROM gkvocabdb A \
+    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
+    LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id
+    LEFT JOIN gkvocabdb E on E.wordid = D.word_id /*to get arrowedwordseq and arrowedwordtextseq in the next join*/
+    LEFT JOIN text_sequence_x_text F on E.text = F.text_id /*to get text_seq*/
+    LEFT JOIN text_sequence_x_text G on A.text = G.text_id
+    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 and F.seq_id = 1 and G.seq_id = 1 \
+    ORDER BY A.seq \
+    LIMIT 55000;"
+*/
+    
+/*
+    SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id,B.hqid,A.seq,E.seq AS arrowedSeq, 
+    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowedtextseq 
+    FROM gkvocabdb A 
+    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid 
+    LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id
+    LEFT JOIN gkvocabdb E on E.wordid = D.word_id 
+    LEFT JOIN text_sequence_x_text F on E.text = F.text_id 
+    LEFT JOIN text_sequence_x_text G on A.text = G.text_id
+    WHERE A.seq >= 0 AND A.seq <= 5000 AND A.type > -1 and F.seq_id = 1 and G.seq_id = 1
+    ORDER BY A.seq 
+    LIMIT 55000;
+
+    CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL, word_id INTEGER NOT NULL, lemma_id INTEGER NOT NULL);
+    INSERT INTO arrowed_words SELECT 1,arrowedID,hqid from hqvocab where arrowedid is not null;
+    text_sequence_x_text (seq_id INTEGER NOT NULL, text_id INTEGER NOT NULL, text_order INTEGER NOT NULL);
+*/
+    
+    
+/*
+CREATE TABLE IF NOT EXISTS text_sequences (seq_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
+CREATE TABLE IF NOT EXISTS texts (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
+CREATE TABLE IF NOT EXISTS text_sequence_x_text (seq_id INTEGER NOT NULL, text_id INTEGER NOT NULL, order INTEGER NOT NULL);
+
+CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL, word_id INTEGER NOT NULL, hqid INTEGER NOT NULL);
+
+???CREATE TABLE sqlite_sequence(name,seq);
 
 .mode ascii
 .separator "," "\n"
