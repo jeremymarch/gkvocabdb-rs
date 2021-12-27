@@ -63,7 +63,9 @@ pub struct WordRow {
     #[serde(rename(serialize = "rc"))]
     pub runningcount: u32,
     #[serde(rename(serialize = "if"))]
-    pub is_flagged: bool
+    pub is_flagged: bool,
+    pub word_text_seq: u32,
+    pub arrowed_text_seq: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -72,10 +74,44 @@ pub struct AssignmentRow {
   pub assignment:String
 }
 
+/*
+//seq_id, lemma_id, word_id
+pub async fn arrow_word(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
+
+  REPLACE INTO table(column_list) VALUES(value_list);
+
+  let query = format!("UPDATE %s SET arrowedID={word_id}, updatedIP='{ip}', updatedUserAgent='{user_agent}', updatedUser='{user}' WHERE hqid={lemma_id};", 
+    start=start,end=end);
+
+
+if ( isset($_POST['forLemmaID']) && isset($_POST['setArrowedIDTo']) )
+{
+    $arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
+
+    $query = sprintf("UPDATE %s SET arrowedID=%s, updatedIP='%s', updatedUserAgent='%s', updatedUser='%s' WHERE hqid=%s;", 
+      LEMMA_TABLE, 
+      $arrowedVal . "", 
+      $updatedIP, 
+      $updatedUserAgent, 
+      $updatedUser, 
+      $_POST['forLemmaID'] . "" );
+    
+    if ( $conn->query($query) === TRUE)
+    {
+      $j->success = TRUE;
+      $j->affectedRows = $conn->affected_rows;
+      $j->arrowedValue = $arrowedVal;
+      $j->lemmaid = $_POST['forLemmaID'];
+    sendJSON($j);
+    }
+  }
+}
+*/
+
 pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
 
     let (start,end) = get_start_end(pool, textid).await?;
-
+/*
     let query2 = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
     B.freq, A.runningcount,A.isFlagged \
     FROM gkvocabdb A \
@@ -85,20 +121,22 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
     ORDER BY A.seq \
     LIMIT 55000;", 
     start=start,end=end);
+*/
 
-
+    //need to add joins for the running and total count tables and pull from those
     let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.hqid,A.seq,E.seq AS arrowedSeq, \
-    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowedtextseq \
+    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
     FROM gkvocabdb A \
     LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
-    LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id \
+    LEFT JOIN arrowed_words D on (A.lemmaid = D.lemma_id AND D.seq_id = {seq_id}) \
     LEFT JOIN gkvocabdb E on E.wordid = D.word_id \
-    LEFT JOIN text_sequence_x_text F on (E.text = F.text_id and F.seq_id = 1) \
-    LEFT JOIN text_sequence_x_text G on (A.text = G.text_id and G.seq_id = 1) \
-    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1   \
+    LEFT JOIN text_sequence_x_text F on (E.text = F.text_id and F.seq_id = {seq_id}) \
+    LEFT JOIN text_sequence_x_text G on (A.text = G.text_id and G.seq_id = {seq_id}) \
+    LEFT JOIN running_counts_by_sequence H ON (H.seq_id = {seq_id} AND H.word_id = A.wordid) \
+    LEFT JOIN total_counts_by_sequence I ON (I.seq_id = {seq_id} AND I.lemma_id = A.lemmaid) \
+    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", 
-    start=start,end=end);
+    LIMIT 55000;", start = start, end = end, seq_id = 1);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
@@ -117,7 +155,9 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
             arrowed_seq: rec.get("arrowedSeq"),
             freq: rec.get("freq"), 
             runningcount: rec.get("runningcount"),
-            is_flagged: rec.get("isFlagged")
+            is_flagged: rec.get("isFlagged"),
+            word_text_seq: rec.get("text_order"),
+            arrowed_text_seq: rec.get("arrowed_text_order"),
         }    
     )
     .fetch_all(pool)
@@ -165,59 +205,22 @@ pub async fn get_start_end(pool: &SqlitePool, textid:i32) -> Result<(u32,u32), s
 
   Ok(rec)
 }
-/*
-"SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
-    B.freq, A.runningcount,A.isFlagged \
-    FROM gkvocabdb A \
-    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
-    LEFT JOIN gkvocabdb C on B.arrowedID = C.wordid \
-    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 \
-    ORDER BY A.seq \
-    LIMIT 55000;"
-    
-
-
-    
-"SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id,B.hqid,A.seq,E.seq AS arrowedSeq, \
-    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowedtextseq \
-    FROM gkvocabdb A \
-    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
-    LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id
-    LEFT JOIN gkvocabdb E on E.wordid = D.word_id /*to get arrowedwordseq and arrowedwordtextseq in the next join*/
-    LEFT JOIN text_sequence_x_text F on E.text = F.text_id /*to get text_seq*/
-    LEFT JOIN text_sequence_x_text G on A.text = G.text_id
-    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 and F.seq_id = 1 and G.seq_id = 1 \
-    ORDER BY A.seq \
-    LIMIT 55000;"
-*/
-    
-/*
-    SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id,B.hqid,A.seq,E.seq AS arrowedSeq, 
-    B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowedtextseq 
-    FROM gkvocabdb A 
-    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid 
-    LEFT JOIN arrowed_words D on A.lemmaid = D.lemma_id
-    LEFT JOIN gkvocabdb E on E.wordid = D.word_id 
-    LEFT JOIN text_sequence_x_text F on E.text = F.text_id 
-    LEFT JOIN text_sequence_x_text G on A.text = G.text_id
-    WHERE A.seq >= 0 AND A.seq <= 5000 AND A.type > -1 and F.seq_id = 1 and G.seq_id = 1
-    ORDER BY A.seq 
-    LIMIT 55000;
-
-    CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL, word_id INTEGER NOT NULL, lemma_id INTEGER NOT NULL);
-    INSERT INTO arrowed_words SELECT 1,arrowedID,hqid from hqvocab where arrowedid is not null;
-    text_sequence_x_text (seq_id INTEGER NOT NULL, text_id INTEGER NOT NULL, text_order INTEGER NOT NULL);
-*/
-    
     
 /*
 CREATE TABLE IF NOT EXISTS text_sequences (seq_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
 CREATE TABLE IF NOT EXISTS texts (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-CREATE TABLE IF NOT EXISTS text_sequence_x_text (seq_id INTEGER NOT NULL, text_id INTEGER NOT NULL, order INTEGER NOT NULL);
 
-CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL, word_id INTEGER NOT NULL, hqid INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), PRIMARY KEY(seqid, lemma_id, word_id));
+INSERT INTO arrowed_words SELECT 1, hqid, arrowedID from hqvocab where arrowedid is not null;
 
-???CREATE TABLE sqlite_sequence(name,seq);
+CREATE TABLE IF NOT EXISTS text_sequence_x_text (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), text_id INTEGER NOT NULL REFERENCES texts(text_id), text_order INTEGER NOT NULL, PRIMARY KEY (seq_id,text_id));
+
+CREATE TABLE IF NOT EXISTS running_counts_by_sequence (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), running_count INTEGER, PRIMARY KEY (seq_id,word_id));
+CREATE TABLE IF NOT EXISTS total_counts_by_sequence (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), total_count INTEGER, PRIMARY KEY (seq_id,lemma_id));
+*/
+    
+    
+/*
 
 .mode ascii
 .separator "," "\n"

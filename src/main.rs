@@ -24,6 +24,8 @@ use std::io;
 use regex::Regex;
 use actix_files as fs;
 use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
+use actix_session::{Session, CookieSession};
+
 use sqlx::SqlitePool;
 
 use actix_files::NamedFile;
@@ -56,6 +58,11 @@ pub struct QueryRequest {
     pub text: i32,
     pub wordid: i32,
 }
+
+#[derive(Deserialize)]
+pub struct UpdateRequest {
+    pub qtype: String,
+}
 /*
 #[derive(Deserialize)]
 pub struct WordQuery {
@@ -67,6 +74,42 @@ pub struct WordQuery {
     pub w: String,
 }
 */
+#[allow(clippy::eval_order_dependence)]
+async fn update_words((session, post, req): (Session, web::Query<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+    
+    match post.qtype.as_str() {
+        "arrowWord" => (),
+        "flagUnflagWord" => (),
+        "updateLemmaID" => (),
+        "newlemma" => (),
+        "editlemma" => (),
+        "getWordAnnotation" => (),
+        "getLemma" => (),
+        "removeDuplicate" => (),
+        "updateCounts" => (),
+        "getWordsByLemmaId" => (),
+        _ => (),
+    }
+    
+
+    if let Some(count) = session.get::<i32>("counter")? {
+        session.insert("counter", count + 1)?;
+    } else {
+        session.insert("counter", 1)?;
+    }
+
+
+    let res = QueryResponse {
+        this_text: 1,
+        words: [].to_vec(),
+        selected_id: 1,
+        error: "".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
 #[allow(clippy::eval_order_dependence)]
 async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -150,6 +193,7 @@ async fn main() -> io::Result<()> {
         App::new()
             .app_data(db_pool.clone())
             .wrap(middleware::Logger::default())
+            .wrap(CookieSession::signed(&[0; 32]).secure(false))
             .wrap(middleware::Compress::default())
             //.wrap(error_handlers)
             .service(
@@ -159,6 +203,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/assignments")
                     .route(web::get().to(get_assignments)),
+            )
+            .service(
+                web::resource("/updates")
+                    .route(web::post().to(update_words)),
             )
             .service(
                 web::resource("/healthzzz")

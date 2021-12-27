@@ -827,6 +827,14 @@ function handleKey(evt) {
                     else
                     {
                         var arrowedClass = "";
+
+                        if (i.arrowed_text_seq === i.word_text_seq && i.s2 === i.s) {
+                            b.className += " arrowedHere";
+                        }
+                        else if ((i.arrowed_text_seq !== null && i.arrowed_text_seq < i.word_text_seq) || (i.arrowed_text_seq !== null && i.arrowed_text_seq === i.word_text_seq && i.s2 !== null && parseInt(i.s2) < parseInt(i.s))) {
+                            b.className += " alreadyArrowed";
+                        }
+                        /*
                         if (i.s2 === i.s) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
                             b.className += " arrowedHere";
                         }
@@ -834,14 +842,17 @@ function handleKey(evt) {
                         {
                             b.className += " alreadyArrowed";
                         }
-
+                        */
                         if (i.if && parseInt(i.if) == 1) {
                             b.className += " flagged";
                         }
                         //setListRow(textwordid, lemmaid, lemma, pos, def, arrowed, seq);
                         b.innerHTML = getListWordString(i.i, i.l, i.pos, i.def, i.rc, i.c);//"<div id='arrow" + i.i + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + i.i + "'>" + i.l + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + i.i + "'>" + i.pos + "</span>) </span><span class='listdef' id='listdef" + i.i + "'>" + i.def + "</span> <a class='listfrequency' href=''>[" + i.rc + " of " + i.c + "]</a></div>";
                     }
-
+                    b.setAttribute("textseq", i.word_text_seq);
+                    if (i.arrowed_text_seq) {
+                        b.setAttribute("arrowedtextseq", i.arrowed_text_seq);
+                    }
                     a.appendChild(b);
                 }
                 if (i.t == 2 || i.t == 4)
