@@ -832,7 +832,7 @@ function handleKey(evt) {
                             b.className += " arrowedHere";
                         }
                         else if ((i.arrowed_text_seq !== null && i.arrowed_text_seq < i.word_text_seq) || (i.arrowed_text_seq !== null && i.arrowed_text_seq === i.word_text_seq && i.s2 !== null && parseInt(i.s2) < parseInt(i.s))) {
-                            b.className += " alreadyArrowed";
+                            b.className += " alreadyArrowed"; //hide it
                         }
                         /*
                         if (i.s2 === i.s) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden

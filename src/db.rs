@@ -74,28 +74,31 @@ pub struct AssignmentRow {
   pub assignment:String
 }
 
-/*
+
 //seq_id, lemma_id, word_id
-pub async fn arrow_word(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
+pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id:Option<u32>) -> Result<u32, sqlx::Error> {
 
-  REPLACE INTO table(column_list) VALUES(value_list);
+  //get old values
+  //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
+  //sqlx::query(&query).execute(pool).await?;
+  //save history
+  let query = format!("INSERT INTO arrowed_words_history \
+    SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
+  sqlx::query(&query).execute(pool).await?;
 
-  let query = format!("UPDATE %s SET arrowedID={word_id}, updatedIP='{ip}', updatedUserAgent='{user_agent}', updatedUser='{user}' WHERE hqid={lemma_id};", 
-    start=start,end=end);
+  if word_id.is_some() {
+    let query = format!("REPLACE INTO arrowed_words VALUES ({seq_id}, {lemma_id}, {word_id});", seq_id=seq_id, lemma_id=lemma_id, word_id=word_id.unwrap());
+    sqlx::query(&query).execute(pool).await?;
+  }
+  else {
+    let query = format!("DELETE FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
+    sqlx::query(&query).execute(pool).await?;
+  }
 
+  //INSERT INTO arrowed_words_history SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = 1 AND lemma_id=20;
 
-if ( isset($_POST['forLemmaID']) && isset($_POST['setArrowedIDTo']) )
-{
-    $arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
-
-    $query = sprintf("UPDATE %s SET arrowedID=%s, updatedIP='%s', updatedUserAgent='%s', updatedUser='%s' WHERE hqid=%s;", 
-      LEMMA_TABLE, 
-      $arrowedVal . "", 
-      $updatedIP, 
-      $updatedUserAgent, 
-      $updatedUser, 
-      $_POST['forLemmaID'] . "" );
-    
+  Ok(1)
+/*  
     if ( $conn->query($query) === TRUE)
     {
       $j->success = TRUE;
@@ -105,8 +108,8 @@ if ( isset($_POST['forLemmaID']) && isset($_POST['setArrowedIDTo']) )
     sendJSON($j);
     }
   }
+  */
 }
-*/
 
 pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
 
@@ -122,6 +125,7 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
     LIMIT 55000;", 
     start=start,end=end);
 */
+
 
     //need to add joins for the running and total count tables and pull from those
     let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.hqid,A.seq,E.seq AS arrowedSeq, \
@@ -212,11 +216,17 @@ CREATE TABLE IF NOT EXISTS texts (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT 
 
 CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), PRIMARY KEY(seqid, lemma_id, word_id));
 INSERT INTO arrowed_words SELECT 1, hqid, arrowedID from hqvocab where arrowedid is not null;
+CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER);
+CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (seq_id, lemma_id);
 
 CREATE TABLE IF NOT EXISTS text_sequence_x_text (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), text_id INTEGER NOT NULL REFERENCES texts(text_id), text_order INTEGER NOT NULL, PRIMARY KEY (seq_id,text_id));
 
 CREATE TABLE IF NOT EXISTS running_counts_by_sequence (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), running_count INTEGER, PRIMARY KEY (seq_id,word_id));
 CREATE TABLE IF NOT EXISTS total_counts_by_sequence (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), total_count INTEGER, PRIMARY KEY (seq_id,lemma_id));
+
+to add:
+gkvocabdb text references text_id, lemma_id references hqid, seq, type references types table?, 
+gkvocabassignments start,end references wordid?
 */
     
     
