@@ -53,6 +53,16 @@ struct QueryResponse {
     error: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct UpdateResponse {
+    success: bool,
+    #[serde(rename(serialize = "affectedRows"), rename(deserialize = "affectedRows"))]
+    affected_rows: u32,
+    #[serde(rename(serialize = "arrowedValue"), rename(deserialize = "arrowedValue"))]
+    arrowed_value: u32,
+    lemmaid: u32,
+}
+
 #[derive(Deserialize)]
 pub struct QueryRequest {
     pub text: i32,
@@ -62,6 +72,8 @@ pub struct QueryRequest {
 #[derive(Deserialize)]
 pub struct UpdateRequest {
     pub qtype: String,
+    forLemmaID: u32,
+    setArrowedIDTo: u32,
 }
 /*
 #[derive(Deserialize)]
@@ -75,11 +87,21 @@ pub struct WordQuery {
 }
 */
 #[allow(clippy::eval_order_dependence)]
-async fn update_words((session, post, req): (Session, web::Query<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     
     match post.qtype.as_str() {
-        "arrowWord" => (),
+        "arrowWord" => {
+            let seq_id = 1;
+            let _ = arrow_word(db, seq_id, post.forLemmaID, post.setArrowedIDTo).await.map_err(map_sqlx_error)?;
+            let res = UpdateResponse  {
+                success: true,
+                affected_rows: 1,
+                arrowed_value: 1,
+                lemmaid:1,
+            };
+            return Ok(HttpResponse::Ok().json(res));
+        }
         "flagUnflagWord" => (),
         "updateLemmaID" => (),
         "newlemma" => (),
@@ -205,7 +227,7 @@ async fn main() -> io::Result<()> {
                     .route(web::get().to(get_assignments)),
             )
             .service(
-                web::resource("/updates")
+                web::resource("/updatedb")
                     .route(web::post().to(update_words)),
             )
             .service(

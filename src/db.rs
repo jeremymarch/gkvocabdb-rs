@@ -74,26 +74,39 @@ pub struct AssignmentRow {
   pub assignment:String
 }
 
-
 //seq_id, lemma_id, word_id
-pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id:Option<u32>) -> Result<u32, sqlx::Error> {
+pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u32) -> Result<u32, sqlx::Error> {
 
   //get old values
   //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
   //sqlx::query(&query).execute(pool).await?;
   //save history
-  let query = format!("INSERT INTO arrowed_words_history \
-    SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
-  sqlx::query(&query).execute(pool).await?;
+  //sqlx::query("BEGIN").execute(pool).await?;
 
-  if word_id.is_some() {
-    let query = format!("REPLACE INTO arrowed_words VALUES ({seq_id}, {lemma_id}, {word_id});", seq_id=seq_id, lemma_id=lemma_id, word_id=word_id.unwrap());
+  let query = format!("INSERT INTO arrowed_words_history \
+    SELECT NULL,seq_id,lemma_id,word_id,updated,user_id,comment FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
+  let r = sqlx::query(&query).execute(pool).await?;
+
+  //println!("rows: {}",r.rows_affected());
+
+  if r.rows_affected() < 1 {
+    let query = format!("INSERT INTO arrowed_words_history VALUES ( \
+    NULL,{seq_id},{lemma_id},NULL,0,NULL,NULL);", seq_id=seq_id, lemma_id=lemma_id);
+  let r = sqlx::query(&query).execute(pool).await?;
+  }
+
+  //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
+
+  if word_id > 0 {
+    let query = format!("REPLACE INTO arrowed_words VALUES ({seq_id}, {lemma_id}, {word_id},0,NULL,NULL);", seq_id=seq_id, lemma_id=lemma_id, word_id=word_id);
     sqlx::query(&query).execute(pool).await?;
   }
   else {
     let query = format!("DELETE FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
     sqlx::query(&query).execute(pool).await?;
   }
+
+  //sqlx::query("COMMIT").execute(pool).await?;
 
   //INSERT INTO arrowed_words_history SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = 1 AND lemma_id=20;
 
@@ -112,7 +125,7 @@ pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id:Opt
 }
 
 pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
-
+    let seq_id = 1;
     let (start,end) = get_start_end(pool, textid).await?;
 /*
     let query2 = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
@@ -138,9 +151,9 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
     LEFT JOIN text_sequence_x_text G on (A.text = G.text_id and G.seq_id = {seq_id}) \
     LEFT JOIN running_counts_by_sequence H ON (H.seq_id = {seq_id} AND H.word_id = A.wordid) \
     LEFT JOIN total_counts_by_sequence I ON (I.seq_id = {seq_id} AND I.lemma_id = A.lemmaid) \
-    WHERE A.seq >= {start} AND A.seq <= {end} AND A.type > -1 \
+    WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", start = start, end = end, seq_id = 1);
+    LIMIT 55000;", start_seq = start, end_seq = end, seq_id = seq_id);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
@@ -211,12 +224,14 @@ pub async fn get_start_end(pool: &SqlitePool, textid:i32) -> Result<(u32,u32), s
 }
     
 /*
+CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL);
+
 CREATE TABLE IF NOT EXISTS text_sequences (seq_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
 CREATE TABLE IF NOT EXISTS texts (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
 
-CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), PRIMARY KEY(seqid, lemma_id, word_id));
-INSERT INTO arrowed_words SELECT 1, hqid, arrowedID from hqvocab where arrowedid is not null;
-CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER);
+CREATE TABLE IF NOT EXISTS arrowed_words (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), updated INTEGER, user_id INTEGER REFERENCES users(user_id), comment text, PRIMARY KEY(seq_id, lemma_id, word_id));
+INSERT INTO arrowed_words SELECT 1, hqid, arrowedID,0,NULL,NULL from hqvocab where arrowedid is not null;
+CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users(user_id), comment text);
 CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (seq_id, lemma_id);
 
 CREATE TABLE IF NOT EXISTS text_sequence_x_text (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), text_id INTEGER NOT NULL REFERENCES texts(text_id), text_order INTEGER NOT NULL, PRIMARY KEY (seq_id,text_id));
