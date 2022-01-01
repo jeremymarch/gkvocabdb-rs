@@ -1671,19 +1671,29 @@ height: 25px;}
 
 
 .nodestyle {
-        line-height: 32px;
+        /*line-height: 32px;*/
         margin:0px;
         position:relative;
-        height:30px;
-        width:calc(100% - 10px); /* wt.width - 24 + "px";//"100%";*/
-        white-space:nowrap;
+        width:calc(100% - 30px); /* wt.width - 24 + "px";//"100%";*/
         background-color:white;
         overflow: hidden;
+        padding-left:30px;
+        text-indent:-30px;
     }
     .nodestylecol {
-        position: absolute;
-        paddingTop: 5px;
+        paddingTop: 5px; /*fix me*/
         top: 0px;
+        padding-top:6px;
+        padding-bottom:6px;
+    }
+    .nodestylecol {
+       
+    }
+    .nodestylecol1 {
+        padding-left:4px;
+    }
+    .nodestylecol2 {
+        display:none;
     }
     .selectedRowClass {
         background-color: #8899EE;

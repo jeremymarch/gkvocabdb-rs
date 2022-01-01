@@ -1241,17 +1241,19 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
             {
                 var d2 = document.createElement("div");
                 d2.classList.add("nodestylecol");
-
+                d2.classList.add("nodestylecol" + (c+1));
+                /*
                 if (c != 0 && wt.columnOffsets[c] == 0)
                     d2.style.display = "none";
                 else
                     d2.style.left = wt.columnOffsets[c] + "px";
-                
+                */
+               /*
                 if (level == 0)
                     d2.style.paddingLeft = 1 + (!rowItem.h && topLevelTreeRow ? 15 : 3) + "px";
                 else 
                     d2.style.paddingLeft = (level * wt.indentWidth) + (rowItem.h ? 3 : 15) + "px";
-                
+                */
                 if (c == 0 && rowItem.h) //only for column 1
                 {
                     var img = document.createElement('img');
@@ -1269,7 +1271,7 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
 
                 //var text = document.createTextNode(rowItem[c]);
                 //d2.appendChild(text);
-                d2.innerHTML = rowItem[0];
+                d2.innerHTML = rowItem[c];
                 node.appendChild(d2);
             }    
             
