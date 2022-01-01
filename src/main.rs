@@ -81,7 +81,7 @@ struct WordtreeQueryResponse {
     scroll: String,
     query: String,
     #[serde(rename(serialize = "arrOptions"), rename(deserialize = "arrOptions"))]
-    arr_options: Vec<(String, u32, String, u32)>
+    arr_options: Vec<(String,u32)>
 }
 
 #[derive(Deserialize)]
@@ -210,7 +210,7 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
 
     //strip any numbers from end of string
     //let re = Regex::new(r"[0-9]").unwrap();
-    //let result_rows_stripped = result_rows.into_iter().map( |mut row| { row.0 = re.replace_all(&row.0, "").to_string(); row }).collect();
+    let result_rows_stripped:Vec<(String,u32)> = result_rows.into_iter().map( |mut row| { row.0 = format!("<b>{}</b> {} [count {}] <a href='javascript:editLemmaFormToggle2({})'>edit</a>", row.0,row.2,row.3,row.1); (row.0,row.1) }).collect();
 
     let res = WordtreeQueryResponse {
         select_id: seq,
@@ -224,7 +224,7 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
         lastpage_up: vlast_page_up,
         scroll: if query_params.w.is_empty() && info.page == 0 && seq == 1 { "top".to_string() } else { "".to_string() }, //scroll really only needs to return top
         query: query_params.w.to_owned(),
-        arr_options: result_rows
+        arr_options: result_rows_stripped//result_rows
     };
 
     Ok(HttpResponse::Ok().json(res))

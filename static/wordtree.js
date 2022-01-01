@@ -1267,8 +1267,9 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
                     d2.appendChild(img);
                 }
 
-                var text = document.createTextNode(rowItem[c]);
-                d2.appendChild(text);
+                //var text = document.createTextNode(rowItem[c]);
+                //d2.appendChild(text);
+                d2.innerHTML = rowItem[0];
                 node.appendChild(d2);
             }    
             
