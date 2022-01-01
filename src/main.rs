@@ -27,6 +27,8 @@ use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpReques
 use actix_session::{Session, CookieSession};
 
 use sqlx::SqlitePool;
+use sqlx::sqlite::SqliteConnectOptions;
+use std::str::FromStr;
 
 use actix_files::NamedFile;
 use std::path::PathBuf;
@@ -293,7 +295,13 @@ async fn main() -> io::Result<()> {
     //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabdb.sqlite?mode=rwc
     let db_path = std::env::var("GKVOCABDB_DB_PATH")
                    .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
-    let db_pool = SqlitePool::connect(&db_path).await.expect("Could not connect to db.");
+    
+    let mut options = SqliteConnectOptions::from_str(&db_path)
+        .expect("Could not connect to db.")
+        .foreign_keys(true)
+        .collation("PolytonicGreek", |l, r| l.to_lowercase().cmp( &r.to_lowercase() ) );
+    
+    let db_pool = SqlitePool::connect_with(options).await.expect("Could not connect to db.");
 
     /*
     https://github.com/SergioBenitez/Rocket/discussions/1989
