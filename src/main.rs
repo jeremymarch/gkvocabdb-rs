@@ -63,6 +63,27 @@ struct UpdateResponse {
     lemmaid: u32,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct WordtreeQueryResponse {
+    #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
+    select_id: u32,
+    error: String,
+    wtprefix: String,
+    nocache: u8,
+    container: String,
+    #[serde(rename(serialize = "requestTime"), rename(deserialize = "requestTime"))]
+    request_time: u64,
+    page: i32, //can be negative for pages before
+    #[serde(rename(serialize = "lastPage"), rename(deserialize = "lastPage"))]
+    last_page: u8,
+    #[serde(rename(serialize = "lastPageUp"), rename(deserialize = "lastPageUp"))]
+    lastpage_up: u8,
+    scroll: String,
+    query: String,
+    #[serde(rename(serialize = "arrOptions"), rename(deserialize = "arrOptions"))]
+    arr_options: Vec<(u32, String, String, u32)>
+}
+
 #[derive(Deserialize)]
 pub struct QueryRequest {
     pub text: i32,
@@ -86,6 +107,29 @@ pub struct WordQuery {
     pub w: String,
 }
 */
+
+#[derive(Deserialize)]
+pub struct WordtreeQueryRequest {
+    pub n: u32,
+    pub idprefix: String,
+    pub x: String,
+    #[serde(rename(deserialize = "requestTime"))]
+    pub request_time: u64,
+    pub page: i32, //can be negative for pages before
+    pub mode: String,
+    pub query: String,//WordQuery,
+    pub lex: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct WordQuery {
+    pub regex: Option<String>,
+    pub lexicon: String,
+    pub tag_id: Option<String>,
+    pub root_id: Option<String>,
+    pub wordid: Option<String>,
+    pub w: String,
+}
 #[allow(clippy::eval_order_dependence)]
 async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -127,6 +171,60 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         words: [].to_vec(),
         selected_id: 1,
         error: "".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[allow(clippy::eval_order_dependence)]
+async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+
+    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+    
+    let table = "hqvocab";
+    
+    //let seq = get_seq_by_prefix(db, table, &query_params.w).await.map_err(map_sqlx_error)?;
+
+    let mut before_rows = vec![];
+    let mut after_rows = vec![];
+    if info.page <= 0 {
+        
+        before_rows = get_before(db, &query_params.w, info.page, info.n).await.map_err(map_sqlx_error)?;
+        if info.page == 0 { //only reverse if page 0. if < 0, each row is inserted under top of container one-by-one in order
+            before_rows.reverse();
+        }
+    }
+    if info.page >= 0 {
+        after_rows = get_equal_and_after(db, &query_params.w, info.page, info.n).await.map_err(map_sqlx_error)?;
+    }
+
+    //only check page 0 or page less than 0
+    let vlast_page_up = if before_rows.len() < info.n as usize && info.page <= 0 { 1 } else { 0 };
+    //only check page 0 or page greater than 0
+    let vlast_page = if after_rows.len() < info.n as usize && info.page >= 0 { 1 } else { 0 };
+
+    let seq = if after_rows.len() > 0 { after_rows[0].0 } else { 0 };
+
+    let result_rows = [before_rows, after_rows].concat();
+
+    //strip any numbers from end of string
+    //let re = Regex::new(r"[0-9]").unwrap();
+    //let result_rows_stripped = result_rows.into_iter().map( |mut row| { row.0 = re.replace_all(&row.0, "").to_string(); row }).collect();
+
+    let res = WordtreeQueryResponse {
+        select_id: seq,
+        error: "".to_owned(),
+        wtprefix: info.idprefix.clone(),
+        nocache: if query_params.wordid.is_none() { 0 } else { 1 }, //prevents caching when queried by wordid in url
+        container: format!("{}Container", info.idprefix),
+        request_time: info.request_time,
+        page: info.page,
+        last_page: vlast_page,
+        lastpage_up: vlast_page_up,
+        scroll: if query_params.w.is_empty() && info.page == 0 && seq == 1 { "top".to_string() } else { "".to_string() }, //scroll really only needs to return top
+        query: query_params.w.to_owned(),
+        arr_options: result_rows
     };
 
     Ok(HttpResponse::Ok().json(res))
@@ -221,6 +319,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/query")
                     .route(web::get().to(get_text_words)),
+            )
+            .service(
+                web::resource("/queryWordTree")
+                    .route(web::get().to(get_wordtree)),
             )
             .service(
                 web::resource("/assignments")

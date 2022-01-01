@@ -74,7 +74,55 @@ pub struct AssignmentRow {
   pub assignment:String
 }
 
-//seq_id, lemma_id, word_id
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+pub struct DefRow {
+    pub word: String,
+    pub sortword: String,
+    pub def: String,
+    pub seq: u32
+}
+
+pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
+  let query = format!("SELECT seq FROM {} WHERE sortalpha >= '{}' ORDER BY sortalpha LIMIT 1;", table, prefix);
+  
+  let rec:Result<(u32,), sqlx::Error> = sqlx::query_as(&query)
+  .fetch_one(pool)
+  .await;
+
+  match rec {
+      Ok(r) => Ok(r.0),
+      Err(sqlx::Error::RowNotFound) => { //not found, return seq of last word
+          let max_query = format!("SELECT MAX(seq) as seq,sortalpha FROM {} LIMIT 1;", table);
+          let max_rec:(u32,) = sqlx::query_as(&max_query)  //fake it by loading it into DefRow for now
+          .fetch_one(pool)
+          .await?;
+      
+          Ok(max_rec.0)
+      },
+      Err(r) => Err(r)
+  }
+}
+
+pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(u32, String, String, u32)>, sqlx::Error> {
+  let query = format!("SELECT a.hqid,a.lemma,a.def,a.freq FROM hqvocab a WHERE a.sortalpha < '{}' and status > 0 ORDER BY a.sortalpha DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
+  let res: Result<Vec<(u32, String, String, u32)>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| (rec.get("hqid"),rec.get("lemma"),rec.get("def"),rec.get("freq") ) )
+  .fetch_all(pool)
+  .await;
+
+  res
+}
+
+pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(u32, String, String, u32)>, sqlx::Error> {
+  let query = format!("SELECT a.hqid,a.lemma,a.def,a.freq FROM hqvocab a WHERE a.sortalpha >= '{}' and status > 0 ORDER BY a.sortalpha LIMIT {},{};", searchprefix, page * limit as i32, limit);
+  let res: Result<Vec<(u32, String, String, u32)>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| (rec.get("hqid"),rec.get("lemma"),rec.get("def"),rec.get("freq") ) )
+  .fetch_all(pool)
+  .await;
+
+  res
+}
+
 pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u32) -> Result<u32, sqlx::Error> {
 
   //get old values
