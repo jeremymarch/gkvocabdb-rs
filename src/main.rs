@@ -81,7 +81,7 @@ struct WordtreeQueryResponse {
     scroll: String,
     query: String,
     #[serde(rename(serialize = "arrOptions"), rename(deserialize = "arrOptions"))]
-    arr_options: Vec<(u32, String, String, u32)>
+    arr_options: Vec<(String, u32, String, u32)>
 }
 
 #[derive(Deserialize)]
@@ -204,7 +204,7 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
     //only check page 0 or page greater than 0
     let vlast_page = if after_rows.len() < info.n as usize && info.page >= 0 { 1 } else { 0 };
 
-    let seq = if after_rows.len() > 0 { after_rows[0].0 } else { 0 };
+    let seq = if after_rows.len() > 0 { after_rows[0].1 } else { 0 };
 
     let result_rows = [before_rows, after_rows].concat();
 
