@@ -61,7 +61,7 @@ function morphClick()
 			else
 			{
 				w.asYouType = true;	
-				w.url = "queryWordTree";
+				w.url = "queryglosses";
 				w.morphMode = false;
 				this.style.color = "#EEE";
 				this.style.backgroundColor = "#CCC";
@@ -131,7 +131,7 @@ function wordtree (idPrefix, width, height)
 		this.autofocus = true; 
 	
 	this.maxWords = 100;
-	this.url = "queryWordTree";
+	this.url = "queryglosses";
 	this.idPrefix = idPrefix;
 
     this.params = new Object();

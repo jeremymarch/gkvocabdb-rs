@@ -329,7 +329,7 @@ async fn main() -> io::Result<()> {
                     .route(web::get().to(get_text_words)),
             )
             .service(
-                web::resource("/queryWordTree")
+                web::resource("/queryglosses")
                     .route(web::get().to(get_wordtree)),
             )
             .service(

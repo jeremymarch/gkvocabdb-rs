@@ -290,6 +290,8 @@ CREATE TABLE IF NOT EXISTS total_counts_by_sequence (seq_id INTEGER NOT NULL REF
 to add:
 gkvocabdb text references text_id, lemma_id references hqid, seq, type references types table?, 
 gkvocabassignments start,end references wordid?
+
+add PolytonicGreek collation to hqvocabdb sortalpha
 */
     
     
