@@ -943,12 +943,13 @@ function removeDuplicate(lex, id)
 
 function addLemmaIDEnter(lex, id) 
 {     
+    alert("blah: " + lex + ", " + id);
     if (selectedWordInList === null)
     {
         alert("First select a word.");
         return;
     }
-    var vlemmaid = id[2];
+    var vlemmaid = id[1];
     var vlemmastr = "";
     var a = $("#lemmaAdd" + selectedWordInList);
     if (a.length > 0) {

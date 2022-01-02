@@ -95,8 +95,12 @@ pub struct QueryRequest {
 #[derive(Deserialize)]
 pub struct UpdateRequest {
     pub qtype: String,
-    forLemmaID: u32,
-    setArrowedIDTo: u32,
+    pub forLemmaID: Option<u32>,
+    pub setArrowedIDTo: Option<u32>,
+
+    pub textwordid: Option<u32>,
+    pub lemmaid: Option<u32>,
+    pub lemmastr: Option<String>,
 }
 /*
 #[derive(Deserialize)]
@@ -127,8 +131,8 @@ pub struct WordtreeQueryRequest {
 pub struct WordQuery {
     pub regex: Option<String>,
     pub lexicon: String,
-    pub tag_id: Option<String>,
-    pub root_id: Option<String>,
+    pub tag_id: Option<u32>,
+    pub root_id: Option<u32>,
     pub wordid: Option<String>,
     pub w: String,
 }
@@ -139,7 +143,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
     match post.qtype.as_str() {
         "arrowWord" => {
             let seq_id = 1;
-            let _ = arrow_word(db, seq_id, post.forLemmaID, post.setArrowedIDTo).await.map_err(map_sqlx_error)?;
+            let _ = arrow_word(db, seq_id, post.forLemmaID.unwrap(), post.setArrowedIDTo.unwrap()).await.map_err(map_sqlx_error)?;
             let res = UpdateResponse  {
                 success: true,
                 affected_rows: 1,
@@ -149,7 +153,19 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
             return Ok(HttpResponse::Ok().json(res));
         }
         "flagUnflagWord" => (),
-        "updateLemmaID" => (),
+        "updateLemmaID" => {
+            //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
+            if post.textwordid.is_some() && post.lemmaid.is_some() {
+                let _ = set_lemma_id(db, post.lemmaid.unwrap(), post.textwordid.unwrap()).await.map_err(map_sqlx_error)?;
+                let res = UpdateResponse  {
+                    success: true,
+                    affected_rows: 1,
+                    arrowed_value: 1,
+                    lemmaid:1,
+                };
+                return Ok(HttpResponse::Ok().json(res));
+            }
+        },
         "newlemma" => (),
         "editlemma" => (),
         "getWordAnnotation" => (),

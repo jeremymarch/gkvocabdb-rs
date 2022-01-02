@@ -129,32 +129,33 @@ pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u3
   //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
   //sqlx::query(&query).execute(pool).await?;
   //save history
-  //sqlx::query("BEGIN").execute(pool).await?;
+  
+  let mut tx = pool.begin().await?;
 
   let query = format!("INSERT INTO arrowed_words_history \
     SELECT NULL,seq_id,lemma_id,word_id,updated,user_id,comment FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
-  let r = sqlx::query(&query).execute(pool).await?;
+  let r = sqlx::query(&query).execute(&mut tx).await?;
 
   //println!("rows: {}",r.rows_affected());
 
   if r.rows_affected() < 1 {
     let query = format!("INSERT INTO arrowed_words_history VALUES ( \
     NULL,{seq_id},{lemma_id},NULL,0,NULL,NULL);", seq_id=seq_id, lemma_id=lemma_id);
-  let r = sqlx::query(&query).execute(pool).await?;
+  let r = sqlx::query(&query).execute(&mut tx).await?;
   }
 
   //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
 
   if word_id > 0 {
     let query = format!("REPLACE INTO arrowed_words VALUES ({seq_id}, {lemma_id}, {word_id},0,NULL,NULL);", seq_id=seq_id, lemma_id=lemma_id, word_id=word_id);
-    sqlx::query(&query).execute(pool).await?;
+    sqlx::query(&query).execute(&mut tx).await?;
   }
   else {
     let query = format!("DELETE FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
-    sqlx::query(&query).execute(pool).await?;
+    sqlx::query(&query).execute(&mut tx).await?;
   }
 
-  //sqlx::query("COMMIT").execute(pool).await?;
+  tx.commit().await?;
 
   //INSERT INTO arrowed_words_history SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = 1 AND lemma_id=20;
 
@@ -172,6 +173,115 @@ pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u3
   */
 }
 
+pub async fn set_lemma_id(pool: &SqlitePool, lemma_id:u32, word_id:u32) -> Result<u32, sqlx::Error> {
+  let mut tx = pool.begin().await?;
+
+  let query = format!("SELECT lemmaid FROM gkvocabdb WHERE wordid = {word_id};", word_id=word_id);
+  let old_lemma_id:(Option<u32>,) = sqlx::query_as(&query)
+  .fetch_one(&mut tx)
+  .await?;
+
+  //update count for old lemmaid
+  //update count for new lemmaid
+
+
+  let query = format!("UPDATE gkvocabdb SET lemmaid = {lemma_id} WHERE wordid={word_id};", lemma_id=lemma_id, word_id=word_id);
+  sqlx::query(&query).execute(&mut tx).await?;
+
+  /*
+if ($oldLemmaId !== NULL) {
+					updateRunningCount($conn, $_POST['textwordid'], $oldLemmaId);
+				}
+				updateRunningCount($conn, $_POST['textwordid'], $_POST['lemmaid']);
+				$conn->query("COMMIT;");
+
+        				//add AND A.seq between start and stop of page to make it more efficient?
+				$query2 = sprintf("SELECT A.hqid as hqid,A.lemma as lemma,A.pos as pos,A.def as def,A.freq as total,B.seq as seq,B.runningcount as rc,B.wordid as wordid,C.seq as lemmaseq,B.isFlagged as flagged FROM %s A LEFT JOIN %s B on A.hqid=B.lemmaid LEFT JOIN %s C on A.arrowedID = C.wordid WHERE A.hqid = %s;", 
+					LEMMA_TABLE,
+					TEXT_WORDS_TABLE, 
+					TEXT_WORDS_TABLE, 
+					$_POST['lemmaid'] );
+
+				$res2A = $conn->query($query2);// or die( mysqli_error( $conn ) );
+				$words = [];
+				if ($res2A) {
+					while ($row = mysqli_fetch_array($res2A))
+					{
+						$a = new \stdClass();
+						$a->i = $row["wordid"];//$_POST['textwordid'];
+		        		$a->hqid = $row["hqid"];
+		        		$a->l = $row["lemma"];
+		        		$a->pos = $row["pos"];
+		        		$a->g = $row["def"];
+		        		$a->rc = $row["rc"];//$runningcount;
+		        		$a->ls = $row["lemmaseq"];
+		        		$a->fr = $row["total"];
+		        		$a->ws = $row["seq"];
+		        		$a->fl = $row["flagged"];
+		        		array_push($words, $a);
+					}
+				}
+	    		$j->words = $words;
+	    		$j->success = TRUE;
+	    		$j->affectedRows = $affected;
+  */
+
+  tx.commit().await?;
+  return Ok(1);
+}
+
+fn update_running_count(tx: &mut sqlx::Transaction<sqlx::Sqlite>, word_id:u32, lemma_id:u32) {
+  /*
+  let query = format!("UPDATE hqvocab AS A SET A.freq=(SELECT COUNT(*) FROM gkvocabdb AS B WHERE B.lemmaid = A.hqid) WHERE A.hqid = {lemma_id};", lemma_id=lemma_id);
+  sqlx::query(&query).execute(&mut tx).await?;
+
+  let query = format!("SELECT a.wordid FROM gkvocabdb a INNER JOIN text ON a.text = b.textid WHERE a.lemma_id={lemma_id} ORDER BY b.textseq,a.seq;", searchprefix, page * limit as i32, limit);
+  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("hqid"),rec.get("def"),rec.get("freq") ) )
+  .fetch_all(pool)
+  .await;
+
+                          course_id, gloss_id
+  DELETE FROM freq WHERE seq_id = 1 and lemma_id = 
+
+  for each {
+    let query = format!("UPDATE freq AS A SET A.freq=(SELECT COUNT(*) FROM gkvocabdb AS B WHERE B.lemmaid = A.hqid) WHERE A.hqid = {lemma_id};", lemma_id=lemma_id);
+    sqlx::query(&query).execute(&mut tx).await?;
+  }
+
+  let query = format!("UPDATE %s SET runningcount = @running:=@running+1 WHERE lemmaid=%s ORDER BY seq ASC;", lemma_id=lemma_id);
+  sqlx::query(&query).execute(&mut tx).await?;
+
+  $conn->query("SET @running:=0;");
+	$query2 = sprintf("UPDATE %s SET runningcount = @running:=@running+1 WHERE lemmaid=%s ORDER BY seq ASC;", 
+  */
+}
+/*
+function updateRunningCount($conn, $wordid, $lemmaid)
+{
+	$query1 = sprintf("UPDATE %s AS A SET A.freq=(SELECT COUNT(*) FROM %s AS B WHERE B.lemmaid = A.hqid) WHERE A.hqid = %s;", 
+		LEMMA_TABLE, 
+		TEXT_WORDS_TABLE, 
+		$lemmaid);
+
+	if ($conn->query($query1) == FALSE) {
+		return FALSE;
+	}
+
+	//update gkvocabdb as a set a.runningcount=(select count(*) from gkvocabdb as b where b.lemmaid = a.lemmaid and b.seq <= a.seq) where a.lemmaid=6 ORDER BY a.seq ASC;
+	//set @running:=0;update gkvocabdb as a set a.runningcount= @running:=@running+1 where a.lemmaid=6 ORDER BY a.seq ASC;
+	$conn->query("SET @running:=0;");
+	$query2 = sprintf("UPDATE %s SET runningcount = @running:=@running+1 WHERE lemmaid=%s ORDER BY seq ASC;", 
+	TEXT_WORDS_TABLE,
+	$lemmaid);
+
+	if ($conn->query($query2) == FALSE) {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+*/
 pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
     let seq_id = 1;
     let (start,end) = get_start_end(pool, textid).await?;
