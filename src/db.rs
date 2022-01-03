@@ -173,9 +173,9 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   */
 }
 
-pub async fn set_lemma_id(pool: &SqlitePool, gloss_id:u32, word_id:u32) -> Result<u32, sqlx::Error> {
+pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32) -> Result<u32, sqlx::Error> {
   let mut tx = pool.begin().await?;
-  let course_id = 1;
+  
   let query = format!("SELECT gloss_id FROM words WHERE word_id = {word_id};", word_id=word_id);
   let old_gloss_id:(Option<u32>,) = sqlx::query_as(&query)
   .fetch_one(&mut tx)
@@ -184,9 +184,9 @@ pub async fn set_lemma_id(pool: &SqlitePool, gloss_id:u32, word_id:u32) -> Resul
   let query = format!("UPDATE words SET gloss_id = {gloss_id} WHERE word_id={word_id};", gloss_id=gloss_id, word_id=word_id);
   sqlx::query(&query).execute(&mut tx).await?;
 
-  update_counts_for_gloss_id(&mut tx, course_id, gloss_id).await;
+  update_counts_for_gloss_id(&mut tx, course_id, gloss_id).await?;
   if old_gloss_id.0.is_some() {
-    update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap() ).await;
+    update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap() ).await?;
   }
 
   /*
@@ -228,6 +228,7 @@ if ($oldLemmaId !== NULL) {
   */
 
   tx.commit().await?;
+  
   Ok(1)
 }
 
@@ -267,21 +268,23 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
   //REPLACE INTO total_counts_by_course SELECT 1,gloss_id,COUNT(*) FROM words WHERE gloss_id = 3081 GROUP BY gloss_id;
   // to update all total counts
   let query = format!("REPLACE INTO total_counts_by_course \
-    SELECT {course_id},gloss_id,COUNT(*) \
-    FROM words \
-    WHERE gloss_id = {gloss_id} \
-    GROUP BY gloss_id;", course_id=course_id, gloss_id=gloss_id);
+    SELECT b.course_id,a.gloss_id,COUNT(*) \
+    FROM words a \
+    INNER JOIN course_x_text b ON a.text = b.text_id \
+    WHERE a.gloss_id = {gloss_id} AND b.course_id = {course_id} \
+    GROUP BY a.gloss_id;", course_id=course_id, gloss_id=gloss_id);
+  
   sqlx::query(&query).execute(&mut *tx).await?;
 
   let query = format!("REPLACE INTO running_counts_by_course \
-    SELECT {course_id},a.word_id,count(*) AS running_count \
+    SELECT c.course_id,a.word_id,count(*) AS running_count \
     FROM words a \
     INNER JOIN words b ON a.gloss_id=b.gloss_id \
-    INNER JOIN course_x_text c ON a.text = c.text_id \
-    INNER JOIN course_x_text d ON b.text = d.text_id \
+    INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id={course_id}) \
+    INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id={course_id}) \
     WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = {gloss_id} \
-    GROUP BY a.word_id \
-    ORDER BY a.gloss_id, running_count;", course_id=course_id, gloss_id=gloss_id);
+    GROUP BY a.word_id;", course_id=course_id, gloss_id=gloss_id);
+    
   sqlx::query(&query).execute(&mut *tx).await?;
 
   //to select running counts

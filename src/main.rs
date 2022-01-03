@@ -139,11 +139,11 @@ pub struct WordQuery {
 #[allow(clippy::eval_order_dependence)]
 async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-    
+    let course_id = 1;
     match post.qtype.as_str() {
         "arrowWord" => {
-            let seq_id = 1;
-            let _ = arrow_word(db, seq_id, post.forLemmaID.unwrap(), post.setArrowedIDTo.unwrap()).await.map_err(map_sqlx_error)?;
+            
+            let _ = arrow_word(db, course_id, post.forLemmaID.unwrap(), post.setArrowedIDTo.unwrap()).await.map_err(map_sqlx_error)?;
             let res = UpdateResponse  {
                 success: true,
                 affected_rows: 1,
@@ -155,8 +155,9 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         "flagUnflagWord" => (),
         "updateLemmaID" => {
             //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
+            
             if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let _ = set_lemma_id(db, post.lemmaid.unwrap(), post.textwordid.unwrap()).await.map_err(map_sqlx_error)?;
+                let _ = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap()).await.map_err(map_sqlx_error)?;
                 let res = UpdateResponse  {
                     success: true,
                     affected_rows: 1,
