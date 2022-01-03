@@ -104,9 +104,9 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 }
 
 pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.hqid,a.lemma,a.def,a.freq FROM hqvocab a WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
+  let query = format!("SELECT a.gloss_id,a.lemma,a.def,a.freq FROM glosses a WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("hqid"),rec.get("def"),rec.get("freq") ) )
+  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("freq") ) )
   .fetch_all(pool)
   .await;
 
@@ -114,16 +114,16 @@ pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit:
 }
 
 pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.hqid,a.lemma,a.def,a.freq FROM hqvocab a WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
+  let query = format!("SELECT a.gloss_id,a.lemma,a.def,a.freq FROM glosses a WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("hqid"),rec.get("def"),rec.get("freq") ) )
+  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("freq") ) )
   .fetch_all(pool)
   .await;
 
   res
 }
 
-pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u32) -> Result<u32, sqlx::Error> {
+pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32) -> Result<u32, sqlx::Error> {
 
   //get old values
   //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
@@ -133,25 +133,25 @@ pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u3
   let mut tx = pool.begin().await?;
 
   let query = format!("INSERT INTO arrowed_words_history \
-    SELECT NULL,seq_id,lemma_id,word_id,updated,user_id,comment FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
+    SELECT NULL,course_id,gloss_id,word_id,updated,user_id,comment FROM arrowed_words WHERE course_id = {course_id} AND gloss_id={gloss_id};", course_id=course_id, gloss_id=gloss_id);
   let r = sqlx::query(&query).execute(&mut tx).await?;
 
   //println!("rows: {}",r.rows_affected());
 
   if r.rows_affected() < 1 {
     let query = format!("INSERT INTO arrowed_words_history VALUES ( \
-    NULL,{seq_id},{lemma_id},NULL,0,NULL,NULL);", seq_id=seq_id, lemma_id=lemma_id);
+    NULL,{course_id},{gloss_id},NULL,0,NULL,NULL);", course_id=course_id, gloss_id=gloss_id);
   let r = sqlx::query(&query).execute(&mut tx).await?;
   }
 
   //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
 
   if word_id > 0 {
-    let query = format!("REPLACE INTO arrowed_words VALUES ({seq_id}, {lemma_id}, {word_id},0,NULL,NULL);", seq_id=seq_id, lemma_id=lemma_id, word_id=word_id);
+    let query = format!("REPLACE INTO arrowed_words VALUES ({course_id}, {gloss_id}, {word_id},0,NULL,NULL);", course_id=course_id, gloss_id=gloss_id, word_id=word_id);
     sqlx::query(&query).execute(&mut tx).await?;
   }
   else {
-    let query = format!("DELETE FROM arrowed_words WHERE seq_id = {seq_id} AND lemma_id={lemma_id};", seq_id=seq_id, lemma_id=lemma_id);
+    let query = format!("DELETE FROM arrowed_words WHERE course_id = {course_id} AND gloss_id={gloss_id};", course_id=course_id, gloss_id=gloss_id);
     sqlx::query(&query).execute(&mut tx).await?;
   }
 
@@ -173,10 +173,10 @@ pub async fn arrow_word(pool: &SqlitePool, seq_id:u32, lemma_id:u32, word_id: u3
   */
 }
 
-pub async fn set_lemma_id(pool: &SqlitePool, lemma_id:u32, word_id:u32) -> Result<u32, sqlx::Error> {
+pub async fn set_lemma_id(pool: &SqlitePool, gloss_id:u32, word_id:u32) -> Result<u32, sqlx::Error> {
   let mut tx = pool.begin().await?;
 
-  let query = format!("SELECT lemmaid FROM gkvocabdb WHERE wordid = {word_id};", word_id=word_id);
+  let query = format!("SELECT gloss_id FROM words WHERE word_id = {word_id};", word_id=word_id);
   let old_lemma_id:(Option<u32>,) = sqlx::query_as(&query)
   .fetch_one(&mut tx)
   .await?;
@@ -185,7 +185,7 @@ pub async fn set_lemma_id(pool: &SqlitePool, lemma_id:u32, word_id:u32) -> Resul
   //update count for new lemmaid
 
 
-  let query = format!("UPDATE gkvocabdb SET lemmaid = {lemma_id} WHERE wordid={word_id};", lemma_id=lemma_id, word_id=word_id);
+  let query = format!("UPDATE words SET gloss_id = {gloss_id} WHERE word_id={word_id};", gloss_id=gloss_id, word_id=word_id);
   sqlx::query(&query).execute(&mut tx).await?;
 
   /*
@@ -230,7 +230,7 @@ if ($oldLemmaId !== NULL) {
   return Ok(1);
 }
 
-fn update_running_count(tx: &mut sqlx::Transaction<sqlx::Sqlite>, word_id:u32, lemma_id:u32) {
+fn update_running_count(tx: &mut sqlx::Transaction<sqlx::Sqlite>, word_id:u32, gloss_id:u32) {
   /*
   let query = format!("UPDATE hqvocab AS A SET A.freq=(SELECT COUNT(*) FROM gkvocabdb AS B WHERE B.lemmaid = A.hqid) WHERE A.hqid = {lemma_id};", lemma_id=lemma_id);
   sqlx::query(&query).execute(&mut tx).await?;
@@ -282,9 +282,9 @@ function updateRunningCount($conn, $wordid, $lemmaid)
 	return TRUE;
 }
 */
-pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sqlx::Error> {
-    let seq_id = 1;
-    let (start,end) = get_start_end(pool, textid).await?;
+pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, sqlx::Error> {
+    let course_id = 1;
+    let (start,end) = get_start_end(pool, text_id).await?;
 /*
     let query2 = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,B.arrowedID,B.hqid,A.seq,C.seq AS arrowedSeq, \
     B.freq, A.runningcount,A.isFlagged \
@@ -299,24 +299,24 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
 
 
     //need to add joins for the running and total count tables and pull from those
-    let query = format!("SELECT A.wordid,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.hqid,A.seq,E.seq AS arrowedSeq, \
+    let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
     B.freq, A.runningcount,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
-    FROM gkvocabdb A \
-    LEFT JOIN hqvocab B ON A.lemmaid = B.hqid \
-    LEFT JOIN arrowed_words D on (A.lemmaid = D.lemma_id AND D.seq_id = {seq_id}) \
-    LEFT JOIN gkvocabdb E on E.wordid = D.word_id \
-    LEFT JOIN text_sequence_x_text F on (E.text = F.text_id and F.seq_id = {seq_id}) \
-    LEFT JOIN text_sequence_x_text G on (A.text = G.text_id and G.seq_id = {seq_id}) \
-    LEFT JOIN running_counts_by_sequence H ON (H.seq_id = {seq_id} AND H.word_id = A.wordid) \
-    LEFT JOIN total_counts_by_sequence I ON (I.seq_id = {seq_id} AND I.lemma_id = A.lemmaid) \
+    FROM words A \
+    LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
+    LEFT JOIN arrowed_words D on (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
+    LEFT JOIN words E on E.word_id = D.word_id \
+    LEFT JOIN course_x_text F on (E.text = F.text_id and F.course_id = {course_id}) \
+    LEFT JOIN course_x_text G on (A.text = G.text_id and G.course_id = {course_id}) \
+    LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
+    LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
     WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", start_seq = start, end_seq = end, seq_id = seq_id);
+    LIMIT 55000;", start_seq = start, end_seq = end, course_id = course_id);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
         WordRow {
-            wordid: rec.get("wordid"),
+            wordid: rec.get("word_id"),
             word: rec.get("word"),
             word_type: rec.get("type"),
             lemma: rec.get("lemma"),
@@ -325,7 +325,7 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
             unit: rec.get("unit"),
             pos: rec.get("pos"),
             arrowed_id: rec.get("arrowedID"),
-            hqid: rec.get("hqid"),
+            hqid: rec.get("gloss_id"),
             seq: rec.get("seq"),
             arrowed_seq: rec.get("arrowedSeq"),
             freq: rec.get("freq"), 
@@ -342,7 +342,7 @@ pub async fn get_words(pool: &SqlitePool, textid:i32) -> Result<Vec<WordRow>, sq
 }
 
 pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>, sqlx::Error> {
-  let query = format!("SELECT id,title,wordcount FROM gkvocabAssignments ORDER BY id;");
+  let query = format!("SELECT id,title,wordcount FROM assignments ORDER BY id;");
   let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(&query)
   .map(|rec: SqliteRow| AssignmentRow {id: rec.get("id"), assignment: rec.get("title")} )
   .fetch_all(pool)
@@ -362,7 +362,7 @@ pub async fn get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Er
 }
 
 pub async fn get_text_id_for_word_id(pool: &SqlitePool, wordid:i32) -> Result<i32, sqlx::Error> {
-  let query = "SELECT A.id FROM gkvocabAssignments A INNER JOIN gkvocabdb B ON A.start = B.wordid INNER JOIN gkvocabdb C ON A.end = C.wordid WHERE B.seq <= (SELECT seq FROM gkvocabdb WHERE wordid = $wordid) AND C.seq >= (SELECT seq FROM gkvocabdb WHERE wordid = $wordid) LIMIT 1;";
+  let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = $wordid) AND C.seq >= (SELECT seq FROM words WHERE word_id = $wordid) LIMIT 1;";
   
   let rec: (i32,) = sqlx::query_as(&query)
   .fetch_one(pool)
@@ -371,8 +371,8 @@ pub async fn get_text_id_for_word_id(pool: &SqlitePool, wordid:i32) -> Result<i3
   Ok(rec.0)
 }
 
-pub async fn get_start_end(pool: &SqlitePool, textid:i32) -> Result<(u32,u32), sqlx::Error> {
-  let query = format!("SELECT b.seq, c.seq FROM gkvocabAssignments a INNER JOIN gkvocabdb b ON a.start = b.wordid INNER JOIN gkvocabdb c ON a.end = c.wordid WHERE a.id = {};", textid);
+pub async fn get_start_end(pool: &SqlitePool, text_id:i32) -> Result<(u32,u32), sqlx::Error> {
+  let query = format!("SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = {};", text_id);
   
   let rec: (u32,u32) = sqlx::query_as(&query)
   .fetch_one(pool)

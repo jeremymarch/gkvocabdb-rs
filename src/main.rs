@@ -315,6 +315,8 @@ async fn main() -> io::Result<()> {
     let mut options = SqliteConnectOptions::from_str(&db_path)
         .expect("Could not connect to db.")
         .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .read_only(false)
         .collation("PolytonicGreek", |l, r| l.to_lowercase().cmp( &r.to_lowercase() ) );
     
     let db_pool = SqlitePool::connect_with(options).await.expect("Could not connect to db.");
