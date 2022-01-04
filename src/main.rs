@@ -66,6 +66,14 @@ struct UpdateResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+struct UpdateGlossIdResponse {
+    qtype: String,
+    words: Vec<SmallWord>,
+    success: bool,
+    affectedrows: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponse {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
     select_id: u32,
@@ -157,12 +165,15 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
             //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
             
             if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let _ = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap()).await.map_err(map_sqlx_error)?;
-                let res = UpdateResponse  {
+                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap()).await.map_err(map_sqlx_error)?;
+
+                println!("TESTING: {}", words.len());
+
+                let res = UpdateGlossIdResponse {
+                    qtype: "updateLemmaID".to_string(),
+                    words: words,
                     success: true,
-                    affected_rows: 1,
-                    arrowed_value: 1,
-                    lemmaid:1,
+                    affectedrows: 1,
                 };
                 return Ok(HttpResponse::Ok().json(res));
             }

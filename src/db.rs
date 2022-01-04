@@ -69,6 +69,30 @@ pub struct WordRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+pub struct SmallWord {
+    #[serde(rename(serialize = "i"))]
+    pub wordid:u32,
+    pub hqid:u32,
+    #[serde(rename(serialize = "l"))]
+    pub lemma:String,
+    pub pos:String,
+    #[serde(rename(serialize = "g"))]
+    pub def:String,
+    #[serde(rename(serialize = "rc"))]
+    pub runningcount: Option<u32>,
+    #[serde(rename(serialize = "ls"))]
+    pub arrowed_seq: Option<u32>,
+    #[serde(rename(serialize = "fr"))]
+    pub total: Option<u32>,
+    #[serde(rename(serialize = "ws"))]
+    pub seq:u32,
+    #[serde(rename(serialize = "if"))]
+    pub is_flagged: bool,
+    //pub word_text_seq: u32,
+    //pub arrowed_text_seq: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct AssignmentRow {
   pub id:u32,
   pub assignment:String
@@ -173,7 +197,7 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   */
 }
 
-pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32) -> Result<u32, sqlx::Error> {
+pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32) -> Result<Vec<SmallWord>, sqlx::Error> {
   let mut tx = pool.begin().await?;
   
   let query = format!("SELECT gloss_id FROM words WHERE word_id = {word_id};", word_id=word_id);
@@ -189,47 +213,43 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
     update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap() ).await?;
   }
 
-  /*
-if ($oldLemmaId !== NULL) {
-					updateRunningCount($conn, $_POST['textwordid'], $oldLemmaId);
-				}
-				updateRunningCount($conn, $_POST['textwordid'], $_POST['lemmaid']);
-				$conn->query("COMMIT;");
+  let query = format!("SELECT B.gloss_id, B.lemma, B.pos, B.def, I.total_count, A.seq, H.running_count, A.word_id, \
+  D.word_id as arrowedID, E.seq AS arrowedSeq, A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
+  FROM words A \
+  LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
+  LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
+  LEFT JOIN words E ON E.word_id = D.word_id \
+  LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
+  LEFT JOIN course_x_text G ON (A.text = G.text_id AND G.course_id = {course_id}) \
+  LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
+  LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
+  WHERE A.gloss_id = {gloss_id} AND A.type > -1 \
+  ORDER BY A.seq \
+  LIMIT 55000;", gloss_id=gloss_id, course_id = course_id);
 
-        				//add AND A.seq between start and stop of page to make it more efficient?
-				$query2 = sprintf("SELECT A.hqid as hqid,A.lemma as lemma,A.pos as pos,A.def as def,A.freq as total,B.seq as seq,B.runningcount as rc,B.wordid as wordid,C.seq as lemmaseq,B.isFlagged as flagged FROM %s A LEFT JOIN %s B on A.hqid=B.lemmaid LEFT JOIN %s C on A.arrowedID = C.wordid WHERE A.hqid = %s;", 
-					LEMMA_TABLE,
-					TEXT_WORDS_TABLE, 
-					TEXT_WORDS_TABLE, 
-					$_POST['lemmaid'] );
-
-				$res2A = $conn->query($query2);// or die( mysqli_error( $conn ) );
-				$words = [];
-				if ($res2A) {
-					while ($row = mysqli_fetch_array($res2A))
-					{
-						$a = new \stdClass();
-						$a->i = $row["wordid"];//$_POST['textwordid'];
-		        		$a->hqid = $row["hqid"];
-		        		$a->l = $row["lemma"];
-		        		$a->pos = $row["pos"];
-		        		$a->g = $row["def"];
-		        		$a->rc = $row["rc"];//$runningcount;
-		        		$a->ls = $row["lemmaseq"];
-		        		$a->fr = $row["total"];
-		        		$a->ws = $row["seq"];
-		        		$a->fl = $row["flagged"];
-		        		array_push($words, $a);
-					}
-				}
-	    		$j->words = $words;
-	    		$j->success = TRUE;
-	    		$j->affectedRows = $affected;
-  */
+  let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| 
+      SmallWord {
+          wordid: rec.get("word_id"),
+          hqid: rec.get("gloss_id"),
+          lemma: rec.get("lemma"),
+          pos: rec.get("pos"),
+          def: rec.get("def"),
+          runningcount: rec.get("running_count"),
+          arrowed_seq: rec.get("arrowedSeq"),
+          total: rec.get("total_count"), 
+          seq: rec.get("seq"),
+          is_flagged: rec.get("isFlagged"),
+          //word_text_seq: rec.get("text_order"),
+          //arrowed_text_seq: rec.get("arrowed_text_order"),
+      }    
+  )
+  .fetch_all(&mut tx)
+  .await;
 
   tx.commit().await?;
   
-  Ok(1)
+  res
 }
 
 pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlite>, course_id:u32) -> Result<u32, sqlx::Error> {
@@ -274,7 +294,7 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
     WHERE a.gloss_id = {gloss_id} AND b.course_id = {course_id} \
     GROUP BY a.gloss_id;", course_id=course_id, gloss_id=gloss_id);
   
-  sqlx::query(&query).execute(&mut *tx).await?;
+  sqlx::query(&query).execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
 
   let query = format!("REPLACE INTO running_counts_by_course \
     SELECT c.course_id,a.word_id,count(*) AS running_count \
@@ -285,7 +305,7 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
     WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = {gloss_id} \
     GROUP BY a.word_id;", course_id=course_id, gloss_id=gloss_id);
     
-  sqlx::query(&query).execute(&mut *tx).await?;
+  sqlx::query(&query).execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
 
   //to select running counts
   //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
@@ -298,7 +318,6 @@ pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, s
     let course_id = 1;
     let (start,end) = get_start_end(pool, text_id).await?;
 
-    //need to add joins for the running and total count tables and pull from those
     let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
     I.total_count, H.running_count,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
     FROM words A \
