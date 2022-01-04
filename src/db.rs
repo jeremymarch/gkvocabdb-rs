@@ -88,8 +88,10 @@ pub struct SmallWord {
     pub seq:u32,
     #[serde(rename(serialize = "if"))]
     pub is_flagged: bool,
-    //pub word_text_seq: u32,
-    //pub arrowed_text_seq: Option<u32>,
+    #[serde(rename(serialize = "wtseq"))]
+    pub word_text_seq: u32,
+    #[serde(rename(serialize = "atseq"))]
+    pub arrowed_text_seq: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -240,8 +242,8 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
           total: rec.get("total_count"), 
           seq: rec.get("seq"),
           is_flagged: rec.get("isFlagged"),
-          //word_text_seq: rec.get("text_order"),
-          //arrowed_text_seq: rec.get("arrowed_text_order"),
+          word_text_seq: rec.get("text_order"),
+          arrowed_text_seq: rec.get("arrowed_text_order"),
       }    
   )
   .fetch_all(&mut tx)

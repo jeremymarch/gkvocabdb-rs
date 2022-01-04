@@ -1232,7 +1232,7 @@ function getListWordString(wid, lemma, pos, gloss, count, total) {
     return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href=''>[" + count + " of " + total + "]</a></div>";
 }
 
-function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, lemmaSeq, wordSeq, flagged)
+function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, lemmaSeq, wordSeq, flagged, arrowed_text_seq, word_text_seq)
 {
     var $a = $("#word" + wid);
     if ($a.length > 0) {
@@ -1243,12 +1243,19 @@ function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, l
         $a.attr("lemmaid", lemmaid);
         //$a.attr("seq", seq);
 
-        if (lemmaSeq === wordSeq) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
+        /*if (lemmaSeq === wordSeq) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
             $a.addClass("arrowedHere");
         }
         else if (lemmaSeq !== null && parseInt(lemmaSeq) < parseInt(wordSeq)) //hideable
         {
             $a.addClass("alreadyArrowed");
+        }*/
+
+        if (arrowed_text_seq === word_text_seq && lemmaSeq === wordSeq) {
+            $a.addClass("arrowedHere");
+        }
+        else if ((arrowed_text_seq !== null && arrowed_text_seq < word_text_seq) || (arrowed_text_seq !== null && arrowed_text_seq === word_text_seq && lemmaSeq !== null && parseInt(lemmaSeq) < parseInt(wordSeq))) {
+            $a.addClass("alreadyArrowed"); //hide it
         }
 
         if (flagged == "1") {
