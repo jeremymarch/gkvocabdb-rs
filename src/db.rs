@@ -238,14 +238,13 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
   .bind(course_id)
   .bind(gloss_id)
-
   .bind(word_id)
   .fetch_one(&mut tx)
   .await;
 
   //1b. unarrow word if it is arrowed
   if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
-    let _ = arrow_word_trx(&mut tx, course_id, gloss_id, 0, user_id, timestamp).await?;
+    let _ = arrow_word_trx(&mut tx, course_id, gloss_id, 0 /*zero to unarrow*/, user_id, timestamp).await?;
   }
 
   //2a. save word row into history before updating gloss_id
