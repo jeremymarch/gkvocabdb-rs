@@ -161,7 +161,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
     match post.qtype.as_str() {
         "arrowWord" => {
             
-            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id).await.map_err(map_sqlx_error)?;
+            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp).await.map_err(map_sqlx_error)?;
             let res = UpdateResponse  {
                 success: true,
                 affected_rows: 1,

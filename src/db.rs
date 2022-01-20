@@ -149,7 +149,7 @@ pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i3
   res
 }
 
-pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32) -> Result<(), sqlx::Error> {
+pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64) -> Result<(), sqlx::Error> {
 
   //get old values
   //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
@@ -158,11 +158,12 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   
   let mut tx = pool.begin().await?;
 
+  //add previous arrow to history, if it was arrowed before
   let query = "INSERT INTO arrowed_words_history \
-    SELECT NULL,course_id,gloss_id,word_id,updated,user_id,comment \
+    SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
     FROM arrowed_words \
     WHERE course_id = ? AND gloss_id = ?;";
-  let r = sqlx::query(query)
+  sqlx::query(query)
   .bind(course_id)
   .bind(gloss_id)
   .execute(&mut tx).await?;
@@ -171,23 +172,16 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
 
   //if no row existed to be inserted above, then the word was not arrowed before.  Insert new row into history to reflect this.
   //but this way we don't get to know when or by whom it was unarrowed? or do we???
-  if r.rows_affected() < 1 {
-    let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, 0, NULL, NULL);";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .execute(&mut tx).await?;
-  }
 
   //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
 
   if word_id > 0 {
-    let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, 0, ?, NULL);";
+    let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
     sqlx::query(query)
     .bind(course_id)
     .bind(gloss_id)
     .bind(word_id)
-    //.bind(updated)
+    .bind(timestamp)
     .bind(user_id)
     //.bind(comment)
     .execute(&mut tx).await?;
@@ -198,6 +192,16 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
     sqlx::query(query)
     .bind(course_id)
     .bind(gloss_id)
+    .execute(&mut tx).await?;
+
+    //add to history now, since can't later
+    let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .bind(timestamp)
+    .bind(user_id)
+    //.bind(comment)
     .execute(&mut tx).await?;
   }
 
@@ -233,11 +237,7 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   .bind(gloss_id)
   .fetch_one(&mut tx)
   .await;
-/*
-ba
-ms
-proctor gamble
-*/
+
   //1b. save to arrowed word to history before deleting
   if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
     //add to history if was arrowed
