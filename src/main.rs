@@ -175,7 +175,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
             //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
             
             if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id).await.map_err(map_sqlx_error)?;
+                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp).await.map_err(map_sqlx_error)?;
 
                 println!("TESTING: {}", words.len());
 

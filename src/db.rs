@@ -158,52 +158,7 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   
   let mut tx = pool.begin().await?;
 
-  //add previous arrow to history, if it was arrowed before
-  let query = "INSERT INTO arrowed_words_history \
-    SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
-    FROM arrowed_words \
-    WHERE course_id = ? AND gloss_id = ?;";
-  sqlx::query(query)
-  .bind(course_id)
-  .bind(gloss_id)
-  .execute(&mut tx).await?;
-
-  //println!("rows: {}",r.rows_affected());
-
-  //if no row existed to be inserted above, then the word was not arrowed before.  Insert new row into history to reflect this.
-  //but this way we don't get to know when or by whom it was unarrowed? or do we???
-
-  //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
-
-  if word_id > 0 {
-    let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .bind(word_id)
-    .bind(timestamp)
-    .bind(user_id)
-    //.bind(comment)
-    .execute(&mut tx).await?;
-  }
-  else {
-    //delete row to remove arrow
-    let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .execute(&mut tx).await?;
-
-    //add to history now, since can't later
-    let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .bind(timestamp)
-    .bind(user_id)
-    //.bind(comment)
-    .execute(&mut tx).await?;
-  }
+  let _ = arrow_word_trx(&mut tx, course_id, gloss_id, word_id, user_id, timestamp).await?;
 
   tx.commit().await?;
 
@@ -223,42 +178,75 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   */
 }
 
-//word_id is unique across courses, so we do not need to use course_id except for where the word is arrowed
-pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32, _user_id: u32) -> Result<Vec<SmallWord>, sqlx::Error> {
-
-  let mut tx = pool.begin().await?;
-
-  //1a. select * from arrowed_words so we can know whether to delete/save to history arrow before updating gloss_id
-  //we have to remove arrow if the word whose gloss is being changed is arrowed
-  //one query:? INSERT INTO update_log SELECT update_type,word_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;
-  let query = "SELECT course_id,gloss_id,word_id,updated,user_id,comment FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
-  let arrowed_word_id: Result<(u32,u32,Option<u32>,Option<i64>,Option<u32>,Option<String>), sqlx::Error> = sqlx::query_as(query)
+pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64) -> Result<(), sqlx::Error> {
+  //add previous arrow to history, if it was arrowed before
+  let query = "INSERT INTO arrowed_words_history \
+    SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
+    FROM arrowed_words \
+    WHERE course_id = ? AND gloss_id = ?;";
+  sqlx::query(query)
   .bind(course_id)
   .bind(gloss_id)
-  .fetch_one(&mut tx)
-  .await;
+  .execute(&mut *tx).await?;
 
-  //1b. save to arrowed word to history before deleting
-  if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
-    //add to history if was arrowed
-    println!("yay");
-    let query = "INSERT INTO ;";
+  //println!("rows: {}",r.rows_affected());
+
+  //if no row existed to be inserted above, then the word was not arrowed before.  Insert new row into history to reflect this.
+  //but this way we don't get to know when or by whom it was unarrowed? or do we???
+
+  //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
+
+  if word_id > 0 {
+    let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
     sqlx::query(query)
     .bind(course_id)
     .bind(gloss_id)
     .bind(word_id)
-    .execute(&mut tx).await?;
-
+    .bind(timestamp)
+    .bind(user_id)
+    //.bind(comment)
+    .execute(&mut *tx).await?;
   }
+  else {
+    //delete row to remove arrow
+    let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .execute(&mut *tx).await?;
 
-  //1c. 
-  //need to unarrow word before changing if it was arrowed before.
-  let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
-  sqlx::query(query)
+    //add to history now, since can't later
+    let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .bind(timestamp)
+    .bind(user_id)
+    //.bind(comment)
+    .execute(&mut *tx).await?;
+  }
+  Ok(())
+}
+
+//word_id is unique across courses, so we do not need to use course_id except for where the word is arrowed
+pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32, user_id: u32, timestamp: i64) -> Result<Vec<SmallWord>, sqlx::Error> {
+
+  let mut tx = pool.begin().await?;
+
+  //1a check if the word whose gloss is being changed is arrowed
+  let query = "SELECT gloss_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
+  let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
   .bind(course_id)
   .bind(gloss_id)
+
   .bind(word_id)
-  .execute(&mut tx).await?;
+  .fetch_one(&mut tx)
+  .await;
+
+  //1b. unarrow word if it is arrowed
+  if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
+    let _ = arrow_word_trx(&mut tx, course_id, gloss_id, 0, user_id, timestamp).await?;
+  }
 
   //2a. save word row into history before updating gloss_id
   //or could have separate history table just for gloss_id changes
