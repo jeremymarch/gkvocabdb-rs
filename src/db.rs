@@ -107,7 +107,7 @@ pub struct DefRow {
     pub def: String,
     pub seq: u32
 }
-
+/*
 pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
   let query = format!("SELECT seq FROM {} WHERE sortalpha >= '{}' ORDER BY sortalpha LIMIT 1;", table, prefix);
   
@@ -128,7 +128,7 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
       Err(r) => Err(r)
   }
 }
-
+*/
 pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
   let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a INNER JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
@@ -149,7 +149,7 @@ pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i3
   res
 }
 
-pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32) -> Result<u32, sqlx::Error> {
+pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32) -> Result<(), sqlx::Error> {
 
   //get old values
   //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
@@ -158,34 +158,54 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   
   let mut tx = pool.begin().await?;
 
-  let query = format!("INSERT INTO arrowed_words_history \
-    SELECT NULL,course_id,gloss_id,word_id,updated,user_id,comment FROM arrowed_words WHERE course_id = {course_id} AND gloss_id={gloss_id};", course_id=course_id, gloss_id=gloss_id);
-  let r = sqlx::query(&query).execute(&mut tx).await?;
+  let query = "INSERT INTO arrowed_words_history \
+    SELECT NULL,course_id,gloss_id,word_id,updated,user_id,comment \
+    FROM arrowed_words \
+    WHERE course_id = ? AND gloss_id = ?;";
+  let r = sqlx::query(query)
+  .bind(course_id)
+  .bind(gloss_id)
+  .execute(&mut tx).await?;
 
   //println!("rows: {}",r.rows_affected());
 
+  //if no row existed to be inserted above, then the word was not arrowed before.  Insert new row into history to reflect this.
+  //but this way we don't get to know when or by whom it was unarrowed? or do we???
   if r.rows_affected() < 1 {
-    let query = format!("INSERT INTO arrowed_words_history VALUES ( \
-    NULL,{course_id},{gloss_id},NULL,0,NULL,NULL);", course_id=course_id, gloss_id=gloss_id);
-  let r = sqlx::query(&query).execute(&mut tx).await?;
+    let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, 0, NULL, NULL);";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .execute(&mut tx).await?;
   }
 
   //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
 
   if word_id > 0 {
-    let query = format!("REPLACE INTO arrowed_words VALUES ({course_id}, {gloss_id}, {word_id},0,NULL,NULL);", course_id=course_id, gloss_id=gloss_id, word_id=word_id);
-    sqlx::query(&query).execute(&mut tx).await?;
+    let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, 0, ?, NULL);";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .bind(word_id)
+    //.bind(updated)
+    .bind(user_id)
+    //.bind(comment)
+    .execute(&mut tx).await?;
   }
   else {
-    let query = format!("DELETE FROM arrowed_words WHERE course_id = {course_id} AND gloss_id={gloss_id};", course_id=course_id, gloss_id=gloss_id);
-    sqlx::query(&query).execute(&mut tx).await?;
+    //delete row to remove arrow
+    let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .execute(&mut tx).await?;
   }
 
   tx.commit().await?;
 
   //INSERT INTO arrowed_words_history SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = 1 AND lemma_id=20;
 
-  Ok(1)
+  Ok(())
 /*  
     if ( $conn->query($query) === TRUE)
     {
@@ -199,22 +219,77 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   */
 }
 
-pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32) -> Result<Vec<SmallWord>, sqlx::Error> {
+//word_id is unique across courses, so we do not need to use course_id except for where the word is arrowed
+pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32, _user_id: u32) -> Result<Vec<SmallWord>, sqlx::Error> {
+
   let mut tx = pool.begin().await?;
-  
-  let query = format!("SELECT gloss_id FROM words WHERE word_id = {word_id};", word_id=word_id);
-  let old_gloss_id:(Option<u32>,) = sqlx::query_as(&query)
+
+  //1a. select * from arrowed_words so we can know whether to delete/save to history arrow before updating gloss_id
+  //we have to remove arrow if the word whose gloss is being changed is arrowed
+  //one query:? INSERT INTO update_log SELECT update_type,word_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;
+  let query = "SELECT course_id,gloss_id,word_id,updated,user_id,comment FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+  let arrowed_word_id: Result<(u32,u32,Option<u32>,Option<i64>,Option<u32>,Option<String>), sqlx::Error> = sqlx::query_as(query)
+  .bind(course_id)
+  .bind(gloss_id)
+  .fetch_one(&mut tx)
+  .await;
+/*
+ba
+ms
+proctor gamble
+*/
+  //1b. save to arrowed word to history before deleting
+  if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
+    //add to history if was arrowed
+    println!("yay");
+    let query = "INSERT INTO ;";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(gloss_id)
+    .bind(word_id)
+    .execute(&mut tx).await?;
+
+  }
+
+  //1c. 
+  //need to unarrow word before changing if it was arrowed before.
+  let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
+  sqlx::query(query)
+  .bind(course_id)
+  .bind(gloss_id)
+  .bind(word_id)
+  .execute(&mut tx).await?;
+
+  //2a. save word row into history before updating gloss_id
+  //or could have separate history table just for gloss_id changes
+  let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
+  sqlx::query(query)
+  .bind(word_id)
+  .execute(&mut tx).await?; 
+
+  //0. get old gloss_id before changing it so we can update its counts in step 3b
+  let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
+  let old_gloss_id:(Option<u32>,) = sqlx::query_as(query)
+  .bind(word_id)
   .fetch_one(&mut tx)
   .await?;
 
-  let query = format!("UPDATE words SET gloss_id = {gloss_id} WHERE word_id={word_id};", gloss_id=gloss_id, word_id=word_id);
-  sqlx::query(&query).execute(&mut tx).await?;
+  //2b. update gloss_id
+  let query = "UPDATE words SET gloss_id = ? WHERE word_id = ?;";
+  sqlx::query(query)
+  .bind(gloss_id)
+  .bind(word_id)
+  .execute(&mut tx).await?;
 
+  //3. update counts
   update_counts_for_gloss_id(&mut tx, course_id, gloss_id).await?;
   if old_gloss_id.0.is_some() {
     update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap() ).await?;
   }
 
+  //this requests all the places this word shows up, so we can update them in the displayed page.
+  //fix me: need to limit this by course_id
+  //fix me: need to limit this to the assignment displayed on the page, else this could return huge number of rows for e.g. article/kai/etc
   let query = format!("SELECT B.gloss_id, B.lemma, B.pos, B.def, I.total_count, A.seq, H.running_count, A.word_id, \
   D.word_id as arrowedID, E.seq AS arrowedSeq, A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
   FROM words A \
@@ -254,7 +329,8 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   res
 }
 
-pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlite>, course_id:u32) -> Result<u32, sqlx::Error> {
+/*
+pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlite>, course_id:u32) -> Result<(), sqlx::Error> {
   //select count(*) as c,b.lemma from words a inner join glosses b on a.gloss_id=b.gloss_id group by a.gloss_id order by c;
 
   // to update all total counts
@@ -282,10 +358,11 @@ pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlit
   //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
 
   //when updating running count of just one we only need to update the words equal and after this one.
-  Ok(1)
+  Ok(())
 }
+*/
 
-pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32) -> Result<u32, sqlx::Error> {
+pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32) -> Result<(), sqlx::Error> {
   //select count(*) as c,b.lemma from words a inner join glosses b on a.gloss_id=b.gloss_id group by a.gloss_id order by c;
   //REPLACE INTO total_counts_by_course SELECT 1,gloss_id,COUNT(*) FROM words WHERE gloss_id = 3081 GROUP BY gloss_id;
   // to update all total counts
@@ -313,7 +390,7 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
   //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
 
   //when updating running count of just one we only need to update the words equal and after this one?
-  Ok(1)
+  Ok(())
 }
 
 pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, sqlx::Error> {
@@ -363,8 +440,8 @@ pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, s
 }
 
 pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>, sqlx::Error> {
-  let query = format!("SELECT id,title,wordcount FROM assignments ORDER BY id;");
-  let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(&query)
+  let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+  let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
   .map(|rec: SqliteRow| AssignmentRow {id: rec.get("id"), assignment: rec.get("title")} )
   .fetch_all(pool)
   .await;
@@ -372,9 +449,9 @@ pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>
   res
 }
 
-pub async fn get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Error> {
-    let query = format!("SELECT id,title FROM titles ORDER BY title;");
-    let res: Result<Vec<(String,u32)>, sqlx::Error> = sqlx::query(&query)
+pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Error> {
+    let query = "SELECT id,title FROM titles ORDER BY title;";
+    let res: Result<Vec<(String,u32)>, sqlx::Error> = sqlx::query(query)
     .map(|rec: SqliteRow| (rec.get("id"),rec.get("title")) )
     .fetch_all(pool)
     .await;
@@ -382,20 +459,23 @@ pub async fn get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Er
     res
 }
 
-pub async fn get_text_id_for_word_id(pool: &SqlitePool, wordid:i32) -> Result<i32, sqlx::Error> {
-  let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = $wordid) AND C.seq >= (SELECT seq FROM words WHERE word_id = $wordid) LIMIT 1;";
+pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:i32) -> Result<i32, sqlx::Error> {
+  let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = ?) AND C.seq >= (SELECT seq FROM words WHERE word_id = ?) LIMIT 1;";
   
-  let rec: (i32,) = sqlx::query_as(&query)
+  let rec: (i32,) = sqlx::query_as(query)
+  .bind(word_id)
+  .bind(word_id)
   .fetch_one(pool)
-  .await?; //else 0
+  .await?;
   
   Ok(rec.0)
 }
 
 pub async fn get_start_end(pool: &SqlitePool, text_id:i32) -> Result<(u32,u32), sqlx::Error> {
-  let query = format!("SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = {};", text_id);
+  let query = "SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = ?;";
   
-  let rec: (u32,u32) = sqlx::query_as(&query)
+  let rec: (u32,u32) = sqlx::query_as(query)
+  .bind(text_id)
   .fetch_one(pool)
   .await?;
 
@@ -403,6 +483,9 @@ pub async fn get_start_end(pool: &SqlitePool, text_id:i32) -> Result<(u32,u32), 
 }
     
 /*
+CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type text NOT NULL);
+CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
+
 CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL);
 
 CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
@@ -423,6 +506,9 @@ gkvocabdb text references text_id, lemma_id references hqid, seq, type reference
 gkvocabassignments start,end references wordid?
 
 add PolytonicGreek collation to hqvocabdb sortalpha
+
+
+CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
 */
     
     

@@ -172,6 +172,7 @@ function wordtree (idPrefix, width, height)
 	input.setAttribute("autocorrect", "off");
 	input.setAttribute("autocapitalize", "off");
 	input.setAttribute("spellcheck", "false");
+    //input.setAttribute("lang", "el");
     input.id = idPrefix + "Entry";
     this.entry = input;
     

@@ -18,10 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 use thiserror::Error;
 use actix_web::{ ResponseError, http::StatusCode};
-use percent_encoding::percent_decode_str;
+//use percent_encoding::percent_decode_str;
 
 use std::io;
-use regex::Regex;
 use actix_files as fs;
 use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
 use actix_session::{Session, CookieSession};
@@ -30,14 +29,12 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use std::str::FromStr;
 
-use actix_files::NamedFile;
-use std::path::PathBuf;
-
 mod db;
 use crate::db::*;
 use serde::{Deserialize, Serialize};
-
-use std::time::{SystemTime, UNIX_EPOCH};
+extern crate chrono;
+use chrono::prelude::*;
+//use std::time::{SystemTime, UNIX_EPOCH};
 
 //https://stackoverflow.com/questions/64348528/how-can-i-pass-multi-variable-by-actix-web-appdata
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
@@ -103,8 +100,10 @@ pub struct QueryRequest {
 #[derive(Deserialize)]
 pub struct UpdateRequest {
     pub qtype: String,
-    pub forLemmaID: Option<u32>,
-    pub setArrowedIDTo: Option<u32>,
+    #[serde(rename(serialize = "forLemmaID"), rename(deserialize = "forLemmaID"))]
+    pub for_lemma_id: Option<u32>,
+    #[serde(rename(serialize = "setArrowedIDTo"), rename(deserialize = "setArrowedIDTo"))]
+    pub set_arrowed_id_to: Option<u32>,
 
     pub textwordid: Option<u32>,
     pub lemmaid: Option<u32>,
@@ -148,10 +147,21 @@ pub struct WordQuery {
 async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     let course_id = 1;
+    let user_id = 2;
+
+    let now = Utc::now();
+    let timestamp: i64 = now.timestamp();
+    //let naive_datetime = NaiveDateTime::from_timestamp(timestamp, 0);
+    //let timestamp_string: DateTime<Utc> = DateTime::from_utc(naive_datetime, Utc);
+    //println!("Current timestamp is {}", timestamp);
+    //println!("{}", datetime_again);
+
+    let _user_agent = get_user_agent(&req).unwrap_or("");
+
     match post.qtype.as_str() {
         "arrowWord" => {
             
-            let _ = arrow_word(db, course_id, post.forLemmaID.unwrap(), post.setArrowedIDTo.unwrap()).await.map_err(map_sqlx_error)?;
+            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id).await.map_err(map_sqlx_error)?;
             let res = UpdateResponse  {
                 success: true,
                 affected_rows: 1,
@@ -165,13 +175,13 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
             //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
             
             if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap()).await.map_err(map_sqlx_error)?;
+                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id).await.map_err(map_sqlx_error)?;
 
                 println!("TESTING: {}", words.len());
 
                 let res = UpdateGlossIdResponse {
                     qtype: "updateLemmaID".to_string(),
-                    words: words,
+                    words,
                     success: true,
                     affectedrows: 1,
                 };
@@ -180,6 +190,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         },
         "newlemma" => (),
         "editlemma" => (),
+
         "getWordAnnotation" => (),
         "getLemma" => (),
         "removeDuplicate" => (),
@@ -187,6 +198,24 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         "getWordsByLemmaId" => (),
         _ => (),
     }
+
+    /*
+    history topics:
+
+    arrow word
+    change word's gloss
+    new gloss
+    edit gloss
+    flagged word/unflagged
+
+    delete gloss
+
+    changed text seq
+
+    inserted word
+    deleted word
+    changed word seq
+    */
     
 
     if let Some(count) = session.get::<i32>("counter")? {
@@ -212,8 +241,6 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
 
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
     
-    let table = "hqvocab";
-    
     //let seq = get_seq_by_prefix(db, table, &query_params.w).await.map_err(map_sqlx_error)?;
 
     let mut before_rows = vec![];
@@ -234,7 +261,7 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
     //only check page 0 or page greater than 0
     let vlast_page = if after_rows.len() < info.n as usize && info.page >= 0 { 1 } else { 0 };
 
-    let seq = if after_rows.len() > 0 { after_rows[0].1 } else { 0 };
+    let seq = if !after_rows.is_empty() { after_rows[0].1 } else { 0 };
 
     let result_rows = [before_rows, after_rows].concat();
 
@@ -324,7 +351,7 @@ async fn main() -> io::Result<()> {
     let db_path = std::env::var("GKVOCABDB_DB_PATH")
                    .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
     
-    let mut options = SqliteConnectOptions::from_str(&db_path)
+    let options = SqliteConnectOptions::from_str(&db_path)
         .expect("Could not connect to db.")
         .foreign_keys(true)
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
@@ -432,11 +459,6 @@ struct ErrorResponse {
     error: String,
     message: String,
 }
-
-fn map_utf8_error(_e: std::str::Utf8Error) -> PhilologusError {   
-    PhilologusError { code: StatusCode::INTERNAL_SERVER_ERROR, name: "percent_decode_str utf-8 error".to_string(), error: "percent_decode_str utf-8 error".to_string() }
-}
-
 
 #[cfg(test)]
 mod tests {
