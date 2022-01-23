@@ -1293,7 +1293,7 @@ function realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote)
     }
 
     $.ajax({
-        url: "updatedb",
+        url: "updategloss",
         type: "POST",
         data: {qtype:editOrInsert,hqid:localEditHQID, lemma:newLemma, strippedLemma:newLemmaStripped, pos:newPOS, def:newGloss, note:newNote},
         dataType: "text",//JSON automatically deserializes json

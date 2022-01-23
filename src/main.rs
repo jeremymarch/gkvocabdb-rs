@@ -22,8 +22,9 @@ use actix_web::{ ResponseError, http::StatusCode};
 
 use std::io;
 use actix_files as fs;
-use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
+use actix_web::{middleware, web, App, error, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
 use actix_session::{Session, CookieSession};
+use mime;
 
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
@@ -71,6 +72,13 @@ struct UpdateGlossIdResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+struct UpdateLemmaResponse {
+    qtype: String,
+    success: bool,
+    affectedrows: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponse {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
     select_id: u32,
@@ -109,6 +117,18 @@ pub struct UpdateRequest {
     pub lemmaid: Option<u32>,
     pub lemmastr: Option<String>,
 }
+
+#[derive(Deserialize)]
+pub struct UpdateLemmaRequest {
+    pub qtype: String,
+    pub hqid:Option<u32>, 
+    pub lemma:String, 
+    #[serde(rename(serialize = "strippedLemma"), rename(deserialize = "strippedLemma"))]
+    pub stripped_lemma:String, 
+    pub pos:String, 
+    pub def:String, 
+    pub note:String,
+}
 /*
 #[derive(Deserialize)]
 pub struct WordQuery {
@@ -143,6 +163,47 @@ pub struct WordQuery {
     pub wordid: Option<String>,
     pub w: String,
 }
+
+#[allow(clippy::eval_order_dependence)]
+async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+    //let course_id = 1;
+    let user_id = 2;
+
+    let now = Utc::now();
+    let timestamp: i64 = now.timestamp();
+    //let naive_datetime = NaiveDateTime::from_timestamp(timestamp, 0);
+    //let timestamp_string: DateTime<Utc> = DateTime::from_utc(naive_datetime, Utc);
+    //println!("Current timestamp is {}", timestamp);
+    //println!("{}", datetime_again);
+
+    let _user_agent = get_user_agent(&req).unwrap_or("");
+
+    match post.qtype.as_str() {
+        "newlemma" => {           
+            let updated_ip = "0.0.0.1";
+            let user_agent = "agent";
+            let rows_affected = new_lemma(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+
+            let res = UpdateLemmaResponse {
+                qtype: "newLemma1".to_string(),
+                success: true,
+                affectedrows: rows_affected,
+            };
+            return Ok(HttpResponse::Ok().json(res));          
+        },
+        "editlemma" => ()/*if post.hqid.is_some() {*/,
+        _ => (),
+    }
+    let res = UpdateLemmaResponse {
+        qtype: "newLemma2".to_string(),
+        success: true,
+        affectedrows: 1,
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
 #[allow(clippy::eval_order_dependence)]
 async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -188,11 +249,9 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
                 return Ok(HttpResponse::Ok().json(res));
             }
         },
-        "newlemma" => (),
-        "editlemma" => (),
+        "getLemma" => (),
 
         "getWordAnnotation" => (),
-        "getLemma" => (),
         "removeDuplicate" => (),
         "updateCounts" => (),
         "getWordsByLemmaId" => (),
@@ -365,21 +424,45 @@ async fn main() -> io::Result<()> {
     .journal_mode(SqliteJournalMode::Off)
     .read_only(true)
     */
-/*
-    let error_handlers = ErrorHandlers::new()
-            .handler(
-                http::StatusCode::INTERNAL_SERVER_ERROR,
-                api::internal_server_error,
-            )
-            .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
-            .handler(http::StatusCode::NOT_FOUND, api::not_found);
-*/
+    /*
+    use actix_web::error::JsonPayloadError;
+    use actix_web::middleware::ErrorHandlers;
+    use actix_web::error::InternalError;
+
+    fn post_error(err: JsonPayloadError, req: &HttpRequest) -> Error {
+        InternalError::from_response(err, HttpResponse::BadRequest().json(post_error)).into()
+      }
+      */
+
     HttpServer::new(move || {
+        /*
+        // custom `Json` extractor configuration: https://docs.rs/actix-web/4.0.0-beta.20/actix_web/web/struct.JsonConfig.html
+        let json_cfg = web::JsonConfig::default()
+        // limit request payload size
+        .limit(4096)
+        // only accept text/plain content type
+        .content_type(|mime| mime == mime::TEXT_PLAIN)
+        // use custom error handler
+        .error_handler(|err, _req| {
+            error::InternalError::from_response(err, HttpResponse::Conflict().into()).into()
+        });
+
+        let error_handlers = ErrorHandlers::new()
+        .handler(
+            http::StatusCode::INTERNAL_SERVER_ERROR,
+            api::internal_server_error,
+        )
+        .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
+        .handler(http::StatusCode::NOT_FOUND, api::not_found);
+        */
         App::new()
+            //.wrap(json_cfg)
             .app_data(db_pool.clone())
+            
             .wrap(middleware::Logger::default())
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
             .wrap(middleware::Compress::default())
+            
             //.wrap(error_handlers)
             .service(
                 web::resource("/query")
@@ -396,6 +479,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/updatedb")
                     .route(web::post().to(update_words)),
+            )
+            .service(
+                web::resource("/updategloss")
+                    .route(web::post().to(update_gloss)),
             )
             .service(
                 web::resource("/healthzzz")

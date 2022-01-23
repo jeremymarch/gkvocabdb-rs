@@ -130,7 +130,7 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 }
 */
 pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a INNER JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
+  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
   .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
   .fetch_all(pool)
@@ -140,7 +140,7 @@ pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit:
 }
 
 pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a INNER JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
+  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
   .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
   .fetch_all(pool)
@@ -314,6 +314,33 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   tx.commit().await?;
   
   res
+}
+
+
+pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+
+  let mut tx = pool.begin().await?;
+
+  let query = "INSERT INTO glosses (gloss_id, seqold, seq, unit, lemma, lemma2, sortalpha, sortkey, \
+    present, future, aorist, perfect, perfectmid, aoristpass, def, pos, link, freq, note, verbClass, \
+    updated, arrowedDay, arrowedID, pageLine, parentid, status, updatedUserAgent, updatedIP, updatedUser) \
+    VALUES (NULL, 0, 0, 0, ?, '', ?, '', '', '', '', '', '', '', ?, ?, '', 0, ?, 0, ?, 0, NULL, '', NULL, 1, ?, ?, ?);";
+
+    let res = sqlx::query(query)
+    .bind(gloss)
+    .bind(stripped_lemma)
+    .bind(def)
+    .bind(pos)
+    .bind(note)
+    .bind(timestamp)
+    .bind(user_agent)
+    .bind(updated_ip)
+    .bind(user_id)
+    .execute(&mut tx).await?;
+
+  tx.commit().await?;
+    
+  Ok(res.rows_affected())
 }
 
 /*
