@@ -129,6 +129,13 @@ pub struct UpdateLemmaRequest {
     pub def:String, 
     pub note:String,
 }
+
+#[derive(Deserialize)]
+pub struct GetGlossRequest {
+    pub qtype: String,
+    pub lemmaid: u32
+}
+
 /*
 #[derive(Deserialize)]
 pub struct WordQuery {
@@ -164,6 +171,13 @@ pub struct WordQuery {
     pub w: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetGlossResponse {
+    pub success: bool,
+    pub affectedRows: u64,
+    pub words: Vec<GlossEntry>,
+}
+
 #[allow(clippy::eval_order_dependence)]
 async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -192,13 +206,26 @@ async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaReque
             };
             return Ok(HttpResponse::Ok().json(res));          
         },
-        "editlemma" => ()/*if post.hqid.is_some() {*/,
+        "editlemma" => {
+            if post.hqid.is_some() {
+                let updated_ip = "0.0.0.1";
+                let user_agent = "agent";
+                let rows_affected = update_lemma(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+    
+                let res = UpdateLemmaResponse {
+                    qtype: "newLemma1".to_string(),
+                    success: true,
+                    affectedrows: rows_affected,
+                };
+                return Ok(HttpResponse::Ok().json(res));               
+            }
+        },
         _ => (),
     }
     let res = UpdateLemmaResponse {
-        qtype: "newLemma2".to_string(),
-        success: true,
-        affectedrows: 1,
+        qtype: post.qtype.to_string(),
+        success: false,
+        affectedrows: 0,
     };
 
     Ok(HttpResponse::Ok().json(res))
@@ -289,6 +316,29 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         words: [].to_vec(),
         selected_id: 1,
         error: "".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[allow(clippy::eval_order_dependence)]
+async fn get_gloss((info, req): (web::Form<GetGlossRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+    let gloss = get_glossdb(db, info.lemmaid).await.map_err(map_sqlx_error)?;
+
+/*
+    $a = new \stdClass();
+    $a->hqid = $row[0];
+    $a->l = $row[1];
+    $a->pos = $row[2];
+    $a->g = $row[3];
+    $a->n = $row[4];
+    array_push($words, $a);
+*/
+    let res = GetGlossResponse {
+        success: true,
+        affectedRows: 0,
+        words: vec![gloss],
     };
 
     Ok(HttpResponse::Ok().json(res))
@@ -479,6 +529,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/updatedb")
                     .route(web::post().to(update_words)),
+            )
+            .service(
+                web::resource("/getgloss")
+                    .route(web::post().to(get_gloss)),
             )
             .service(
                 web::resource("/updategloss")

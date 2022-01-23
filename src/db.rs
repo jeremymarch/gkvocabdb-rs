@@ -128,7 +128,37 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
       Err(r) => Err(r)
   }
 }
+
+
 */
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlossEntry {
+  pub hqid:u32,
+  pub l:String,
+  pub pos:String,
+  pub g:String,
+  pub n:String,
+}
+pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
+  let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
+
+  let res = sqlx::query(query)
+  .bind(gloss_id)
+  .map(|rec: SqliteRow| {
+    GlossEntry {
+        hqid: rec.get("gloss_id"),
+        l: rec.get("lemma"),
+        pos: rec.get("pos"),
+        g: rec.get("def"),
+        n: rec.get("note") 
+      } }
+    ) 
+  .fetch_one(pool)
+  .await;
+
+  res
+}
+
 pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
   let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
@@ -336,6 +366,40 @@ pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, str
     .bind(user_agent)
     .bind(updated_ip)
     .bind(user_id)
+    .execute(&mut tx).await?;
+
+  tx.commit().await?;
+    
+  Ok(res.rows_affected())
+}
+
+pub async fn update_lemma(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+
+  let mut tx = pool.begin().await?;
+
+  let query = "UPDATE glosses SET \
+    lemma = ?, \
+    sortalpha = ?, \
+    def = ?, \
+    pos = ?, \
+    note = ?, \
+    updated = ?, \
+    updatedUserAgent = ?, \
+    updatedIP = ?, \
+    updatedUser = ? \
+    WHERE gloss_id = ?;";
+
+    let res = sqlx::query(query)
+    .bind(gloss)
+    .bind(stripped_lemma)
+    .bind(def)
+    .bind(pos)
+    .bind(note)
+    .bind(timestamp)
+    .bind(user_agent)
+    .bind(updated_ip)
+    .bind(user_id)
+    .bind(gloss_id)
     .execute(&mut tx).await?;
 
   tx.commit().await?;

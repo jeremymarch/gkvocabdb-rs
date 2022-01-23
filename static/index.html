@@ -1093,9 +1093,9 @@ function getEditLemmaData(vLemmaid)
 {
     console.log("get lemmaid: " + vLemmaid);
    $.ajax({
-        url: "updatedb",
+        url: "getgloss",
         type: "POST",
-        data: {qtype:"getLemma",lemmaid:vLemmaid },
+        data: { qtype:"getLemma", lemmaid:parseInt(vLemmaid) },
         dataType: "text",//JSON automatically deserializes json
         success: function (data, textStatus, jqXHR){ 
             //procResponse(data, textStatus); 
