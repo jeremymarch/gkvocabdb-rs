@@ -20,6 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool };
 use serde::{Deserialize, Serialize};
+
+use unicode_normalization::UnicodeNormalization;
 /*
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PhilologusWords {
@@ -139,52 +141,26 @@ pub struct GlossEntry {
   pub g:String,
   pub n:String,
 }
-pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
-  let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
 
-  let res = sqlx::query(query)
-  .bind(gloss_id)
-  .map(|rec: SqliteRow| {
-    GlossEntry {
-        hqid: rec.get("gloss_id"),
-        l: rec.get("lemma"),
-        pos: rec.get("pos"),
-        g: rec.get("def"),
-        n: rec.get("note") 
-      } }
-    ) 
-  .fetch_one(pool)
-  .await;
-
-  res
+pub enum UpdateType {
+  ArrowWord,
+  SetGlossId,
+  NewGloss,
+  EditGloss,
 }
 
-pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
-  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
-  .fetch_all(pool)
-  .await;
-
-  res
-}
-
-pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
-  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
-  .fetch_all(pool)
-  .await;
-
-  res
+impl UpdateType {
+  fn value(&self) -> u32 {
+      match *self {
+          UpdateType::ArrowWord => 1,
+          UpdateType::SetGlossId => 2,
+          UpdateType::NewGloss => 3,
+          UpdateType::EditGloss => 4,
+      }
+  }
 }
 
 pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64) -> Result<(), sqlx::Error> {
-
-  //get old values
-  //let query = format!("SELECT seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = {seq} AND lemma_id={lemma_id};", seq=seq, lemma_id=lemma_id);
-  //sqlx::query(&query).execute(pool).await?;
-  //save history
   
   let mut tx = pool.begin().await?;
 
@@ -192,20 +168,7 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
 
   tx.commit().await?;
 
-  //INSERT INTO arrowed_words_history SELECT NULL,seq_id,lemma_id,word_id FROM arrowed_words WHERE seq_id = 1 AND lemma_id=20;
-
   Ok(())
-/*  
-    if ( $conn->query($query) === TRUE)
-    {
-      $j->success = TRUE;
-      $j->affectedRows = $conn->affected_rows;
-      $j->arrowedValue = $arrowedVal;
-      $j->lemmaid = $_POST['forLemmaID'];
-    sendJSON($j);
-    }
-  }
-  */
 }
 
 pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64) -> Result<(), sqlx::Error> {
@@ -356,9 +319,11 @@ pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, str
     updated, arrowedDay, arrowedID, pageLine, parentid, status, updatedUserAgent, updatedIP, updatedUser) \
     VALUES (NULL, 0, 0, 0, ?, '', ?, '', '', '', '', '', '', '', ?, ?, '', 0, ?, 0, ?, 0, NULL, '', NULL, 1, ?, ?, ?);";
 
+    let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
+
     let res = sqlx::query(query)
     .bind(gloss)
-    .bind(stripped_lemma)
+    .bind(sl)
     .bind(def)
     .bind(pos)
     .bind(note)
@@ -373,9 +338,35 @@ pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, str
   Ok(res.rows_affected())
 }
 
+pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, update_type:UpdateType, update_desc: &str, timestamp: i64, user_id:u32, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
+  let query = "INSERT INTO update_log (update_id,update_type,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?);";
+  let res = sqlx::query(query)
+    .bind(update_type.value())
+    .bind(update_desc)
+    .bind(timestamp)
+    .bind(user_id)
+    .bind(updated_ip)
+    .bind(user_agent)
+    .execute(&mut *tx).await?;
+
+    Ok(())
+}
+
 pub async fn update_lemma(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
 
   let mut tx = pool.begin().await?;
+
+  //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
+  //let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, "Change gloss for x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
+  let _ = update_log_trx(&mut tx, UpdateType::EditGloss, "Edit gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
+  //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
+
+  let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
+  let res = sqlx::query(query)
+    .bind(gloss_id)
+    .execute(&mut tx).await?;
+
+    let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
 
   let query = "UPDATE glosses SET \
     lemma = ?, \
@@ -391,7 +382,7 @@ pub async fn update_lemma(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &s
 
     let res = sqlx::query(query)
     .bind(gloss)
-    .bind(stripped_lemma)
+    .bind(sl)
     .bind(def)
     .bind(pos)
     .bind(note)
@@ -558,6 +549,46 @@ pub async fn get_start_end(pool: &SqlitePool, text_id:i32) -> Result<(u32,u32), 
   .await?;
 
   Ok(rec)
+}
+
+pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
+  let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
+
+  let res = sqlx::query(query)
+  .bind(gloss_id)
+  .map(|rec: SqliteRow| {
+    GlossEntry {
+        hqid: rec.get("gloss_id"),
+        l: rec.get("lemma"),
+        pos: rec.get("pos"),
+        g: rec.get("def"),
+        n: rec.get("note") 
+      } }
+    ) 
+  .fetch_one(pool)
+  .await;
+
+  res
+}
+
+pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
+  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
+  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
+  .fetch_all(pool)
+  .await;
+
+  res
+}
+
+pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
+  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
+  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
+  .fetch_all(pool)
+  .await;
+
+  res
 }
     
 /*

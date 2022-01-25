@@ -191,12 +191,11 @@ async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaReque
     //println!("Current timestamp is {}", timestamp);
     //println!("{}", datetime_again);
 
-    let _user_agent = get_user_agent(&req).unwrap_or("");
+    let user_agent = get_user_agent(&req).unwrap_or("");
 
     match post.qtype.as_str() {
         "newlemma" => {           
             let updated_ip = "0.0.0.1";
-            let user_agent = "agent";
             let rows_affected = new_lemma(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             let res = UpdateLemmaResponse {
@@ -209,7 +208,6 @@ async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaReque
         "editlemma" => {
             if post.hqid.is_some() {
                 let updated_ip = "0.0.0.1";
-                let user_agent = "agent";
                 let rows_affected = update_lemma(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
     
                 let res = UpdateLemmaResponse {
@@ -244,7 +242,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
     //println!("Current timestamp is {}", timestamp);
     //println!("{}", datetime_again);
 
-    let _user_agent = get_user_agent(&req).unwrap_or("");
+    let user_agent = get_user_agent(&req).unwrap_or("");
 
     match post.qtype.as_str() {
         "arrowWord" => {
@@ -276,7 +274,6 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
                 return Ok(HttpResponse::Ok().json(res));
             }
         },
-        "getLemma" => (),
 
         "getWordAnnotation" => (),
         "removeDuplicate" => (),
@@ -445,6 +442,16 @@ async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
 
 fn get_user_agent(req: &HttpRequest) -> Option<&str> {
     req.headers().get("user-agent")?.to_str().ok()
+}
+
+fn get_ip(req: &HttpRequest) -> Option<String> {
+    if req.peer_addr().is_some() { 
+        Some(req.peer_addr().unwrap().ip().to_string())
+    } 
+    else 
+    { 
+        None
+    }
 }
 
 async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
