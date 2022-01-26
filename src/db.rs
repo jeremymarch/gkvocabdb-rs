@@ -319,6 +319,7 @@ pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, str
     updated, arrowedDay, arrowedID, pageLine, parentid, status, updatedUserAgent, updatedIP, updatedUser) \
     VALUES (NULL, 0, 0, 0, ?, '', ?, '', '', '', '', '', '', '', ?, ?, '', 0, ?, 0, ?, 0, NULL, '', NULL, 1, ?, ?, ?);";
 
+    //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
     let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
 
     let res = sqlx::query(query)
@@ -366,6 +367,7 @@ pub async fn update_lemma(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &s
     .bind(gloss_id)
     .execute(&mut tx).await?;
 
+    //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
     let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
 
   let query = "UPDATE glosses SET \
@@ -432,28 +434,42 @@ pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlit
 */
 
 pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32) -> Result<(), sqlx::Error> {
-  //select count(*) as c,b.lemma from words a inner join glosses b on a.gloss_id=b.gloss_id group by a.gloss_id order by c;
-  //REPLACE INTO total_counts_by_course SELECT 1,gloss_id,COUNT(*) FROM words WHERE gloss_id = 3081 GROUP BY gloss_id;
-  // to update all total counts
-  let query = format!("REPLACE INTO total_counts_by_course \
-    SELECT b.course_id,a.gloss_id,COUNT(*) \
-    FROM words a \
-    INNER JOIN course_x_text b ON a.text = b.text_id \
-    WHERE a.gloss_id = {gloss_id} AND b.course_id = {course_id} \
-    GROUP BY a.gloss_id;", course_id=course_id, gloss_id=gloss_id);
   
-  sqlx::query(&query).execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
+  // to update total counts for gloss in course
+  let query = "SELECT COUNT(*) \
+  FROM words a \
+  INNER JOIN course_x_text b ON a.text = b.text_id \
+  WHERE a.gloss_id = ? AND b.course_id = ? \
+  GROUP BY a.gloss_id;";
+  let count:Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+  .bind(gloss_id)  
+  .bind(course_id)
+  .fetch_one(&mut *tx)
+  .await;
 
-  let query = format!("REPLACE INTO running_counts_by_course \
-    SELECT c.course_id,a.word_id,count(*) AS running_count \
+  let c = if count.is_ok() { count.unwrap().0 } else { 0 };
+  let query = "REPLACE INTO total_counts_by_course VALUES (?,?,?)";
+  sqlx::query(query)
+  .bind(course_id)
+  .bind(gloss_id)
+  .bind(c)
+  .execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
+
+  //to update running counts for gloss in course
+  let query = "REPLACE INTO running_counts_by_course \
+    SELECT c.course_id,a.word_id,COUNT(*) AS running_count \
     FROM words a \
     INNER JOIN words b ON a.gloss_id=b.gloss_id \
-    INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id={course_id}) \
-    INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id={course_id}) \
-    WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = {gloss_id} \
-    GROUP BY a.word_id;", course_id=course_id, gloss_id=gloss_id);
+    INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
+    INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id = ?) \
+    WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = ? \
+    GROUP BY a.word_id;";
     
-  sqlx::query(&query).execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
+  sqlx::query(query)
+  .bind(course_id)
+  .bind(course_id)
+  .bind(gloss_id)
+  .execute(&mut *tx).await?;
 
   //to select running counts
   //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
