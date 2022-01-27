@@ -463,6 +463,15 @@ function handleKey(evt) {
         newLemmaFormShow();
     }
 
+    function uploaddialog()
+    {
+        if ( $("#uploadform").is(":visible") ) {
+            $("#uploadform").hide();
+        }
+        else {
+            $("#uploadform").show();
+        }
+    }
     function newLemmaFormToggle()
     {
         if ( $("#editformcontainer").is(":visible") ) {
@@ -1484,6 +1493,16 @@ function flagToggle() {
     }
 }
 
+async function uploadfile() {
+    let formData = new FormData();           
+    formData.append("file", fileupload.files[0]);
+    await fetch('importtext', {
+      method: "POST", 
+      body: formData
+    });
+    $("#uploadform").hide();
+}
+
 </script>
 <style>
 
@@ -1671,6 +1690,22 @@ border: 2px solid black;
 border-radius: 10px;
 z-index:999;
 }
+#uploadform {
+position: absolute;
+background-color: lightgray;
+position: absolute;
+top: 50%;
+left: 50%;
+margin-top: -150px;
+margin-left: -300px;
+width: 600px;
+/*height: 220px;*/
+padding: 14px;
+display:none;
+border: 2px solid black;
+border-radius: 10px;
+z-index:999;
+}
 button {margin:1px 4px;border: 2px solid black;
 border-radius: 6px;
 height: 25px;}
@@ -1829,6 +1864,7 @@ height: 22px;
 </head>
 <body onload="onload()">
 <div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
+    <button id="uploadbutton" onclick="uploaddialog()">Upload</button>
     <select id="selectText">
     	<!--<option value="1">H&Q</option>-->
         <!--
@@ -1856,6 +1892,13 @@ height: 22px;
 </div>
   <div id="leftlist" style="display:none;position:absolute;top:0px;left:0px;height:100%;width:220px;"></div>
   <div id="snackbar"></div>
+  <div id="uploadcontainer">
+      <div id="uploadform" style="display:none;">
+        <h2>Upload File</h2>
+        <input id="fileupload" type="file" name="fileupload" /><br/><br/>
+        <button onclick="uploaddialog()">Cancel</button><button onclick="uploadfile()">Upload</button>
+      </div>
+  </div>
 <div id="editformcontainer">
     <div id="editform" style="display:none;">
         <table style="width:100%;">

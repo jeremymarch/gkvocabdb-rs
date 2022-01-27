@@ -24,6 +24,11 @@ use std::io;
 use actix_files as fs;
 use actix_web::{middleware, web, App, error, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
 use actix_session::{Session, CookieSession};
+use actix_multipart::Multipart;
+
+use quick_xml::Reader;
+use quick_xml::events::Event;
+
 use mime;
 
 use sqlx::SqlitePool;
@@ -458,6 +463,22 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
+async fn import_text(payload: Multipart) -> Result<HttpResponse> {
+    let upload_status = files::save_file(payload, "/path/filename.jpg".to_string()).await;
+
+    match upload_status {
+        Some(true) => {
+
+            Ok(HttpResponse::Ok()
+                .content_type("text/plain")
+                .body("update_succeeded"))
+        }
+        _ => Ok(HttpResponse::BadRequest()
+            .content_type("text/plain")
+            .body("update_failed")),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
@@ -544,6 +565,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/updategloss")
                     .route(web::post().to(update_gloss)),
+            )
+            .service(
+                web::resource("/importtext")
+                    .route(web::post().to(import_text)),
             )
             .service(
                 web::resource("/healthzzz")
@@ -666,3 +691,73 @@ mod tests {
         assert_eq!(result.words.len(), 1000);
     }
 }
+
+//https://users.rust-lang.org/t/file-upload-in-actix-web/64871/3
+pub mod files {
+    use std::io::Write;
+
+    use actix_multipart::Multipart;
+    use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
+    use futures::{StreamExt, TryStreamExt};
+
+    use quick_xml::Reader;
+    use quick_xml::events::Event;
+
+    pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool> {
+        let mut a= "".to_string();
+        // iterate over multipart stream
+        while let Ok(Some(mut field)) = payload.try_next().await {
+            let content_type = field.content_disposition();//.unwrap();
+            //let filename = content_type.get_filename().unwrap();
+            let filepath = format!(".{}", file_path);
+
+            // File::create is blocking operation, use threadpool
+            let mut f = web::block(|| std::fs::File::create(filepath))
+                .await
+                .unwrap();
+
+            // Field in turn is stream of *Bytes* object
+            while let Some(chunk) = field.next().await {
+                let data = chunk.unwrap();
+                a.push_str(std::str::from_utf8(&data).unwrap());
+                // filesystem operations are blocking, we have to use threadpool
+                /*f = web::block(move || f.write_all(&data).map(|_| f))
+                    .await
+                    .unwrap();*/
+            }
+        }
+        //println!("string: {}", a);
+        let mut reader = Reader::from_str(&a);
+        reader.trim_text(true);
+        let mut buf = Vec::new();
+        loop {
+            match reader.read_event(&mut buf) {
+            // for triggering namespaced events, use this instead:
+            // match reader.read_namespaced_event(&mut buf) {
+                Ok(Event::Start(ref e)) => {
+                // for namespaced:
+                // Ok((ref namespace_value, Event::Start(ref e)))
+                /* 
+                    match e.name() {
+                        b"tag1" => println!("attributes values: {:?}",
+                                            e.attributes().map(|a| a.unwrap().value)
+                                            .collect::<Vec<_>>()),
+                        b"tag2" => count += 1,
+                        _ => (),
+                    }*/
+                },
+                // unescape and decode the text event using the reader encoding
+                Ok(Event::Text(e)) => println!("{}", e.unescape_and_decode(&reader).unwrap()),
+                Ok(Event::Eof) => break, // exits the loop when reaching end of file
+                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                _ => (), // There are several other `Event`s we do not consider here
+            }
+        
+            // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
+            buf.clear();
+        }
+
+        Some(true)
+    }
+}
+
