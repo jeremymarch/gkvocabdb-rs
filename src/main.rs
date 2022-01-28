@@ -703,6 +703,33 @@ pub mod files {
     use quick_xml::Reader;
     use quick_xml::events::Event;
 
+    use regex::Regex;
+
+    fn split_keep(r: &Regex, text: &str) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut result_type = Vec::new();
+        let mut last = 0;
+        for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
+            //add words
+            if last != index && &text[last..index] != " " {
+                result.push(text[last..index].to_string());
+                result_type.push(0);
+            }
+            //add word separators
+            if matched != " " {
+                result.push(matched.to_string());
+                result_type.push(1);
+            }
+            last = index + matched.len();
+        }
+        //add last word
+        if last < text.len() && &text[last..] != " " {
+            result.push(text[last..].to_string());
+            result_type.push(0);
+        }
+        result
+    }
+
     pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool> {
         let mut a= "".to_string();
         // iterate over multipart stream
@@ -712,9 +739,9 @@ pub mod files {
             let filepath = format!(".{}", file_path);
 
             // File::create is blocking operation, use threadpool
-            let mut f = web::block(|| std::fs::File::create(filepath))
-                .await
-                .unwrap();
+            //let mut f = web::block(|| std::fs::File::create(filepath))
+            //    .await
+            //    .unwrap();
 
             // Field in turn is stream of *Bytes* object
             while let Some(chunk) = field.next().await {
@@ -730,6 +757,8 @@ pub mod files {
         let mut reader = Reader::from_str(&a);
         reader.trim_text(true);
         let mut buf = Vec::new();
+        let mut res:Vec<_> = Vec::new();
+        let mut in_text = false;
         loop {
             match reader.read_event(&mut buf) {
             // for triggering namespaced events, use this instead:
@@ -737,17 +766,31 @@ pub mod files {
                 Ok(Event::Start(ref e)) => {
                 // for namespaced:
                 // Ok((ref namespace_value, Event::Start(ref e)))
-                /* 
+                
                     match e.name() {
-                        b"tag1" => println!("attributes values: {:?}",
-                                            e.attributes().map(|a| a.unwrap().value)
-                                            .collect::<Vec<_>>()),
-                        b"tag2" => count += 1,
+                        b"text" => in_text = true,
                         _ => (),
-                    }*/
+                    }
                 },
                 // unescape and decode the text event using the reader encoding
-                Ok(Event::Text(e)) => println!("{}", e.unescape_and_decode(&reader).unwrap()),
+                Ok(Event::Text(e)) => { 
+                    if in_text == true {
+                        if let Ok(s) = e.unescape_and_decode(&reader) {    
+                            
+                            let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
+                            let mut splits = split_keep(&seperator, &s);
+
+                            //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
+                            res.append(&mut splits);
+                        }
+                    }
+                },
+                Ok(Event::End(ref e)) => {
+                    match e.name() {
+                        b"text" => in_text = false,
+                        _ => (),
+                    }
+                },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
@@ -756,8 +799,7 @@ pub mod files {
             // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
             buf.clear();
         }
-
+        println!("{:?}", res);
         Some(true)
     }
 }
-
