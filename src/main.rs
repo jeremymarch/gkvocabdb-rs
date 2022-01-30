@@ -705,29 +705,35 @@ pub mod files {
 
     use regex::Regex;
 
-    fn split_keep(text: &str) -> Vec<String> {
-        let mut result = Vec::new();
-        let mut result_type = Vec::new();
+    struct Words {
+        word: Vec<String>,
+        word_type: Vec<u32>,
+    }
+
+    fn split_words(text: &str) -> Words {
+        //let mut result = Vec::new();
+        //let mut result_type = Vec::new();
+        let mut words = Words { word:vec![], word_type:vec![]};
         let mut last = 0;
         for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
             //add words
             if last != index && &text[last..index] != " " {
-                result.push(text[last..index].to_string());
-                result_type.push(0);
+                words.word.push(text[last..index].to_string());
+                words.word_type.push(0);
             }
             //add word separators
             if matched != " " {
-                result.push(matched.to_string());
-                result_type.push(1);
+                words.word.push(matched.to_string());
+                words.word_type.push(1);
             }
             last = index + matched.len();
         }
         //add last word
         if last < text.len() && &text[last..] != " " {
-            result.push(text[last..].to_string());
-            result_type.push(0);
+            words.word.push(text[last..].to_string());
+            words.word_type.push(0);
         }
-        result
+        words
     }
 
     pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool> {
@@ -757,7 +763,9 @@ pub mod files {
         let mut reader = Reader::from_str(&a);
         reader.trim_text(true);
         let mut buf = Vec::new();
-        let mut res:Vec<_> = Vec::new();
+        //let mut res:Vec<_> = Vec::new();
+        //let mut type_a:Vec<_> = Vec::new();
+        let mut words2 = Words { word:vec![], word_type:vec![]};
         let mut in_text = false;
         loop {
             match reader.read_event(&mut buf) {
@@ -775,13 +783,14 @@ pub mod files {
                 // unescape and decode the text event using the reader encoding
                 Ok(Event::Text(e)) => { 
                     if in_text == true {
-                        if let Ok(s) = e.unescape_and_decode(&reader) {    
+                        if let Ok(s) = e.unescape_and_decode(&reader) {
                             
                             //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
-                            let mut splits = split_keep(&s);
+                            let words = split_words(&s);
 
                             //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
-                            res.append(&mut splits);
+                            words2.word.extend_from_slice(&words.word[..]);
+                            words2.word_type.extend_from_slice(&words.word_type[..]);
                         }
                     }
                 },
@@ -799,7 +808,10 @@ pub mod files {
             // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
             buf.clear();
         }
-        println!("{:?}", res);
+        for a in words2.word {
+            println!("{}", a);
+        }
+        
         Some(true)
     }
 }
