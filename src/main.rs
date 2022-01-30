@@ -464,9 +464,11 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
-async fn import_text(payload: Multipart) -> Result<HttpResponse> {
-    let upload_status = files::save_file(payload, "/path/filename.jpg".to_string()).await;
+async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpResponse> {
+    let db = req.app_data::<SqlitePool>().unwrap();
 
+    let upload_status = files::import_text_real(db, payload, "/path/filename.jpg".to_string()).await;
+    
     match upload_status {
         Some(true) => {
 
@@ -729,7 +731,7 @@ pub mod files {
         words
     }
 
-    pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool> {
+    pub async fn import_text_real(db: &SqlitePool, mut payload: Multipart, file_path: String) -> Option<bool> {
         let mut a = "".to_string();
         // iterate over multipart stream
         while let Ok(Some(mut field)) = payload.try_next().await {
@@ -800,9 +802,16 @@ pub mod files {
             // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
             buf.clear();
         }
+        /* 
         for a in words {
             println!("{} {}", a.word, a.word_type);
-        }
+        }*/
+
+        let user_id = 2;
+        let timestamp = 0;
+        let updated_ip = "0.0.0.0";
+        let user_agent = "Mozilla blah";
+        add_text(db, "newtext", words, user_id, timestamp, updated_ip, user_agent).await.ok()?;
         
         Some(true)
     }

@@ -315,30 +315,51 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   res
 }
 
-pub async fn add_text(pool: &SqlitePool, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
   let mut tx = pool.begin().await?;
 
-  let query = "SELECT MAX(text) FROM words;";
-  let max_text:(Option<u32>,) = sqlx::query_as(query)
-  .fetch_one(&mut tx)
-  .await?;
+  let query = "INSERT INTO texts VALUES (NULL, ?);";
+  let text_id = sqlx::query(query)
+      .bind(text_name)
+      .execute(&mut tx).await?
+      .last_insert_rowid();
 
-  let text = if max_text.0.is_some() { max_text } else { tx.rollback().await?; return Ok(0) };
+  //(word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, 
+  //arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+  //updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '')
 
-  let query = "INSERT INTO words VALUES (NULL, ?, ?);";
+  let mut seq:u32 = 1;
+
+  let query = "INSERT INTO words (word_id, seq, text, section, line, word, gloss_id, \
+    lemma1, lemma2, o, runningcount, type, arrow, flagged, updated, \
+    updatedUserAgent, updatedIP, updatedUser, isFlagged, note) \
+    VALUES (NULL, ?, ?, '', '', ?, NULL, '', '', '', 0, ?, 0, 0, ?, ?, ?, ?, 0, '');";
   let mut count = 0;
   for w in words {
     let res = sqlx::query(query)
+      .bind(seq)
+      .bind(text_id)
       .bind(w.word)
       .bind(w.word_type)
+      .bind(timestamp)
+      .bind(user_agent)
+      .bind(updated_ip)
+      .bind(user_id)
       .execute(&mut tx).await?;
 
-    count += res.rows_affected();
+      seq += 1;
+
+    let affected_rows = res.rows_affected();
+    if affected_rows != 1 {
+      tx.rollback().await?;
+      return Ok(0);
+    }
+    count += affected_rows;
   }
+
+  println!("id: {}, count: {}", text_id, count);
   
-
   tx.commit().await?;
-
 
   Ok(count)
 }
