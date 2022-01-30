@@ -705,7 +705,7 @@ pub mod files {
 
     use regex::Regex;
 
-    fn split_keep(r: &Regex, text: &str) -> Vec<String> {
+    fn split_keep(text: &str) -> Vec<String> {
         let mut result = Vec::new();
         let mut result_type = Vec::new();
         let mut last = 0;
@@ -731,7 +731,7 @@ pub mod files {
     }
 
     pub async fn save_file(mut payload: Multipart, file_path: String) -> Option<bool> {
-        let mut a= "".to_string();
+        let mut a = "".to_string();
         // iterate over multipart stream
         while let Ok(Some(mut field)) = payload.try_next().await {
             let content_type = field.content_disposition();//.unwrap();
@@ -777,8 +777,8 @@ pub mod files {
                     if in_text == true {
                         if let Ok(s) = e.unescape_and_decode(&reader) {    
                             
-                            let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
-                            let mut splits = split_keep(&seperator, &s);
+                            //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
+                            let mut splits = split_keep(&s);
 
                             //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
                             res.append(&mut splits);
