@@ -179,7 +179,8 @@ pub struct WordQuery {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetGlossResponse {
     pub success: bool,
-    pub affectedRows: u64,
+    #[serde(rename(deserialize = "affectedRows"), rename(serialize = "affectedRows"))]
+    pub affected_rows: u64,
     pub words: Vec<GlossEntry>,
 }
 
@@ -339,7 +340,7 @@ async fn get_gloss((info, req): (web::Form<GetGlossRequest>, HttpRequest)) -> Re
 */
     let res = GetGlossResponse {
         success: true,
-        affectedRows: 0,
+        affected_rows: 0,
         words: vec![gloss],
     };
 
@@ -705,33 +706,25 @@ pub mod files {
 
     use regex::Regex;
 
-    struct Words {
-        word: Vec<String>,
-        word_type: Vec<u32>,
-    }
+    use super::*;
 
-    fn split_words(text: &str) -> Words {
-        //let mut result = Vec::new();
-        //let mut result_type = Vec::new();
-        let mut words = Words { word:vec![], word_type:vec![]};
+    fn split_words(text: &str) -> Vec<TextWord> {
+        let mut words:Vec<TextWord> = vec![];
         let mut last = 0;
         for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
             //add words
             if last != index && &text[last..index] != " " {
-                words.word.push(text[last..index].to_string());
-                words.word_type.push(0);
+                words.push(TextWord{word:text[last..index].to_string(),word_type:0});
             }
             //add word separators
             if matched != " " {
-                words.word.push(matched.to_string());
-                words.word_type.push(1);
+                words.push(TextWord{word:matched.to_string(),word_type:1});
             }
             last = index + matched.len();
         }
         //add last word
         if last < text.len() && &text[last..] != " " {
-            words.word.push(text[last..].to_string());
-            words.word_type.push(0);
+            words.push(TextWord{word:text[last..].to_string(),word_type:0});
         }
         words
     }
@@ -763,9 +756,8 @@ pub mod files {
         let mut reader = Reader::from_str(&a);
         reader.trim_text(true);
         let mut buf = Vec::new();
-        //let mut res:Vec<_> = Vec::new();
-        //let mut type_a:Vec<_> = Vec::new();
-        let mut words2 = Words { word:vec![], word_type:vec![]};
+
+        let mut words:Vec<TextWord> = Vec::new();
         let mut in_text = false;
         loop {
             match reader.read_event(&mut buf) {
@@ -786,11 +778,11 @@ pub mod files {
                         if let Ok(s) = e.unescape_and_decode(&reader) {
                             
                             //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
-                            let words = split_words(&s);
+                            words.extend_from_slice(&split_words(&s)[..]);
 
                             //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
-                            words2.word.extend_from_slice(&words.word[..]);
-                            words2.word_type.extend_from_slice(&words.word_type[..]);
+                            //words2.word.extend_from_slice(&words.word[..]);
+                            //words2.word_type.extend_from_slice(&words.word_type[..]);
                         }
                     }
                 },
@@ -808,8 +800,8 @@ pub mod files {
             // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
             buf.clear();
         }
-        for a in words2.word {
-            println!("{}", a);
+        for a in words {
+            println!("{} {}", a.word, a.word_type);
         }
         
         Some(true)

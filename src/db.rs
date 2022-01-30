@@ -109,6 +109,12 @@ pub struct DefRow {
     pub def: String,
     pub seq: u32
 }
+
+#[derive(Debug, Clone)]
+pub struct TextWord {
+    pub word: String,
+    pub word_type: u32,
+}
 /*
 pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
   let query = format!("SELECT seq FROM {} WHERE sortalpha >= '{}' ORDER BY sortalpha LIMIT 1;", table, prefix);
@@ -309,6 +315,34 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   res
 }
 
+pub async fn add_text(pool: &SqlitePool, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+  let mut tx = pool.begin().await?;
+
+  let query = "SELECT MAX(text) FROM words;";
+  let max_text:(Option<u32>,) = sqlx::query_as(query)
+  .fetch_one(&mut tx)
+  .await?;
+
+  let text = if max_text.0.is_some() { max_text } else { tx.rollback().await?; return Ok(0) };
+
+  let query = "INSERT INTO words VALUES (NULL, ?, ?);";
+  let mut count = 0;
+  for w in words {
+    let res = sqlx::query(query)
+      .bind(w.word)
+      .bind(w.word_type)
+      .execute(&mut tx).await?;
+
+    count += res.rows_affected();
+  }
+  
+
+  tx.commit().await?;
+
+
+  Ok(count)
+}
+
 
 pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
 
@@ -341,7 +375,7 @@ pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, str
 
 pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, update_type:UpdateType, update_desc: &str, timestamp: i64, user_id:u32, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
   let query = "INSERT INTO update_log (update_id,update_type,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?);";
-  let res = sqlx::query(query)
+  sqlx::query(query)
     .bind(update_type.value())
     .bind(update_desc)
     .bind(timestamp)
@@ -363,7 +397,7 @@ pub async fn update_lemma(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &s
   //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
 
   let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
-  let res = sqlx::query(query)
+  sqlx::query(query)
     .bind(gloss_id)
     .execute(&mut tx).await?;
 
