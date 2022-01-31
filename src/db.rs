@@ -352,12 +352,12 @@ pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, us
     let affected_rows = res.rows_affected();
     if affected_rows != 1 {
       tx.rollback().await?;
-      return Ok(0);
+      return Ok(0); //or panic?
     }
     count += affected_rows;
   }
 
-  println!("id: {}, count: {}", text_id, count);
+  //println!("id: {}, count: {}", text_id, count);
   
   tx.commit().await?;
 

@@ -26,10 +26,7 @@ use actix_web::{middleware, web, App, error, Error as AWError, HttpResponse, Htt
 use actix_session::{Session, CookieSession};
 use actix_multipart::Multipart;
 
-use quick_xml::Reader;
-use quick_xml::events::Event;
-
-use mime;
+//use mime;
 
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
@@ -467,18 +464,23 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
 async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let upload_status = files::import_text_real(db, payload, "/path/filename.jpg".to_string()).await;
+    let words = process_xml::process_imported_text(payload).await;
     
-    match upload_status {
-        Some(true) => {
+    if words.len() > 0 {
+            let user_id = 2;
+            let timestamp = 0;
+            let updated_ip = "0.0.0.0";
+            let user_agent = "Mozilla blah";
+            add_text(db, "newtext", words, user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             Ok(HttpResponse::Ok()
                 .content_type("text/plain")
                 .body("update_succeeded"))
         }
-        _ => Ok(HttpResponse::BadRequest()
+        else { 
+            Ok(HttpResponse::BadRequest()
             .content_type("text/plain")
-            .body("update_failed")),
+            .body("update_failed"))
     }
 }
 
@@ -696,17 +698,13 @@ mod tests {
 }
 
 //https://users.rust-lang.org/t/file-upload-in-actix-web/64871/3
-pub mod files {
-    use std::io::Write;
-
-    use actix_multipart::Multipart;
-    use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
-    use futures::{StreamExt, TryStreamExt};
+pub mod process_xml {
 
     use quick_xml::Reader;
     use quick_xml::events::Event;
 
-    use regex::Regex;
+    use actix_multipart::Multipart;
+    use futures::{StreamExt, TryStreamExt};
 
     use super::*;
 
@@ -731,13 +729,14 @@ pub mod files {
         words
     }
 
-    pub async fn import_text_real(db: &SqlitePool, mut payload: Multipart, file_path: String) -> Option<bool> {
+    pub async fn process_imported_text(mut payload: Multipart) -> Vec<TextWord> {
         let mut a = "".to_string();
+        let mut words:Vec<TextWord> = Vec::new();
         // iterate over multipart stream
         while let Ok(Some(mut field)) = payload.try_next().await {
-            let content_type = field.content_disposition();//.unwrap();
+            //let content_type = field.content_disposition();//.unwrap();
             //let filename = content_type.get_filename().unwrap();
-            let filepath = format!(".{}", file_path);
+            //let filepath = format!(".{}", file_path);
 
             // File::create is blocking operation, use threadpool
             //let mut f = web::block(|| std::fs::File::create(filepath))
@@ -747,19 +746,23 @@ pub mod files {
             // Field in turn is stream of *Bytes* object
             while let Some(chunk) = field.next().await {
                 let data = chunk.unwrap();
-                a.push_str(std::str::from_utf8(&data).unwrap());
+                if let Ok(xml_data) = std::str::from_utf8(&data) {
+                    a.push_str(xml_data);
+                }
+                else {
+                    return words; //return empty vec on error
+                }
                 // filesystem operations are blocking, we have to use threadpool
                 /*f = web::block(move || f.write_all(&data).map(|_| f))
                     .await
                     .unwrap();*/
             }
         }
-        //println!("string: {}", a);
+        
         let mut reader = Reader::from_str(&a);
         reader.trim_text(true);
         let mut buf = Vec::new();
 
-        let mut words:Vec<TextWord> = Vec::new();
         let mut in_text = false;
         loop {
             match reader.read_event(&mut buf) {
@@ -795,7 +798,7 @@ pub mod files {
                     }
                 },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
             }
         
@@ -806,13 +809,7 @@ pub mod files {
         for a in words {
             println!("{} {}", a.word, a.word_type);
         }*/
-
-        let user_id = 2;
-        let timestamp = 0;
-        let updated_ip = "0.0.0.0";
-        let user_agent = "Mozilla blah";
-        add_text(db, "newtext", words, user_id, timestamp, updated_ip, user_agent).await.ok()?;
         
-        Some(true)
+        words
     }
 }
