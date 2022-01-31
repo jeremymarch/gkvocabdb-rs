@@ -446,8 +446,8 @@ fn get_user_agent(req: &HttpRequest) -> Option<&str> {
 }
 
 fn get_ip(req: &HttpRequest) -> Option<String> {
-    if req.peer_addr().is_some() { 
-        Some(req.peer_addr().unwrap().ip().to_string())
+    if let Some(addr) = req.peer_addr() { 
+        Some(addr.ip().to_string())
     } 
     else 
     { 
