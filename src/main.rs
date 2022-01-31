@@ -187,8 +187,7 @@ async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaReque
     //let course_id = 1;
     let user_id = 2;
 
-    let now = Utc::now();
-    let timestamp: i64 = now.timestamp();
+    let timestamp = get_timestamp();
     //let naive_datetime = NaiveDateTime::from_timestamp(timestamp, 0);
     //let timestamp_string: DateTime<Utc> = DateTime::from_utc(naive_datetime, Utc);
     //println!("Current timestamp is {}", timestamp);
@@ -238,8 +237,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
     let course_id = 1;
     let user_id = 2;
 
-    let now = Utc::now();
-    let timestamp: i64 = now.timestamp();
+    let timestamp = get_timestamp();
     //let naive_datetime = NaiveDateTime::from_timestamp(timestamp, 0);
     //let timestamp_string: DateTime<Utc> = DateTime::from_utc(naive_datetime, Utc);
     //println!("Current timestamp is {}", timestamp);
@@ -457,6 +455,11 @@ fn get_ip(req: &HttpRequest) -> Option<String> {
     }
 }
 
+fn get_timestamp() -> i64 {
+    let now = Utc::now();
+    now.timestamp()
+}
+
 async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
@@ -468,10 +471,10 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
     
     if words.len() > 0 {
             let user_id = 2;
-            let timestamp = 0;
-            let updated_ip = "0.0.0.0";
-            let user_agent = "Mozilla blah";
-            add_text(db, "newtext", words, user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+            let timestamp = get_timestamp();
+            let updated_ip = get_ip(&req).unwrap_or("".to_string());
+            let user_agent = get_user_agent(&req).unwrap_or("");
+            let affected_rows = add_text(db, "newtext", words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             Ok(HttpResponse::Ok()
                 .content_type("text/plain")
