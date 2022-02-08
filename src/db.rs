@@ -533,7 +533,7 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
   Ok(())
 }
 
-pub async fn get_parent_text_id(pool: &SqlitePool, text_id:i32) -> Result<u32, sqlx::Error> {
+pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<u32, sqlx::Error> {
   let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
   let rec: (Option<u32>,) = sqlx::query_as(query)
   .bind(text_id)
@@ -544,11 +544,11 @@ pub async fn get_parent_text_id(pool: &SqlitePool, text_id:i32) -> Result<u32, s
     Ok(rec.0.unwrap())
   }
   else {
-    Err(sqlx::Error::RowNotFound)
+    Ok(text_id)
   }
 }
 
-pub async fn get_words(pool: &SqlitePool, text_id:i32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
+pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
     //let course_id = 1;
     //let (start,end) = get_start_end(pool, text_id).await?;
 
@@ -570,7 +570,7 @@ pub async fn get_words(pool: &SqlitePool, text_id:i32, course_id:u32) -> Result<
 
     //WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
 
-    println!("{}", query);
+    //println!("{}", query);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
@@ -627,10 +627,10 @@ pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::E
     res
 }
 
-pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:i32) -> Result<i32, sqlx::Error> {
+pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
   let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = ?) AND C.seq >= (SELECT seq FROM words WHERE word_id = ?) LIMIT 1;";
   
-  let rec: (i32,) = sqlx::query_as(query)
+  let rec: (u32,) = sqlx::query_as(query)
   .bind(word_id)
   .bind(word_id)
   .fetch_one(pool)
@@ -639,7 +639,7 @@ pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:i32) -> Result<i
   Ok(rec.0)
 }
 
-pub async fn get_start_end(pool: &SqlitePool, text_id:i32) -> Result<(u32,u32), sqlx::Error> {
+pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), sqlx::Error> {
   let query = "SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = ?;";
   
   let rec: (u32,u32) = sqlx::query_as(query)

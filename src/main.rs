@@ -103,8 +103,8 @@ struct WordtreeQueryResponse {
 
 #[derive(Deserialize)]
 pub struct QueryRequest {
-    pub text: i32,
-    pub wordid: i32,
+    pub text: u32,
+    pub wordid: u32,
 }
 
 #[derive(Deserialize)]
