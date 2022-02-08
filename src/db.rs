@@ -533,9 +533,26 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
   Ok(())
 }
 
-pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, sqlx::Error> {
-    let course_id = 1;
-    let (start,end) = get_start_end(pool, text_id).await?;
+pub async fn get_parent_text_id(pool: &SqlitePool, text_id:i32) -> Result<u32, sqlx::Error> {
+  let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
+  let rec: (Option<u32>,) = sqlx::query_as(query)
+  .bind(text_id)
+  .fetch_one(pool)
+  .await?;
+  
+  if rec.0.is_some() {
+    Ok(rec.0.unwrap())
+  }
+  else {
+    Err(sqlx::Error::RowNotFound)
+  }
+}
+
+pub async fn get_words(pool: &SqlitePool, text_id:i32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
+    //let course_id = 1;
+    //let (start,end) = get_start_end(pool, text_id).await?;
+
+    let parent_text_id = get_parent_text_id(pool, text_id).await?;
 
     let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
     I.total_count, H.running_count,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
@@ -543,13 +560,17 @@ pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, s
     LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
     LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
     LEFT JOIN words E ON E.word_id = D.word_id \
-    LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
-    LEFT JOIN course_x_text G ON (A.text = G.text_id AND G.course_id = {course_id}) \
+    LEFT JOIN course_x_text F ON ({parent_text_id} = F.text_id AND F.course_id = {course_id}) \
+    LEFT JOIN course_x_text G ON ({parent_text_id} = G.text_id AND G.course_id = {course_id}) \
     LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
     LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
-    WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
+    WHERE A.text = {text} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", start_seq = start, end_seq = end, course_id = course_id);
+    LIMIT 55000;", parent_text_id = parent_text_id, text = text_id, course_id = course_id);
+
+    //WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
+
+    println!("{}", query);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
     .map(|rec: SqliteRow| 
@@ -579,10 +600,17 @@ pub async fn get_words(pool: &SqlitePool, text_id:i32) -> Result<Vec<WordRow>, s
     res
 }
 
+//*insert assignments into texts
+//update text_id in words table based on assignment seq ranges
+
+//change get_words to use subtext id
+//order of assignments will be by id?  or word_seq?
+
 pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>, sqlx::Error> {
-  let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+  //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+  let query = "SELECT text_id,name FROM texts ORDER BY text_id;";
   let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
-  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("id"), assignment: rec.get("title")} )
+  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name")} )
   .fetch_all(pool)
   .await;
 

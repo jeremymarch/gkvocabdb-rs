@@ -397,6 +397,7 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
 #[allow(clippy::eval_order_dependence)]
 async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
+    let course_id=1;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
 
@@ -407,7 +408,7 @@ async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) ->
         }
     };
 
-    let w = get_words(db, text_id).await.map_err(map_sqlx_error)?;
+    let w = get_words(db, text_id, course_id).await.map_err(map_sqlx_error)?;
 
 /*
     $j = new \stdClass();
