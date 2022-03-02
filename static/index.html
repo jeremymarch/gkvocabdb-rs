@@ -280,6 +280,7 @@ function handleKey(evt) {
 }
 
     var lemmaListWordTree = null;
+    var textListWordTree = null;
     function onload()
     {
         /*
@@ -308,7 +309,6 @@ function handleKey(evt) {
         */
 
 //
-        getAssignments();
 
         var thisText = getCookie("selectedText");     
         if (thisText === null || parseInt(thisText) < 1/* || parseInt(thisText) > 116*/)
@@ -323,13 +323,6 @@ function handleKey(evt) {
         {
             getwords(parseInt(thisText));//ion = 2
         }
-        $("#selectText").val(thisText);
-        $("#selectText").change(function() { 
-            getwords(this.value);
-            setCookie("selectedText", this.value, 60);
-            var val = $('#selectedText option:selected').val();
-            //alert(this.value);
-        });
 
         
         
@@ -337,7 +330,7 @@ function handleKey(evt) {
         //w.columnOffsets = [0,240,0,0];
         w.columnOffsets = [0,0,0,0];
         w.params.lexicon = "hqvocab";
-        w.url = "queryglosses2";
+        w.url = "queryglosses";
         w.params.mode = "context";
         w.div.style.borderRadius = "14px";
         w.div.style.margin = "10px";
@@ -358,6 +351,35 @@ function handleKey(evt) {
 
         $("#test1Entry").css("font-size", "14pt").addClass("gkinput");
         $(".gkinput").keypress(handleKey);
+
+
+
+
+
+        var w2 = new wordtree("text", 480, $(document).height() - 36);
+        //w.columnOffsets = [0,240,0,0];
+        w2.columnOffsets = [0,0,0,0];
+        w2.params.lexicon = "hqvocab";
+        w2.url = "queryglosses2";
+        w2.params.mode = "normal";
+        w2.div.style.borderRadius = "14px";
+        w2.div.style.margin = "10px";
+        w2.div.style.border = "2px solid black";
+        w2.div.style.zIndex = "990";
+        w2.show(document.getElementById("textlist"));
+        textListWordTree = w2;
+        w2.hideFunction = hideTextList;
+
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideTextList()'><div style='padding:6px;'>X</div></div></div>";
+        w2.title.innerHTML = title;
+        
+        //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
+        //w2.onEnterActivate = addLemmaIDEnter;//addWordToList;
+        //w2.onEnterActivate = removeDuplicate;
+        //w2.onClickActivate = act;
+        //w2.onSelectionChanged = act;
+        //$("#textContainer").css({"top":"41px"});
+        $("#textEntry").css({"font-size":"14pt","display":"block"});
     }
 
     function selectLemmaFormToggle()
@@ -371,7 +393,24 @@ function handleKey(evt) {
             hideLemmaList();
         }
         else {
+            hideTextList();
             showLemmaList();
+        }
+    }
+
+    function selectTextFormToggle()
+    {
+        /*if (selectedWordInList === null)
+        {
+            alert("First select a word.");
+            return;
+        }*/
+        if ( $("#textlist").is(":visible") ) {
+            hideTextList();
+        }
+        else {
+            hideLemmaList();
+            showTextList();
         }
     }
 
@@ -512,7 +551,7 @@ function handleKey(evt) {
     function showLemmaList()
     {
         //$("#test1Entry")[0].value = "";
-        lemmaListWordTree.url = "queryglosses2";
+        lemmaListWordTree.url = "queryglosses";
         lemmaListWordTree.refresh();
         //var a = "";
         //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
@@ -525,6 +564,25 @@ function handleKey(evt) {
         $("#test1Entry")[0].value = "";
         $("#leftlist").css("display", "none");
         lemmaListWordTree.refresh();
+        hideNoClick();
+    }
+
+    function showTextList()
+    {
+        //$("#test1Entry")[0].value = "";
+        textListWordTree.url = "queryglosses2";
+        textListWordTree.refresh();
+        //var a = "";
+        //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
+        $("#textlist").css("display", "");
+        $("#textEntry").focus();
+        //showNoClick();
+    }
+    function hideTextList()
+    {
+        $("#textEntry")[0].value = "";
+        $("#textlist").css("display", "none");
+        textListWordTree.refresh();
         hideNoClick();
     }
 
@@ -703,25 +761,6 @@ function handleKey(evt) {
 	    });
     }
 
-    function getAssignments()
-    {
-        console.log("getting assignments");
-        var url = "assignments";
-    	$.ajax({
-    		url: url,
-    		type: "GET",
-    		data: {},
-    		dataType: "text",//JSON automatically deserializes json
-    		success: function (data, textStatus, jqXHR){ 
-    			procGetAssignments(data, textStatus); 
-    		},
-    		error: function(response) {
-                console.log("error getting assignments");
-    			return;
-    		}
-	    });
-    }
-
     function insertSpaceBefore(w) {
         //if (w == ">" || w == ";" || w == ";" || w == "·" || w == "." || w == "," || w == "·" || w == ";") {
 
@@ -731,39 +770,6 @@ function handleKey(evt) {
         }
         else {
             return true;
-        }
-    }
-
-    function procGetAssignments(str, status)
-    {
-        //console.log("Proc Response: " + str);
-        //alert(str);
-        
-        var returnObj;
-        try {
-            if (typeof JSON != "undefined") {
-                returnObj = JSON.parse(str);
-            }
-            else {
-                return;
-            }
-        }
-        catch(e) { alert("Error: " + e.message + "\n" + str); return};
-        
-        if (!returnObj)
-            return;
-
-        if (returnObj.error) {
-            console.log(returnObj.error);
-            return;
-        }
-
-        var select = document.getElementById("selectText");
-        for (var i = 0; i < returnObj.length; i++) {
-            var o = document.createElement("option");
-            o.value = returnObj[i].id;
-            o.innerHTML = returnObj[i].assignment;
-            select.appendChild(o);
         }
     }
 
@@ -808,10 +814,7 @@ function handleKey(evt) {
         var a = document.getElementById("wordscontents"); 
         a.innerHTML = ""; //clear old content
         var firstOfSection = true;
-        /*
-        if (returnObj.thisText) {
-           $("#selectText").val(returnObj.thisText);
-        }*/
+
         if (returnObj.words && Array.isArray(returnObj.words)) {
             returnObj.words.forEach(function (i,v) {
 
@@ -1598,12 +1601,7 @@ html {
     textarea {
     resize: none;
     }
-    #selectText {
-    height: 25px;
-    border: 2px solid black;
-    border-radius: 6px;
-    margin-right: 4px;
-    }
+
     #words { 
     position:absolute;
     right:10px;
@@ -1868,17 +1866,9 @@ height: 22px;
 <body onload="onload()">
 <div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
     <button id="uploadbutton" onclick="uploaddialog()">Upload</button>
-    <select id="selectText">
-    	<!--<option value="1">H&Q</option>-->
-        <!--
-    	<option value="2">Ion</option>
-    	<option value="3">Medea</option>
-    	<option value="4">Xenophon's Apology</option>
-    	<option value="5">Lysias 1</option>
-    	<option value="6">Phaedrus</option>
-    	<option value="7">Thucydides 2</option>
-    	<option value="8">Ajax</option>-->
-    </select> 
+
+    <button id="getTexts" onclick="selectTextFormToggle()">Texts</button>
+
     <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen Glosses</button> 
     <button id="showButton"  onclick="show1()">Show All Glosses</button> 
     <button id="newLemmaButton" onclick="newLemmaFormToggle()" style="">New Gloss</button> 
@@ -1894,6 +1884,7 @@ height: 22px;
     <div id="wordscontents"></div>
 </div>
   <div id="leftlist" style="display:none;position:absolute;top:0px;left:0px;height:100%;width:220px;"></div>
+  <div id="textlist" style="display:none;position:absolute;top:30px;left:0px;height:100%;width:220px;"></div>
   <div id="snackbar"></div>
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">

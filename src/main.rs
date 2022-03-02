@@ -17,7 +17,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>. 
 */
 use thiserror::Error;
-use actix_web::{ ResponseError, http::StatusCode};
+use actix_web::dev::ServiceRequest;
+use actix_web::{ ResponseError, http::StatusCode, Error};
+
+
+use actix_web_httpauth::extractors::basic::BasicAuth;
+use actix_web_httpauth::middleware::HttpAuthentication;
+use actix_web_httpauth::extractors::basic::Config;
+use actix_web_httpauth::extractors::AuthenticationError;
+use std::pin::Pin;
+
 //use percent_encoding::percent_decode_str;
 
 
@@ -586,6 +595,33 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
     }
 }
 
+async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
+    
+    let config = req.app_data::<Config>()
+    .map(|data| Pin::new(data).get_ref().clone())
+    .unwrap_or_else(Default::default);
+
+    match validate_credentials(credentials.user_id(), credentials.password().unwrap().trim()) {
+        Ok(res) => {
+            if res == true {
+                Ok(req)
+            } else {
+                Err(AuthenticationError::from(config).into())
+            }
+        }
+        Err(_) => Err(AuthenticationError::from(config).into()),
+    }
+}
+
+fn validate_credentials(user_id: &str, user_password: &str) -> Result<bool, std::io::Error>
+{
+    if(user_id.eq("greekdb") && user_password.eq("pass"))
+    {
+        return Ok(true);
+    }
+    return Err(std::io::Error::new(std::io::ErrorKind::Other, "Authentication failed!"));
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
@@ -640,11 +676,13 @@ async fn main() -> io::Result<()> {
         .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
         .handler(http::StatusCode::NOT_FOUND, api::not_found);
         */
+        let auth = HttpAuthentication::basic(validator);
         App::new()
             //.wrap(json_cfg)
             .app_data(db_pool.clone())
             
             .wrap(middleware::Logger::default())
+            .wrap(auth)
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
             .wrap(middleware::Compress::default())
             
