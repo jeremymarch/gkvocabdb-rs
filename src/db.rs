@@ -607,17 +607,18 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
 //change get_words to use subtext id
 //order of assignments will be by id?  or word_seq?
 
-pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>, sqlx::Error> {
+pub async fn get_assignment_rows(pool: &SqlitePool, course_id:u32) -> Result<Vec<AssignmentRow>, sqlx::Error> {
   //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
-  let query = "SELECT text_id,name,parent_id FROM texts ORDER BY text_id;";
+  let query = "SELECT A.text_id,A.name,A.parent_id FROM texts A LEFT JOIN course_x_text B On (A.text_id=B.text_id AND B.course_id = ?) ORDER BY B.text_order,A.text_id;";
   let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
+  .bind(course_id)
   .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name"),parent_id:rec.get("parent_id")} )
   .fetch_all(pool)
   .await;
 
   res
 }
-
+/* 
 pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Error> {
     let query = "SELECT id,title FROM titles ORDER BY title;";
     let res: Result<Vec<(String,u32)>, sqlx::Error> = sqlx::query(query)
@@ -627,7 +628,7 @@ pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::E
 
     res
 }
-
+*/
 pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
   let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = ?) AND C.seq >= (SELECT seq FROM words WHERE word_id = ?) LIMIT 1;";
   

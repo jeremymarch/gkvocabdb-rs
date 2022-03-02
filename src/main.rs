@@ -443,7 +443,7 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
     let db = req.app_data::<SqlitePool>().unwrap();
 
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
-    
+    let course_id = 1;
     //let seq = get_seq_by_prefix(db, table, &query_params.w).await.map_err(map_sqlx_error)?;
 
     //only check page 0 or page less than 0
@@ -459,7 +459,7 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
     //let re = Regex::new(r"[0-9]").unwrap();
     //let result_rows_stripped:Vec<TreeRow> = vec![TreeRow{v:"abc".to_string(), i:1, c:None}, TreeRow{v:"def".to_string(), i:2, c:Some(vec![TreeRow{v:"def2".to_string(), i:1, c:None}, TreeRow{v:"def3".to_string(), i:3, c:None}])}];
     
-    let w = get_assignment_rows(db).await.map_err(map_sqlx_error)?;
+    let w = get_assignment_rows(db, course_id).await.map_err(map_sqlx_error)?;
     let mut assignment_rows:Vec<AssignmentTree> = vec![];
     for r in &w {
         if r.parent_id.is_none() {
@@ -534,8 +534,8 @@ async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) ->
 #[allow(clippy::eval_order_dependence)]
 async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-
-    let w = get_assignment_rows(db).await.map_err(map_sqlx_error)?;
+    let course_id = 1;
+    let w = get_assignment_rows(db, course_id).await.map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().json(w))
 }
