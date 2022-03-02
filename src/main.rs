@@ -391,7 +391,7 @@ pub struct AssignmentTree {
 }
 
 #[allow(clippy::eval_order_dependence)]
-async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn get_glosses((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -692,16 +692,16 @@ async fn main() -> io::Result<()> {
             )
             .service(
                 web::resource("/queryglosses")
-                    .route(web::get().to(get_wordtree)),
+                    .route(web::get().to(get_glosses)),
             )
             .service(
-                web::resource("/queryglosses2")
+                web::resource("/querytexts")
                     .route(web::get().to(get_texts)),
             )
-            .service(
+            /* .service(
                 web::resource("/assignments")
                     .route(web::get().to(get_assignments)),
-            )
+            )*/
             .service(
                 web::resource("/updatedb")
                     .route(web::post().to(update_words)),

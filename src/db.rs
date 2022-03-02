@@ -550,7 +550,6 @@ pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<u32, s
 }
 
 pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
-    //let course_id = 1;
     //let (start,end) = get_start_end(pool, text_id).await?;
 
     let parent_text_id = get_parent_text_id(pool, text_id).await?;
