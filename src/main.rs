@@ -426,7 +426,7 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
 
     let mut gloss_rows:Vec<AssignmentTree> = vec![];
     for r in &result_rows_stripped {
-        gloss_rows.push(AssignmentTree{i:r.1,col:vec![r.0.clone()],h:false,c:vec![]});
+        gloss_rows.push(AssignmentTree{i:r.1,col:vec![r.0.clone(), r.1.to_string()],h:false,c:vec![]});
     }
 
     let res = WordtreeQueryResponse {
@@ -472,11 +472,11 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
     let mut assignment_rows:Vec<AssignmentTree> = vec![];
     for r in &w {
         if r.parent_id.is_none() {
-            let mut a = AssignmentTree{ i:r.id,col:vec![r.assignment.clone()],h:false,c:vec![] };
+            let mut a = AssignmentTree{ i:r.id,col:vec![r.assignment.clone(), r.id.to_string()],h:false,c:vec![] };
             for r2 in &w {
                 if r2.parent_id.is_some() && r2.parent_id.unwrap() == a.i {
                     a.h = true;
-                    a.c.push(AssignmentTree{ i:r2.id,col:vec![r2.assignment.clone()],h:false,c:vec![] });
+                    a.c.push(AssignmentTree{ i:r2.id,col:vec![r2.assignment.clone(), r2.id.to_string()],h:false,c:vec![] });
                 }
             }
             assignment_rows.push(a);
@@ -596,7 +596,7 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
 }
 
 async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
-    
+
     let config = req.app_data::<Config>()
     .map(|data| Pin::new(data).get_ref().clone())
     .unwrap_or_else(Default::default);
@@ -615,8 +615,7 @@ async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<Servic
 
 fn validate_credentials(user_id: &str, user_password: &str) -> Result<bool, std::io::Error>
 {
-    if(user_id.eq("greekdb") && user_password.eq("pass"))
-    {
+    if user_id.eq("greekdb") && user_password.eq("pass") {
         return Ok(true);
     }
     return Err(std::io::Error::new(std::io::ErrorKind::Other, "Authentication failed!"));

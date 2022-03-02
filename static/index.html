@@ -374,12 +374,20 @@ function handleKey(evt) {
         w2.title.innerHTML = title;
         
         //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
-        //w2.onEnterActivate = addLemmaIDEnter;//addWordToList;
-        //w2.onEnterActivate = removeDuplicate;
+        w2.onEnterActivate = queryText;
         //w2.onClickActivate = act;
         //w2.onSelectionChanged = act;
         //$("#textContainer").css({"top":"41px"});
         $("#textEntry").css({"font-size":"14pt","display":"block"});
+    }
+
+    function queryText(lex, cols) {
+        //alert(cols);
+        if (Array.isArray(cols) && cols.length > 1 && Number.isInteger(parseInt(cols[1]))) {
+            getwords(cols[1]);
+            setCookie("selectedText", cols[1], 60);
+            hideTextList();
+        }
     }
 
     function selectLemmaFormToggle()
