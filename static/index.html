@@ -337,6 +337,7 @@ function handleKey(evt) {
         //w.columnOffsets = [0,240,0,0];
         w.columnOffsets = [0,0,0,0];
         w.params.lexicon = "hqvocab";
+        w.url = "queryglosses2";
         w.params.mode = "context";
         w.div.style.borderRadius = "14px";
         w.div.style.margin = "10px";
@@ -510,12 +511,14 @@ function handleKey(evt) {
     
     function showLemmaList()
     {
-        $("#test1Entry")[0].value = "";
+        //$("#test1Entry")[0].value = "";
+        lemmaListWordTree.url = "queryglosses2";
         lemmaListWordTree.refresh();
-
+        //var a = "";
+        //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
         $("#leftlist").css("display", "");
         $("#test1Entry").focus();
-        showNoClick();
+        //showNoClick();
     }
     function hideLemmaList()
     {

@@ -99,7 +99,8 @@ pub struct SmallWord {
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct AssignmentRow {
   pub id:u32,
-  pub assignment:String
+  pub assignment:String,
+  pub parent_id:Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -608,9 +609,9 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
 
 pub async fn get_assignment_rows(pool: &SqlitePool) -> Result<Vec<AssignmentRow>, sqlx::Error> {
   //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
-  let query = "SELECT text_id,name FROM texts ORDER BY text_id;";
+  let query = "SELECT text_id,name,parent_id FROM texts ORDER BY text_id;";
   let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
-  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name")} )
+  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name"),parent_id:rec.get("parent_id")} )
   .fetch_all(pool)
   .await;
 

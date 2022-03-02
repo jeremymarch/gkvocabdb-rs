@@ -131,7 +131,7 @@ function wordtree (idPrefix, width, height)
 		this.autofocus = true; 
 	
 	this.maxWords = 100;
-	this.url = "queryglosses";
+	this.url = "";
 	this.idPrefix = idPrefix;
 
     this.params = new Object();
@@ -216,8 +216,8 @@ function wordtree (idPrefix, width, height)
     }
 
     
-    this.closedNodeImg = "images/plus.gif";
-    this.openNodeImg = "images/minus.gif";
+    this.closedNodeImg = "plus.png";
+    this.openNodeImg = "minus.png";
 
     input.onkeydown = wordtree_ondown;
     input.onkeyup = wordtree_onup;
@@ -943,8 +943,7 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
 */
 	//a two column response
     //var resp2 = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';    
-    //var resp2 = '{"error":"","wtprefix":"test1","nocache":"0","container":"test1Container","requestTime":"1631672832851","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"","arrOptions":[{"i":0,"r":["Α α",0,0]},{"i":1,"r":["ἀ-",1,0]},{"i":2,"r":["ἀ-",2,0]},{"i":3,"r":["ἆ",3,0]},{"i":4,"r":["ἃ ἃ",4,0]},{"i":5,"r":["ἄα",5,0]},{"i":6,"r":["ἀάατος",6,0]},{"i":7,"r":["ἀάβακτοι",7,0]},{"i":8,"r":["ἀαγής",8,0]},{"i":9,"r":["ἄαδα",9,0]},{"i":10,"r":["ἀάζω",10,0]},{"i":11,"r":["ἄαθι",11,0]},{"i":12,"r":["ἀάκατος",12,0]},{"i":13,"r":["ἀακίδωτος",13,0]},{"i":14,"r":["ἀάλιον",14,0]},{"i":15,"r":["ἀανές",15,0]},{"i":16,"r":["ἄανθα",16,0]},{"i":17,"r":["ἀάπλετος",17,0]},{"i":18,"r":["ἄαπτος",18,0]},{"i":19,"r":["ἄας",19,0]},{"i":20,"r":["ἀασιφόρος",20,0]},{"i":21,"r":["ἀασιφρονία",21,0]},{"i":22,"r":["ἀασιφροσύνη",22,0]},{"i":23,"r":["ἀάσκει",23,0]},{"i":24,"r":["ἀασμός",24,0]},{"i":25,"r":["ἀάσπετος",25,0]},{"i":26,"r":["ἀάστονα",26,0]},{"i":27,"r":["ἀατήρ",27,0]},{"i":28,"r":["ἄατος",28,0]},{"i":29,"r":["ἄατος",29,0]},{"i":30,"r":["ἀάτυλον",30,0]},{"i":31,"r":["ἀάω",31,0]},{"i":32,"r":["ἄβα",32,0]},{"i":33,"r":["ἄβαγνα",33,0]},{"i":34,"r":["ἀβαθής",34,0]},{"i":35,"r":["ἄβαθρος",35,0]},{"i":36,"r":["ἀβαίνω",36,0]},{"i":37,"r":["ἀβακέω",37,0]},{"i":38,"r":["ἀβακηνούς",38,0]},{"i":39,"r":["ἀβακής",39,0]},{"i":40,"r":["ἀβάκητον",40,0]},{"i":41,"r":["ἀβακίζομαι",41,0]},{"i":42,"r":["ἀβάκιον",42,0]},{"i":43,"r":["ἀβακίσκος",43,0]},{"i":44,"r":["ἀβακλή",44,0]},{"i":45,"r":["ἀβακοειδής",45,0]},{"i":46,"r":["ἄβακτον",46,0]},{"i":47,"r":["ἀβάκχευτος",47,0]},{"i":48,"r":["ἀβακχίωτος",48,0]},{"i":49,"r":["ἄβαλε",49,0]},{"i":50,"r":["ἀβαμβάκευτος",50,0]},{"i":51,"r":["ἄβαξ",51,0]},{"i":52,"r":["ἀβάπτιστος",52,0]},{"i":53,"r":["ἄβαπτος",53,0]},{"i":54,"r":["ἀβαρβάριστος",54,0]},{"i":55,"r":["ἀβαρής",55,0]},{"i":56,"r":["ἄβαρις",56,0]},{"i":57,"r":["ἀβασάνιστος",57,0]},{"i":58,"r":["ἀβασίλευτος",58,0]},{"i":59,"r":["ἀβασκάνιστος",59,0]},{"i":60,"r":["ἀβάσκανος",60,0]},{"i":61,"r":["ἀβάσκαντος",61,0]},{"i":62,"r":["ἀβάστακτος",62,0]},{"i":63,"r":["ἄβαστον",63,0]},{"i":64,"r":["ἀβατόομαι",64,0]},{"i":65,"r":["ἄβατος",65,0]},{"i":66,"r":["ἀβαφής",66,0]},{"i":67,"r":["ἄβδελον",67,0]},{"i":68,"r":["ἀβδέλυκτος",68,0]},{"i":69,"r":["Ἀβδηρίτης",69,0]},{"i":70,"r":["ἄβδης",70,0]},{"i":71,"r":["ἀβέβαιος",71,0]},{"i":72,"r":["ἀβεβαιότης",72,0]},{"i":73,"r":["ἀβέβηλος",73,0]},{"i":74,"r":["ἄβεις",74,0]},{"i":75,"r":["ἄβελλον",75,0]},{"i":76,"r":["ἀβελτέρειος",76,0]},{"i":77,"r":["ἀβελτερεύομαι",77,0]},{"i":78,"r":["ἀβελτερία",78,0]},{"i":79,"r":["ἀβελτεροκόκκυξ",79,0]},{"i":80,"r":["ἀβέλτερος",80,0]},{"i":81,"r":["ἀβέρβηλον",81,0]},{"i":82,"r":["ἀβηδών",82,0]},{"i":83,"r":["ἀβήρελ",83,0]},{"i":84,"r":["ἀβηροῦσιν",84,0]},{"i":85,"r":["ἀβίαστος",85,0]},{"i":86,"r":["ἀβίβαστος",86,0]},{"i":87,"r":["ἀβίβλης",87,0]},{"i":88,"r":["ἄβιδα",88,0]},{"i":89,"r":["ἄβιν",89,0]},{"i":90,"r":["ἄβιος",90,0]},{"i":91,"r":["ἄβιος",91,0]},{"i":92,"r":["ἀβίοτος",92,0]},{"i":93,"r":["ἀβίυκτον",93,0]},{"i":94,"r":["ἀβιωτοποιός",94,0]},{"i":95,"r":["ἀβίωτος",95,0]},{"i":96,"r":["ἀβλάβεια",96,0]},{"i":97,"r":["ἀβλαβής",97,0]},{"i":98,"r":["ἀβλαβία",98,0]},{"i":99,"r":["ἀβλαβύνιον",99,0]},{"i":100,"r":["ἄβλαπτος",100,0]}]}';
-    function procResponse(str, status)
+   function procResponse(str, status)
     {
     	//var start = Date.now();
     	
@@ -955,7 +954,9 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
         //str = resp2;
         //console.log("Proc Response: " + str);
         //if (str.indexOf("test4") > -1)
-        //alert(str);
+
+        //str = '{"selectId":1942,"error":"","wtprefix":"test1","nocache":0,"container":"test1Container","requestTime":1644974469540,"page":0,"lastPage":1,"lastPageUp":1,"scroll":"","query":"","arrOptions":[{"i":123,"col":["<b>ἆ</b> <i>excited interjection</i> [count 2] <a href=\'javascript:editLemmaFormToggle2(1942)\'>edit</a>",1942],"h":1,"c":[{"i":123,"col":["<b>ἆ</b> <i>excited interjection</i> [count 2] <a href=\'javascript:editLemmaFormToggle2(1942)\'>edit</a>",1942]}]},{"i":134,"col":["<b>αααααβββφφφ</b> testgloss2 [count 0] <a href=\'javascript:editLemmaFormToggle2(5698)\'>edit</a>",5698]}]}';      
+
         try
         {
             if (typeof JSON != "undefined")
@@ -978,7 +979,7 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
         if (!wt) {
             return;         
         }
-            
+
         if (returnObj.mesgCode)
         {
         	//alert(returnObj.mesg);	
@@ -1147,10 +1148,10 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
 				if (returnedPage < 0) {
 					insertBefore = true;
                 }
-	
 				printTree(wt, con, arrOptions[i], 0, insertBefore, returnObj.roots, returnObj.selectId);
 				//printRow(wt, con, arrOptions[i], 0, insertBefore, returnObj.roots, returnObj.selectId);
 			}
+            $(".openCloseBranch").click(openCloseCon);
 			
 			if (wt && returnObj.scroll == "top")
 			{	
@@ -1224,8 +1225,8 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
         {
             var node = document.createElement('div');
             node.classList.add("nodestyle");
-            node.setAttribute("rowid", wt.rowCount + wt.idPrefix);
-            node.id = wt.rowCount++ + wt.idPrefix;
+            node.setAttribute("rowid", rowItem.i + wt.idPrefix);
+            node.id = rowItem.i + wt.idPrefix;
             
             node.onclick = onSelect;
             
@@ -1237,7 +1238,7 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
             }
             
             //for each column
-            var rowLen = rowItem.length;
+            var rowLen = rowItem.col.length;
             for (var c = 0; c < rowLen; c++)
             {
                 var d2 = document.createElement("div");
@@ -1249,14 +1250,15 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
                 else
                     d2.style.left = wt.columnOffsets[c] + "px";
                 */
-               /*
+               
                 if (level == 0)
                     d2.style.paddingLeft = 1 + (!rowItem.h && topLevelTreeRow ? 15 : 3) + "px";
                 else 
                     d2.style.paddingLeft = (level * wt.indentWidth) + (rowItem.h ? 3 : 15) + "px";
-                */
+                
                 if (c == 0 && rowItem.h) //only for column 1
                 {
+                    /*
                     var img = document.createElement('img');
                     if (!rowItem.o)
                     	img.src = wt.closedNodeImg;
@@ -1267,16 +1269,25 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
                     img.style.cursor = "pointer";
                     img.id = node.id + "Img";
                     img.onclick = openCloseCon;
-                    d2.appendChild(img);
+                    d2.appendChild(img);*/
+                    var img = "<img src='";
+                    if (!rowItem.o)
+                    	img += wt.closedNodeImg;
+                    else
+                    	img += wt.openNodeImg;
+                    img += "' class='openCloseBranch' style='display:inline;padding-right:4px;cursor:pointer;' id='" + node.id + "Img'/>";
+                }
+                else {
+                    var img = "";
                 }
 
-                //var text = document.createTextNode(rowItem[c]);
+                //var text = document.createTextNode(rowItem.col[c]);
                 //d2.appendChild(text);
-                d2.innerHTML = rowItem[c];
+                d2.innerHTML = img + rowItem.col[c];
                 node.appendChild(d2);
             }    
             
-            if (rowItem[1] == selectedId)
+            if (rowItem.i == selectedId)
             {
             	wt.selectedRowId = node.id;
             }

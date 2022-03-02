@@ -20,6 +20,8 @@ use thiserror::Error;
 use actix_web::{ ResponseError, http::StatusCode};
 //use percent_encoding::percent_decode_str;
 
+
+
 use std::io;
 use actix_files as fs;
 use actix_web::{middleware, web, App, error, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
@@ -44,6 +46,14 @@ use chrono::prelude::*;
 #[derive(Clone)]
 struct SqliteUpdatePool (SqlitePool);
 
+
+//type TreeRow = (String, u32, Option<Vec<TreeRow>>)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct TreeRow {
+    v:String,
+    i:u32,
+    c:Option<Vec<TreeRow>>
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct QueryResponse {
@@ -98,7 +108,28 @@ struct WordtreeQueryResponse {
     scroll: String,
     query: String,
     #[serde(rename(serialize = "arrOptions"), rename(deserialize = "arrOptions"))]
-    arr_options: Vec<(String,u32)>
+    arr_options: Vec<AssignmentTree> //Vec<(String,u32)>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct WordtreeQueryResponseTree {
+    #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
+    select_id: u32,
+    error: String,
+    wtprefix: String,
+    nocache: u8,
+    container: String,
+    #[serde(rename(serialize = "requestTime"), rename(deserialize = "requestTime"))]
+    request_time: u64,
+    page: i32, //can be negative for pages before
+    #[serde(rename(serialize = "lastPage"), rename(deserialize = "lastPage"))]
+    last_page: u8,
+    #[serde(rename(serialize = "lastPageUp"), rename(deserialize = "lastPageUp"))]
+    lastpage_up: u8,
+    scroll: String,
+    query: String,
+    #[serde(rename(serialize = "arrOptions"), rename(deserialize = "arrOptions"))]
+    arr_options: Vec<TreeRow>
 }
 
 #[derive(Deserialize)]
@@ -342,6 +373,14 @@ async fn get_gloss((info, req): (web::Form<GetGlossRequest>, HttpRequest)) -> Re
     Ok(HttpResponse::Ok().json(res))
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AssignmentTree {
+    pub i:u32,
+    pub col:Vec<String>,
+    pub c:Vec<AssignmentTree>,
+    pub h:bool
+}
+
 #[allow(clippy::eval_order_dependence)]
 async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -376,6 +415,11 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
     //let re = Regex::new(r"[0-9]").unwrap();
     let result_rows_stripped:Vec<(String,u32)> = result_rows.into_iter().map( |mut row| { row.0 = format!("<b>{}</b> {} [count {}] <a href='javascript:editLemmaFormToggle2({})'>edit</a>", row.0,row.2,row.3,row.1); (row.0,row.1) }).collect();
 
+    let mut gloss_rows:Vec<AssignmentTree> = vec![];
+    for r in &result_rows_stripped {
+        gloss_rows.push(AssignmentTree{i:r.1,col:vec![r.0.clone()],h:false,c:vec![]});
+    }
+
     let res = WordtreeQueryResponse {
         select_id: seq,
         error: "".to_owned(),
@@ -388,7 +432,61 @@ async fn get_wordtree((info, req): (web::Query<WordtreeQueryRequest>, HttpReques
         lastpage_up: vlast_page_up,
         scroll: if query_params.w.is_empty() && info.page == 0 && seq == 1 { "top".to_string() } else { "".to_string() }, //scroll really only needs to return top
         query: query_params.w.to_owned(),
-        arr_options: result_rows_stripped//result_rows
+        arr_options: gloss_rows//result_rows_stripped//result_rows
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[allow(clippy::eval_order_dependence)]
+async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+
+    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+    
+    //let seq = get_seq_by_prefix(db, table, &query_params.w).await.map_err(map_sqlx_error)?;
+
+    //only check page 0 or page less than 0
+    let vlast_page_up = 1;
+    //only check page 0 or page greater than 0
+    let vlast_page = 1;
+
+    let seq = 0;
+
+    //let result_rows = [before_rows, after_rows].concat();
+
+    //strip any numbers from end of string
+    //let re = Regex::new(r"[0-9]").unwrap();
+    //let result_rows_stripped:Vec<TreeRow> = vec![TreeRow{v:"abc".to_string(), i:1, c:None}, TreeRow{v:"def".to_string(), i:2, c:Some(vec![TreeRow{v:"def2".to_string(), i:1, c:None}, TreeRow{v:"def3".to_string(), i:3, c:None}])}];
+    
+    let w = get_assignment_rows(db).await.map_err(map_sqlx_error)?;
+    let mut assignment_rows:Vec<AssignmentTree> = vec![];
+    for r in &w {
+        if r.parent_id.is_none() {
+            let mut a = AssignmentTree{ i:r.id,col:vec![r.assignment.clone()],h:false,c:vec![] };
+            for r2 in &w {
+                if r2.parent_id.is_some() && r2.parent_id.unwrap() == a.i {
+                    a.h = true;
+                    a.c.push(AssignmentTree{ i:r2.id,col:vec![r2.assignment.clone()],h:false,c:vec![] });
+                }
+            }
+            assignment_rows.push(a);
+        }
+    }
+
+    let res = WordtreeQueryResponse {
+        select_id: seq,
+        error: "".to_owned(),
+        wtprefix: info.idprefix.clone(),
+        nocache: if query_params.wordid.is_none() { 0 } else { 1 }, //prevents caching when queried by wordid in url
+        container: format!("{}Container", info.idprefix),
+        request_time: info.request_time,
+        page: info.page,
+        last_page: vlast_page,
+        lastpage_up: vlast_page_up,
+        scroll: if query_params.w.is_empty() && info.page == 0 && seq == 1 { "top".to_string() } else { "".to_string() }, //scroll really only needs to return top
+        query: query_params.w.to_owned(),
+        arr_options: assignment_rows//result_rows_stripped//result_rows
     };
 
     Ok(HttpResponse::Ok().json(res))
@@ -493,7 +591,7 @@ async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabdb.sqlite?mode=rwc
+    //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc
     let db_path = std::env::var("GKVOCABDB_DB_PATH")
                    .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
     
@@ -558,6 +656,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/queryglosses")
                     .route(web::get().to(get_wordtree)),
+            )
+            .service(
+                web::resource("/queryglosses2")
+                    .route(web::get().to(get_texts)),
             )
             .service(
                 web::resource("/assignments")
