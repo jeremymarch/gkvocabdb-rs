@@ -369,7 +369,7 @@ pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, us
 }
 
 
-pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+pub async fn insert_gloss(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
 
   let mut tx = pool.begin().await?;
 
@@ -393,15 +393,22 @@ pub async fn new_lemma(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, str
     .bind(user_id)
     .execute(&mut tx).await?;
 
+    let new_gloss_id = res.last_insert_rowid();
+
+    let _ = update_log_trx(&mut tx, UpdateType::NewGloss, Some(new_gloss_id.into()), None, None, format!("Added gloss ({})", new_gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+
   tx.commit().await?;
     
   Ok(res.rows_affected())
 }
 
-pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, update_type:UpdateType, update_desc: &str, timestamp: i64, user_id:u32, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
-  let query = "INSERT INTO update_log (update_id,update_type,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?);";
+pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, update_type:UpdateType, object_id:Option<i64>, history_id:Option<i64>,course_id:Option<i64>,update_desc: &str, timestamp: i64, user_id:u32, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
+  let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
   sqlx::query(query)
     .bind(update_type.value())
+    .bind(object_id)
+    .bind(history_id)
+    .bind(course_id)
     .bind(update_desc)
     .bind(timestamp)
     .bind(user_id)
@@ -416,15 +423,18 @@ pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &s
 
   let mut tx = pool.begin().await?;
 
+  let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
+  let history_id = sqlx::query(query)
+    .bind(gloss_id)
+    .execute(&mut tx).await?
+    .last_insert_rowid();
+
   //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
   //let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, "Change gloss for x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
-  let _ = update_log_trx(&mut tx, UpdateType::EditGloss, format!("Edited gloss {}", gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+  let _ = update_log_trx(&mut tx, UpdateType::EditGloss, Some(gloss_id.into()), Some(history_id), None, format!("Edited gloss ({})", gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
   //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
 
-  let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
-  sqlx::query(query)
-    .bind(gloss_id)
-    .execute(&mut tx).await?;
+    //CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
 
     //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
     let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();

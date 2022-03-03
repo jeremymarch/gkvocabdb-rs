@@ -234,14 +234,14 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
     //println!("{}", datetime_again);
 
     let user_agent = get_user_agent(&req).unwrap_or("");
-
+    let updated_ip = "0.0.0.1";
     match post.qtype.as_str() {
         "newlemma" => {           
-            let updated_ip = "0.0.0.1";
-            let rows_affected = new_lemma(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+            
+            let rows_affected = insert_gloss(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             let res = UpdateLemmaResponse {
-                qtype: "newLemma1".to_string(),
+                qtype: post.qtype.to_string(),
                 success: true,
                 affectedrows: rows_affected,
             };
@@ -249,11 +249,10 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
         },
         "editlemma" => {
             if post.hqid.is_some() {
-                let updated_ip = "0.0.0.1";
                 let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
     
                 let res = UpdateLemmaResponse {
-                    qtype: "newLemma1".to_string(),
+                    qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
                 };
