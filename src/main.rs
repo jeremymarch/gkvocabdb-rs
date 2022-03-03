@@ -222,7 +222,7 @@ pub struct GetGlossResponse {
 }
 
 #[allow(clippy::eval_order_dependence)]
-async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     //let course_id = 1;
     let user_id = 2;
@@ -250,7 +250,7 @@ async fn update_gloss((session, post, req): (Session, web::Form<UpdateLemmaReque
         "editlemma" => {
             if post.hqid.is_some() {
                 let updated_ip = "0.0.0.1";
-                let rows_affected = update_lemma(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
     
                 let res = UpdateLemmaResponse {
                     qtype: "newLemma1".to_string(),
@@ -712,7 +712,7 @@ async fn main() -> io::Result<()> {
             )
             .service(
                 web::resource("/updategloss")
-                    .route(web::post().to(update_gloss)),
+                    .route(web::post().to(update_or_add_gloss)),
             )
             .service(
                 web::resource("/importtext")

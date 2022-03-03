@@ -154,6 +154,8 @@ pub enum UpdateType {
   SetGlossId,
   NewGloss,
   EditGloss,
+  ImportText,
+
 }
 
 impl UpdateType {
@@ -163,6 +165,7 @@ impl UpdateType {
           UpdateType::SetGlossId => 2,
           UpdateType::NewGloss => 3,
           UpdateType::EditGloss => 4,
+          UpdateType::ImportText => 5,
       }
   }
 }
@@ -409,13 +412,13 @@ pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlit
     Ok(())
 }
 
-pub async fn update_lemma(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
 
   let mut tx = pool.begin().await?;
 
   //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
   //let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, "Change gloss for x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
-  let _ = update_log_trx(&mut tx, UpdateType::EditGloss, "Edit gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
+  let _ = update_log_trx(&mut tx, UpdateType::EditGloss, format!("Edited gloss {}", gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
   //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
 
   let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
