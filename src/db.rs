@@ -383,7 +383,7 @@ pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, us
     count += affected_rows;
   }
 
-  let _ = update_log_trx(&mut tx, UpdateType::ImportText, Some(text_id.into()), None, None, format!("Imported {} words into text ({})", count, text_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+  let _ = update_log_trx(&mut tx, UpdateType::ImportText, Some(text_id), None, None, format!("Imported {} words into text ({})", count, text_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
 
 
   //println!("id: {}, count: {}", text_id, count);
@@ -420,7 +420,7 @@ pub async fn insert_gloss(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, 
 
     let new_gloss_id = res.last_insert_rowid();
 
-    let _ = update_log_trx(&mut tx, UpdateType::NewGloss, Some(new_gloss_id.into()), None, None, format!("Added gloss ({})", new_gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+    let _ = update_log_trx(&mut tx, UpdateType::NewGloss, Some(new_gloss_id), None, None, format!("Added gloss ({})", new_gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
 
   tx.commit().await?;
     

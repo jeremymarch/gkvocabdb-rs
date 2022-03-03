@@ -227,7 +227,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
 
     let user_id = 2;
     let timestamp = get_timestamp();
-    let updated_ip = get_ip(&req).unwrap_or("".to_string());
+    let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
     let user_agent = get_user_agent(&req).unwrap_or("");
 
     match post.qtype.as_str() {
@@ -272,7 +272,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
     let course_id = 1;
     let user_id = 2;
     let timestamp = get_timestamp();
-    let updated_ip = get_ip(&req).unwrap_or("".to_string());
+    let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
     let user_agent = get_user_agent(&req).unwrap_or("");
 
     match post.qtype.as_str() {
@@ -544,13 +544,7 @@ fn get_user_agent(req: &HttpRequest) -> Option<&str> {
 }
 
 fn get_ip(req: &HttpRequest) -> Option<String> {
-    if let Some(addr) = req.peer_addr() { 
-        Some(addr.ip().to_string())
-    } 
-    else 
-    { 
-        None
-    }
+    req.peer_addr().map(|addr| addr.ip().to_string())
 }
 
 fn get_timestamp() -> i64 {
@@ -568,12 +562,12 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
 
     let user_id = 2;
     let timestamp = get_timestamp();
-    let updated_ip = get_ip(&req).unwrap_or("".to_string());
+    let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
     let user_agent = get_user_agent(&req).unwrap_or("");
 
     let words = process_xml::process_imported_text(payload).await;
     
-    if words.len() > 0 {
+    if !words.is_empty() {
 
             let _affected_rows = add_text(db, "newtext", words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
@@ -596,7 +590,7 @@ async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<Servic
 
     match validate_credentials(credentials.user_id(), credentials.password().unwrap().trim()) {
         Ok(res) => {
-            if res == true {
+            if res {
                 Ok(req)
             } else {
                 Err(AuthenticationError::from(config).into())
@@ -606,12 +600,11 @@ async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<Servic
     }
 }
 
-fn validate_credentials(user_id: &str, user_password: &str) -> Result<bool, std::io::Error>
-{
+fn validate_credentials(user_id: &str, user_password: &str) -> Result<bool, std::io::Error> {
     if user_id.eq("greekdb") && user_password.eq("pass") {
         return Ok(true);
     }
-    return Err(std::io::Error::new(std::io::ErrorKind::Other, "Authentication failed!"));
+    Err(std::io::Error::new(std::io::ErrorKind::Other, "Authentication failed!"))
 }
 
 #[actix_web::main]
@@ -908,14 +901,11 @@ pub mod process_xml {
                 // for namespaced:
                 // Ok((ref namespace_value, Event::Start(ref e)))
                 
-                    match e.name() {
-                        b"text" => in_text = true,
-                        _ => (),
-                    }
+                    if let b"text" = e.name() { in_text = true }
                 },
                 // unescape and decode the text event using the reader encoding
                 Ok(Event::Text(e)) => { 
-                    if in_text == true {
+                    if in_text {
                         if let Ok(s) = e.unescape_and_decode(&reader) {
                             
                             //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
@@ -928,10 +918,7 @@ pub mod process_xml {
                     }
                 },
                 Ok(Event::End(ref e)) => {
-                    match e.name() {
-                        b"text" => in_text = false,
-                        _ => (),
-                    }
+                    if let b"text" = e.name() { in_text = false }
                 },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(_e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
