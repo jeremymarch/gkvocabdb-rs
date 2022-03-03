@@ -218,6 +218,8 @@ function wordtree (idPrefix, width, height)
     
     this.closedNodeImg = "plus.png";
     this.openNodeImg = "minus.png";
+    this.closedNodeSVG = '<svg class="openCloseBranch nodeToggleImg plus" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M24 10h-10v-10h-4v10h-10v4h10v10h4v-10h10z"/></svg>';
+    this.openNodeSVG = '<svg class="openCloseBranch nodeToggleImg minus" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 10h24v4h-24z"/></svg>';
 
     input.onkeydown = wordtree_ondown;
     input.onkeyup = wordtree_onup;
@@ -1270,12 +1272,12 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
                     img.id = node.id + "Img";
                     img.onclick = openCloseCon;
                     d2.appendChild(img);*/
-                    var img = "<img src='";
+                    var img = "";
                     if (!rowItem.o)
-                    	img += wt.closedNodeImg;
+                    	img += wt.closedNodeSVG;
                     else
-                    	img += wt.openNodeImg;
-                    img += "' class='openCloseBranch' style='display:inline;padding-right:4px;cursor:pointer;' id='" + node.id + "Img'/>";
+                    	img += wt.openNodeSVG;
+                    //img += "' class='openCloseBranch' style='display:inline;padding-right:4px;cursor:pointer;' id='" + node.id + "Img'/>";
                 }
                 else {
                     var img = "";
