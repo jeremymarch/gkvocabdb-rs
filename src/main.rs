@@ -283,11 +283,12 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
     //println!("{}", datetime_again);
 
     let user_agent = get_user_agent(&req).unwrap_or("");
+    let updated_ip = "0.0.0.1";
 
     match post.qtype.as_str() {
         "arrowWord" => {
             
-            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp).await.map_err(map_sqlx_error)?;
+            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
             let res = UpdateResponse  {
                 success: true,
                 affected_rows: 1,
@@ -301,7 +302,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
             //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
             
             if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp).await.map_err(map_sqlx_error)?;
+                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
                 println!("TESTING: {}", words.len());
 
@@ -538,7 +539,7 @@ async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) ->
 
     Ok(HttpResponse::Ok().json(res))
 }
-
+/*
 #[allow(clippy::eval_order_dependence)]
 async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -547,7 +548,7 @@ async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
 
     Ok(HttpResponse::Ok().json(w))
 }
-
+*/
 fn get_user_agent(req: &HttpRequest) -> Option<&str> {
     req.headers().get("user-agent")?.to_str().ok()
 }

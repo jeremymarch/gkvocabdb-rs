@@ -170,7 +170,7 @@ impl UpdateType {
   }
 }
 
-pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64) -> Result<(), sqlx::Error> {
+pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
   
   let mut tx = pool.begin().await?;
 
@@ -232,7 +232,7 @@ pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlit
 }
 
 //word_id is unique across courses, so we do not need to use course_id except for where the word is arrowed
-pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32, user_id: u32, timestamp: i64) -> Result<Vec<SmallWord>, sqlx::Error> {
+pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<Vec<SmallWord>, sqlx::Error> {
 
   let mut tx = pool.begin().await?;
 
@@ -253,9 +253,10 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   //2a. save word row into history before updating gloss_id
   //or could have separate history table just for gloss_id changes
   let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
-  sqlx::query(query)
+  let history_id = sqlx::query(query)
   .bind(word_id)
-  .execute(&mut tx).await?; 
+  .execute(&mut tx).await?
+  .last_insert_rowid();
 
   //0. get old gloss_id before changing it so we can update its counts in step 3b
   let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
@@ -314,6 +315,8 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   .fetch_all(&mut tx)
   .await;
 
+  let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, Some(word_id.into()), Some(history_id), Some(course_id.into()), format!("Set gloss for word ({}) from ({}) to ({}) in course ({})", word_id, old_gloss_id.0.unwrap_or(0), gloss_id, course_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+
   tx.commit().await?;
   
   res
@@ -360,6 +363,9 @@ pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, us
     }
     count += affected_rows;
   }
+
+  let _ = update_log_trx(&mut tx, UpdateType::ImportText, Some(text_id.into()), None, None, format!("Imported {} words into text ({})", count, text_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+
 
   //println!("id: {}, count: {}", text_id, count);
   
