@@ -33,7 +33,7 @@ use std::pin::Pin;
 
 use std::io;
 use actix_files as fs;
-use actix_web::{middleware, web, App, error, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
+use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
 use actix_session::{Session, CookieSession};
 use actix_multipart::Multipart;
 
@@ -224,21 +224,16 @@ pub struct GetGlossResponse {
 #[allow(clippy::eval_order_dependence)]
 async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-    //let course_id = 1;
+
     let user_id = 2;
-
     let timestamp = get_timestamp();
-    //let naive_datetime = NaiveDateTime::from_timestamp(timestamp, 0);
-    //let timestamp_string: DateTime<Utc> = DateTime::from_utc(naive_datetime, Utc);
-    //println!("Current timestamp is {}", timestamp);
-    //println!("{}", datetime_again);
-
+    let updated_ip = get_ip(&req).unwrap_or("".to_string());
     let user_agent = get_user_agent(&req).unwrap_or("");
-    let updated_ip = "0.0.0.1";
+
     match post.qtype.as_str() {
         "newlemma" => {           
             
-            let rows_affected = insert_gloss(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+            let rows_affected = insert_gloss(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             let res = UpdateLemmaResponse {
                 qtype: post.qtype.to_string(),
@@ -249,7 +244,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
         },
         "editlemma" => {
             if post.hqid.is_some() {
-                let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
     
                 let res = UpdateLemmaResponse {
                     qtype: post.qtype.to_string(),
@@ -273,22 +268,17 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
 #[allow(clippy::eval_order_dependence)]
 async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
+
     let course_id = 1;
     let user_id = 2;
-
     let timestamp = get_timestamp();
-    //let naive_datetime = NaiveDateTime::from_timestamp(timestamp, 0);
-    //let timestamp_string: DateTime<Utc> = DateTime::from_utc(naive_datetime, Utc);
-    //println!("Current timestamp is {}", timestamp);
-    //println!("{}", datetime_again);
-
+    let updated_ip = get_ip(&req).unwrap_or("".to_string());
     let user_agent = get_user_agent(&req).unwrap_or("");
-    let updated_ip = "0.0.0.1";
 
     match post.qtype.as_str() {
         "arrowWord" => {
             
-            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
             let res = UpdateResponse  {
                 success: true,
                 affected_rows: 1,
@@ -302,7 +292,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
             //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
             
             if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp, updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
                 println!("TESTING: {}", words.len());
 
@@ -572,17 +562,20 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
+
 async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
+
+    let user_id = 2;
+    let timestamp = get_timestamp();
+    let updated_ip = get_ip(&req).unwrap_or("".to_string());
+    let user_agent = get_user_agent(&req).unwrap_or("");
 
     let words = process_xml::process_imported_text(payload).await;
     
     if words.len() > 0 {
-            let user_id = 2;
-            let timestamp = get_timestamp();
-            let updated_ip = get_ip(&req).unwrap_or("".to_string());
-            let user_agent = get_user_agent(&req).unwrap_or("");
-            let affected_rows = add_text(db, "newtext", words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+
+            let _affected_rows = add_text(db, "newtext", words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             Ok(HttpResponse::Ok()
                 .content_type("text/plain")
@@ -941,7 +934,7 @@ pub mod process_xml {
                     }
                 },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(_e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
             }
         

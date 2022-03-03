@@ -678,6 +678,7 @@ pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u
   Ok(rec.0)
 }
 
+/*
 pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), sqlx::Error> {
   let query = "SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = ?;";
   
@@ -688,6 +689,7 @@ pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), 
 
   Ok(rec)
 }
+*/
 
 pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
   let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
