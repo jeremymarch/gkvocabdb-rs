@@ -192,7 +192,7 @@ pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlit
   .fetch_one(&mut *tx)
   .await;
 
-  let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0;
+  let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
   
   //add previous arrow to history, if it was arrowed before
   let query = "INSERT INTO arrowed_words_history \
