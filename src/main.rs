@@ -65,13 +65,13 @@ struct TreeRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct QueryResponse {
+pub struct QueryResponse {
     #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
-    this_text: u32,
-    words: Vec<WordRow>,
+    pub this_text: u32,
+    pub words: Vec<WordRow>,
     #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
-    selected_id: u32,
-    error: String,
+    pub selected_id: u32,
+    pub error: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -141,7 +141,7 @@ struct WordtreeQueryResponseTree {
     arr_options: Vec<TreeRow>
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct QueryRequest {
     pub text: u32,
     pub wordid: u32,
@@ -494,7 +494,7 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
 #[allow(clippy::eval_order_dependence)]
 async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-    let course_id=1;
+    let course_id = 1;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
 
@@ -912,6 +912,7 @@ mod tests {
             .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
 
         let db_pool = SqlitePool::connect(&db_path).await.expect("Could not connect to db.");
+        //let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
 
         let mut app = test::init_service(
             App::new()
@@ -926,14 +927,14 @@ mod tests {
         )).await;
 
         let resp = test::TestRequest::get()
-            .uri(r#"/query?text=1&wordid=0"#) //400 Bad Request error if all params not present
+            .uri(r#"/query?text=100&wordid=0"#) //400 Bad Request error if all params not present
             .send_request(&mut app).await;
 
         assert!(&resp.status().is_success());
         //println!("resp: {:?}", resp);
         let result: QueryResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
-        assert_eq!(result.words.len(), 1000);
+        assert_eq!(result.words.len(), 176);
     }
 }
 

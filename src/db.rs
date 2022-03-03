@@ -39,32 +39,32 @@ pub struct DefRow {
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct WordRow {
-    #[serde(rename(serialize = "i"))]
+    #[serde(rename(serialize = "i"), rename(deserialize = "i"))]
     pub wordid:u32,
-    #[serde(rename(serialize = "w"))]
+    #[serde(rename(serialize = "w"), rename(deserialize = "w"))]
     pub word:String,
-    #[serde(rename(serialize = "t"))]
+    #[serde(rename(serialize = "t"), rename(deserialize = "t"))]
     pub word_type:u8,
-    #[serde(rename(serialize = "l"))]
+    #[serde(rename(serialize = "l"), rename(deserialize = "l"))]
     pub lemma:String,
-    #[serde(rename(serialize = "l1"))]
+    #[serde(rename(serialize = "l1"), rename(deserialize = "l1"))]
     pub lemma1:String,
     pub def:String,
-    #[serde(rename(serialize = "u"))]
+    #[serde(rename(serialize = "u"), rename(deserialize = "u"))]
     pub unit:u8,
     pub pos:String,
-    #[serde(rename(serialize = "a"))]
+    #[serde(rename(serialize = "a"), rename(deserialize = "a"))]
     pub arrowed_id: Option<u32>,
     pub hqid:u32,
-    #[serde(rename(serialize = "s"))]
+    #[serde(rename(serialize = "s"), rename(deserialize = "s"))]
     pub seq:u32,
-    #[serde(rename(serialize = "s2"))]
+    #[serde(rename(serialize = "s2"), rename(deserialize = "s2"))]
     pub arrowed_seq: Option<u32>,
-    #[serde(rename(serialize = "c"))]
+    #[serde(rename(serialize = "c"), rename(deserialize = "c"))]
     pub freq: u32, 
-    #[serde(rename(serialize = "rc"))]
+    #[serde(rename(serialize = "rc"), rename(deserialize = "rc"))]
     pub runningcount: u32,
-    #[serde(rename(serialize = "if"))]
+    #[serde(rename(serialize = "if"), rename(deserialize = "if"))]
     pub is_flagged: bool,
     pub word_text_seq: u32,
     pub arrowed_text_seq: Option<u32>,
