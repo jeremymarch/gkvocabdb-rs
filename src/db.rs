@@ -151,23 +151,22 @@ pub struct GlossEntry {
 
 pub enum UpdateType {
   ArrowWord,
-  SetGlossId,
+  UnarrowWord,
   NewGloss,
   EditGloss,
+  SetGlossId,
   ImportText,
-  UnarrowWord,
-
 }
 
 impl UpdateType {
   fn value(&self) -> u32 {
       match *self {
           UpdateType::ArrowWord => 1,
-          UpdateType::SetGlossId => 2,
+          UpdateType::UnarrowWord => 2,
           UpdateType::NewGloss => 3,
           UpdateType::EditGloss => 4,
-          UpdateType::ImportText => 5,
-          UpdateType::UnarrowWord => 6,
+          UpdateType::SetGlossId => 5,
+          UpdateType::ImportText => 6,
       }
   }
 }
