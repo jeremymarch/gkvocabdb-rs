@@ -155,6 +155,7 @@ pub enum UpdateType {
   NewGloss,
   EditGloss,
   ImportText,
+  UnarrowWord,
 
 }
 
@@ -166,6 +167,7 @@ impl UpdateType {
           UpdateType::NewGloss => 3,
           UpdateType::EditGloss => 4,
           UpdateType::ImportText => 5,
+          UpdateType::UnarrowWord => 6,
       }
   }
 }
@@ -174,23 +176,35 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   
   let mut tx = pool.begin().await?;
 
-  let _ = arrow_word_trx(&mut tx, course_id, gloss_id, word_id, user_id, timestamp).await?;
+  let _ = arrow_word_trx(&mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent).await?;
 
   tx.commit().await?;
 
   Ok(())
 }
 
-pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64) -> Result<(), sqlx::Error> {
+pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
+  let query = "SELECT word_id \
+  FROM arrowed_words \
+  WHERE course_id = ? AND gloss_id = ?;";
+  let old_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+  .bind(course_id)
+  .bind(gloss_id)
+  .fetch_one(&mut *tx)
+  .await;
+
+  let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0;
+  
   //add previous arrow to history, if it was arrowed before
   let query = "INSERT INTO arrowed_words_history \
     SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
     FROM arrowed_words \
     WHERE course_id = ? AND gloss_id = ?;";
-  sqlx::query(query)
+  let history_id = sqlx::query(query)
   .bind(course_id)
   .bind(gloss_id)
-  .execute(&mut *tx).await?;
+  .execute(&mut *tx).await?
+  .last_insert_rowid();
 
   //println!("rows: {}",r.rows_affected());
 
@@ -209,6 +223,9 @@ pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlit
     .bind(user_id)
     //.bind(comment)
     .execute(&mut *tx).await?;
+
+    let _ = update_log_trx(&mut *tx, UpdateType::ArrowWord, Some(gloss_id.into()), Some(history_id), Some(course_id.into()), format!("Arrow gloss ({}) to word ({}) from word ({}) in course ({})", gloss_id, word_id, unwrapped_old_word_id, course_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+
   }
   else {
     //delete row to remove arrow
@@ -227,6 +244,9 @@ pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlit
     .bind(user_id)
     //.bind(comment)
     .execute(&mut *tx).await?;
+
+    let _ = update_log_trx(&mut *tx, UpdateType::UnarrowWord, Some(gloss_id.into()), Some(history_id), Some(course_id.into()), format!("Unarrow gloss ({}) from word ({}) in course ({})", gloss_id, unwrapped_old_word_id, course_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+
   }
   Ok(())
 }
@@ -247,7 +267,7 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
 
   //1b. unarrow word if it is arrowed
   if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
-    let _ = arrow_word_trx(&mut tx, course_id, gloss_id, 0 /*zero to unarrow*/, user_id, timestamp).await?;
+    let _ = arrow_word_trx(&mut tx, course_id, gloss_id, 0 /*zero to unarrow*/, user_id, timestamp, updated_ip, user_agent).await?;
   }
 
   //2a. save word row into history before updating gloss_id
