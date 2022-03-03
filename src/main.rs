@@ -767,65 +767,6 @@ struct ErrorResponse {
     message: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use actix_web::{test, web, App};
-
-    //use serde::{Serialize, Deserialize};
-    //use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-    //use actix_web::http::header::ContentType;
-/*
-    #[actix_rt::test]
-    async fn test_index_get() {
-        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
-        let req = test::TestRequest::with_header("content-type", "text/plain").to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert!(resp.status().is_success());
-    }
-
-    #[actix_rt::test]
-    async fn test_index_post() {
-        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
-        let req = test::TestRequest::post().uri("/").to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert!(resp.status().is_client_error());
-    }
-*/
-
-    //cargo test -- --nocapture
-
-    #[actix_web::test]
-    async fn test_query_paging() {
-        let db_path = std::env::var("GKVOCABDB_DB_PATH")
-            .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
-
-        let db_pool = SqlitePool::connect(&db_path).await.expect("Could not connect to db.");
-
-        let mut app = test::init_service(
-            App::new()
-            .app_data(db_pool.clone())
-            .service(
-                web::resource("/healthzzz")
-                    .route(web::get().to(health_check)),
-            )
-            .service(
-                web::resource("/query")
-                    .route(web::get().to(get_text_words)),
-        )).await;
-
-        let resp = test::TestRequest::get()
-        .uri(r#"/query?text=1&wordid=0"#) //400 Bad Request error if all params not present
-        .send_request(&mut app).await;
-
-        assert!(&resp.status().is_success());
-        //println!("resp: {:?}", resp);
-        let result: QueryResponse = test::read_body_json(resp).await;
-        //println!("res: {:?}", result);
-        assert_eq!(result.words.len(), 1000);
-    }
-}
-
 //https://users.rust-lang.org/t/file-upload-in-actix-web/64871/3
 pub mod process_xml {
 
@@ -936,3 +877,63 @@ pub mod process_xml {
         words
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, web, App};
+
+    //use serde::{Serialize, Deserialize};
+    //use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+    //use actix_web::http::header::ContentType;
+/*
+    #[actix_rt::test]
+    async fn test_index_get() {
+        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
+        let req = test::TestRequest::with_header("content-type", "text/plain").to_request();
+        let resp = test::call_service(&mut app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[actix_rt::test]
+    async fn test_index_post() {
+        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
+        let req = test::TestRequest::post().uri("/").to_request();
+        let resp = test::call_service(&mut app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+*/
+
+    //cargo test -- --nocapture
+
+    #[actix_web::test]
+    async fn test_query_paging() {
+        let db_path = std::env::var("GKVOCABDB_DB_PATH")
+            .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
+
+        let db_pool = SqlitePool::connect(&db_path).await.expect("Could not connect to db.");
+
+        let mut app = test::init_service(
+            App::new()
+            .app_data(db_pool.clone())
+            .service(
+                web::resource("/healthzzz")
+                    .route(web::get().to(health_check)),
+            )
+            .service(
+                web::resource("/query")
+                    .route(web::get().to(get_text_words)),
+        )).await;
+
+        let resp = test::TestRequest::get()
+            .uri(r#"/query?text=1&wordid=0"#) //400 Bad Request error if all params not present
+            .send_request(&mut app).await;
+
+        assert!(&resp.status().is_success());
+        //println!("resp: {:?}", resp);
+        let result: QueryResponse = test::read_body_json(resp).await;
+        //println!("res: {:?}", result);
+        assert_eq!(result.words.len(), 1000);
+    }
+}
+
