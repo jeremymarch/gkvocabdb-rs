@@ -1521,15 +1521,33 @@ async function uploadfile() {
 
 </script>
 <style>
-.nodeToggleImg {
+.openCloseBranch {
     display:inline-block;
-    fill:red;
     padding-right:8px;
     cursor:pointer;
     height: 14px;
     width: 14px;
+    text-indent:0px; /*so we don't inherit parent's indentation*/
+}
+.nodeImg {
+    fill:red;
+    height: 14px;
+    width: 14px;
+    display:inline-block;
     top: 2px;
     position: relative;
+}
+.nodeClosed .nodePlus {
+    display:inline-block;
+}
+.nodeClosed .nodeMinus {
+    display:none;
+}
+.nodeOpen .nodePlus {
+    display:none;
+}
+.nodeOpen .nodeMinus {
+    display:inline-block;
 }
 
 .arrowedHere .listarrow::after {

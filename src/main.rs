@@ -906,13 +906,22 @@ mod tests {
 
     //cargo test -- --nocapture
 
+    fn create_db(db: &SqlitePool) {
+        let query = "CREATE TABLE users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);";
+        sqlx::query(query)
+            .execute(db).await?
+    }
+
     #[actix_web::test]
     async fn test_query_paging() {
         let db_path = std::env::var("GKVOCABDB_DB_PATH")
             .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
 
         let db_pool = SqlitePool::connect(&db_path).await.expect("Could not connect to db.");
-        //let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
+        /*
+        let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
+        create_db(&db_pool);
+        */
 
         let mut app = test::init_service(
             App::new()

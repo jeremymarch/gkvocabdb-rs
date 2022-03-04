@@ -218,8 +218,8 @@ function wordtree (idPrefix, width, height)
     
     this.closedNodeImg = "plus.png";
     this.openNodeImg = "minus.png";
-    this.closedNodeSVG = '<svg class="openCloseBranch nodeToggleImg plus" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M24 10h-10v-10h-4v10h-10v4h10v10h4v-10h10z"/></svg>';
-    this.openNodeSVG = '<svg class="openCloseBranch nodeToggleImg minus" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 10h24v4h-24z"/></svg>';
+    this.closedNodeSVG = '<svg class="nodeImg nodePlus" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M24 10h-10v-10h-4v10h-10v4h10v10h4v-10h10z"/></svg>';
+    this.openNodeSVG = '<svg class="nodeImg nodeMinus" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 10h24v4h-24z"/></svg>';
 
     input.onkeydown = wordtree_ondown;
     input.onkeyup = wordtree_onup;
@@ -1153,7 +1153,6 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
 				printTree(wt, con, arrOptions[i], 0, insertBefore, returnObj.roots, returnObj.selectId);
 				//printRow(wt, con, arrOptions[i], 0, insertBefore, returnObj.roots, returnObj.selectId);
 			}
-            $(".openCloseBranch").click(openCloseCon);
 			
 			if (wt && returnObj.scroll == "top")
 			{	
@@ -1272,11 +1271,12 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
                     img.id = node.id + "Img";
                     img.onclick = openCloseCon;
                     d2.appendChild(img);*/
-                    var img = "";
+                    var img = "<div id='" + node.id + "Img' class='openCloseBranch";
                     if (!rowItem.o)
-                    	img += wt.closedNodeSVG;
+                    	img += " nodeClosed'>";//wt.closedNodeSVG;
                     else
-                    	img += wt.openNodeSVG;
+                    	img += " nodeOpen'>";//wt.openNodeSVG;
+                    img += wt.closedNodeSVG + wt.openNodeSVG + "</div>";
                     //img += "' class='openCloseBranch' style='display:inline;padding-right:4px;cursor:pointer;' id='" + node.id + "Img'/>";
                 }
                 else {
@@ -1316,8 +1316,7 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
             var wordid = match.id;
             var wt = lookupWT(wtprefix);
            
-            if (wt)
-            {
+            if (wt) {
                 toggleNode(wt, wordid + wtprefix);
             }
         } 
@@ -1391,7 +1390,7 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
         if (!imgNode) //its ok for n to be null (lazy load)
             return;
 
-        if (imgNode.src.indexOf(wt.closedNodeImg) != -1)
+        if (imgNode.classList.contains('nodeClosed'))
         {
 			openNode(wt, nodeid);
         }
@@ -1417,10 +1416,11 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
         if (!imgNode) //its ok for n to be null, but not imgNode
             return true;
         
-        if (imgNode.src.indexOf(wt.openNodeImg) != -1)
+        if (imgNode.classList.contains('nodeOpen'))
         	return false;
             
-		imgNode.src = wt.openNodeImg;
+		//imgNode.src = wt.openNodeImg;
+        imgNode.classList.replace('nodeClosed','nodeOpen');//currentClass,newClass);
 		
 		if (n) {
 			n.style.display = "block";
@@ -1469,12 +1469,13 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
         	return true;
         }
 
-		if (imgNode.src.indexOf(wt.closedNodeImg) != -1) {
+		if (imgNode.classList.contains('nodeClosed')) {
 			return false;
         }
 			
 		n.style.display = "none";
-		imgNode.src = wt.closedNodeImg;    
+		//imgNode.src = wt.closedNodeImg;  
+        imgNode.classList.replace('nodeOpen','nodeClosed');//currentClass,newClass);  
 			
 		return true;
     }
