@@ -1244,48 +1244,32 @@ eventually lexicon, query, and tag_id will be put into a single field for reques
             {
                 var d2 = document.createElement("div");
                 d2.classList.add("nodestylecol");
-                d2.classList.add("nodestylecol" + (c+1));
-                /*
-                if (c != 0 && wt.columnOffsets[c] == 0)
-                    d2.style.display = "none";
-                else
-                    d2.style.left = wt.columnOffsets[c] + "px";
-                */
+                d2.classList.add("nodestylecol" + (c + 1));
                
-                if (level == 0)
+                if (level == 0) {
                     d2.style.paddingLeft = 1 + (!rowItem.h && topLevelTreeRow ? 15 : 3) + "px";
-                else 
-                    d2.style.paddingLeft = (level * wt.indentWidth) + (rowItem.h ? 3 : 15) + "px";
-                
-                if (c == 0 && rowItem.h) //only for column 1
-                {
-                    /*
-                    var img = document.createElement('img');
-                    if (!rowItem.o)
-                    	img.src = wt.closedNodeImg;
-                    else
-                    	img.src = wt.openNodeImg;
-                    img.style.display = "inline";
-                    img.style.paddingRight = "4px";
-                    img.style.cursor = "pointer";
-                    img.id = node.id + "Img";
-                    img.onclick = openCloseCon;
-                    d2.appendChild(img);*/
-                    var img = "<div id='" + node.id + "Img' class='openCloseBranch";
-                    if (!rowItem.o)
-                    	img += " nodeClosed'>";//wt.closedNodeSVG;
-                    else
-                    	img += " nodeOpen'>";//wt.openNodeSVG;
-                    img += wt.closedNodeSVG + wt.openNodeSVG + "</div>";
-                    //img += "' class='openCloseBranch' style='display:inline;padding-right:4px;cursor:pointer;' id='" + node.id + "Img'/>";
                 }
                 else {
-                    var img = "";
+                    d2.style.paddingLeft = (level * wt.indentWidth) + (rowItem.h ? 3 : 15) + "px";
+                }
+                
+                if (c == 0 && rowItem.h) //only for column 1, if has child nodes
+                {
+                    var img = document.createElement('div');
+                    img.classList.add("openCloseBranch");
+                    if (!rowItem.o) {
+                    	img.classList.add("nodeClosed");
+                    }
+                    else {
+                    	img.classList.add("nodeOpen");
+                    }
+                    img.innerHTML = wt.closedNodeSVG + wt.openNodeSVG;
+                    img.id = node.id + "Img";
+                    img.onclick = openCloseCon;
+                    node.appendChild(img);
                 }
 
-                //var text = document.createTextNode(rowItem.col[c]);
-                //d2.appendChild(text);
-                d2.innerHTML = img + rowItem.col[c];
+                d2.innerHTML = rowItem.col[c];
                 node.appendChild(d2);
             }    
             

@@ -906,10 +906,12 @@ mod tests {
 
     //cargo test -- --nocapture
 
-    fn create_db(db: &SqlitePool) {
+    async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
         let query = "CREATE TABLE users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);";
         sqlx::query(query)
-            .execute(db).await?
+            .execute(db).await?;
+
+        Ok(())
     }
 
     #[actix_web::test]
@@ -934,6 +936,11 @@ mod tests {
                 web::resource("/query")
                     .route(web::get().to(get_text_words)),
         )).await;
+
+        let resp = test::TestRequest::get()
+            .uri(r#"/healthzzz"#) //400 Bad Request error if all params not present
+            .send_request(&mut app).await;
+        assert!(&resp.status().is_success()); //health check
 
         let resp = test::TestRequest::get()
             .uri(r#"/query?text=100&wordid=0"#) //400 Bad Request error if all params not present
