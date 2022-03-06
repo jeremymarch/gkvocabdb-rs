@@ -604,7 +604,7 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
 
     let (words, title) = process_xml::process_imported_text(payload).await;
     
-    if !words.is_empty() {
+    if !words.is_empty() && !title.is_empty() {
 
             let _affected_rows = add_text(db, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
