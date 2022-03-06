@@ -593,6 +593,11 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
+#[derive(Debug, Serialize)]
+struct LoginCheckResponse {
+    is_logged_in: bool,
+    user_id:u32,
+}
 
 async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -617,6 +622,25 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
             .content_type("text/plain")
             .body("update_failed"))
     }
+}
+
+fn get_user_id(session:Session) -> Option<u32> {
+    if let Ok(user_id) = session.get::<u32>("user_id") {
+        if let Some(u) = user_id {
+            return user_id;
+        }
+    }
+    None
+}
+
+async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResponse, AWError> {
+    //session.insert("user_id", 1);
+    //session.renew();
+    //session.purge();
+    if let Some(user_id) = get_user_id(session) {
+        return Ok(HttpResponse::Ok().json(LoginCheckResponse { is_logged_in:true,user_id:user_id }));
+    }
+    Ok(HttpResponse::Ok().json(LoginCheckResponse { is_logged_in:false,user_id:0 }))
 }
 
 async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
@@ -712,6 +736,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/login")
                     .route(web::get().to(login)),
+            )
+            .service(
+                web::resource("/checklogin")
+                    .route(web::get().to(check_login)),
             )
             .service(
                 web::resource("/query")
