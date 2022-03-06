@@ -344,7 +344,7 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
 pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
   let mut tx = pool.begin().await?;
 
-  let query = "INSERT INTO texts VALUES (NULL, ?);";
+  let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
   let text_id = sqlx::query(query)
       .bind(text_name)
       .execute(&mut tx).await?

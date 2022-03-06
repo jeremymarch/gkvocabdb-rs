@@ -55,6 +55,16 @@ use chrono::prelude::*;
 #[derive(Clone)]
 struct SqliteUpdatePool (SqlitePool);
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct LoginRequest {
+    username:String,
+    password:String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct LoginResponse {
+    success:bool,
+}
 
 //type TreeRow = (String, u32, Option<Vec<TreeRow>>)
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -142,6 +152,11 @@ struct WordtreeQueryResponseTree {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct ImportRequest {
+    pub title: String,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct QueryRequest {
     pub text: u32,
     pub wordid: u32,
@@ -222,7 +237,29 @@ pub struct GetGlossResponse {
 }
 
 #[allow(clippy::eval_order_dependence)]
-async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn login((session, post, req): (Session, web::Form<LoginRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let _db = req.app_data::<SqlitePool>().unwrap(); 
+
+    if post.username == "JM" && post.password == "1234" {
+        let user_id = 1;
+        if let Ok(_a) = session.insert("user_id", user_id) {
+
+            let res = LoginResponse {
+                success: true,
+            };
+
+            return Ok(HttpResponse::Ok().json(res));
+        }
+    }
+
+    let res = LoginResponse {
+        success: false,
+    };
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[allow(clippy::eval_order_dependence)]
+async fn update_or_add_gloss((_session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
     let user_id = 2;
@@ -565,11 +602,11 @@ async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpRes
     let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
     let user_agent = get_user_agent(&req).unwrap_or("");
 
-    let words = process_xml::process_imported_text(payload).await;
+    let (words, title) = process_xml::process_imported_text(payload).await;
     
     if !words.is_empty() {
 
-            let _affected_rows = add_text(db, "newtext", words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+            let _affected_rows = add_text(db, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
             Ok(HttpResponse::Ok()
                 .content_type("text/plain")
@@ -672,6 +709,10 @@ async fn main() -> io::Result<()> {
             .wrap(middleware::Compress::default())
             
             //.wrap(error_handlers)
+            .service(
+                web::resource("/login")
+                    .route(web::get().to(login)),
+            )
             .service(
                 web::resource("/query")
                     .route(web::get().to(get_text_words)),
@@ -799,13 +840,23 @@ pub mod process_xml {
         words
     }
 
-    pub async fn process_imported_text(mut payload: Multipart) -> Vec<TextWord> {
+    pub async fn process_imported_text(mut payload: Multipart) -> (Vec<TextWord>, String) {
         let mut a = "".to_string();
         let mut words:Vec<TextWord> = Vec::new();
+        let mut title:String = "".to_string();
+        let mut realtitle:String = "".to_string();
         // iterate over multipart stream
         while let Ok(Some(mut field)) = payload.try_next().await {
-            //let content_type = field.content_disposition();//.unwrap();
-            //let filename = content_type.get_filename().unwrap();
+            let content_type = field.content_disposition();//.unwrap();
+            //if let Some(filename) = content_type.get_filename() {
+            //    println!("file: {}", filename);
+            //}
+            if let Some(name) = content_type.get_name() {
+                title = name.to_string();
+            }
+            else {
+                title = "".to_string();
+            }
             //let filepath = format!(".{}", file_path);
 
             // File::create is blocking operation, use threadpool
@@ -817,10 +868,15 @@ pub mod process_xml {
             while let Some(chunk) = field.next().await {
                 let data = chunk.unwrap();
                 if let Ok(xml_data) = std::str::from_utf8(&data) {
-                    a.push_str(xml_data);
+                    if title == "title" {
+                        realtitle = xml_data.to_string();
+                    }
+                    else {
+                        a.push_str(xml_data);
+                    }
                 }
                 else {
-                    return words; //return empty vec on error
+                    return (words, title); //return empty vec on error
                 }
                 // filesystem operations are blocking, we have to use threadpool
                 /*f = web::block(move || f.write_all(&data).map(|_| f))
@@ -862,7 +918,7 @@ pub mod process_xml {
                     if let b"text" = e.name() { in_text = false }
                 },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(_e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(_e) => { words.clear(); return (words,title) }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
             }
         
@@ -873,8 +929,8 @@ pub mod process_xml {
         for a in words {
             println!("{} {}", a.word, a.word_type);
         }*/
-        
-        words
+        println!("title: {}", realtitle);
+        (words, realtitle)
     }
 }
 

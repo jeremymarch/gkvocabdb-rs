@@ -1510,13 +1510,18 @@ function flagToggle() {
 }
 
 async function uploadfile() {
-    let formData = new FormData();           
-    formData.append("file", fileupload.files[0]);
-    await fetch('importtext', {
-      method: "POST", 
-      body: formData
-    });
-    $("#uploadform").hide();
+    let formData = new FormData();    
+    if ( $("#fileuploadtitle").val().length > 0 ) {
+        formData.append("title", $("#fileuploadtitle").val());
+        formData.append("file", fileupload.files[0]);
+        
+        await fetch('importtext', {
+            method: "POST", 
+            body: formData,
+            contentType: false
+        });
+        $("#uploadform").hide();
+    }
 }
 
 </script>
@@ -1751,7 +1756,12 @@ height: 25px;}
 .inputText { font-size:16pt;font-family:WebIFAO,WebNewAthenaUnicode,helvetica; }
 #noclick {z-index:888;position:absolute;top:0px;left:0px;height:100%;width:100%;background-color:#222;opacity:0.5;display:none;}
 
-
+.openCloseBranch {
+    display:inline-block;
+    padding-right:4px;
+    padding-left:4px;
+    cursor:pointer;
+}
 .nodestyle {
         /*line-height: 32px;*/
         margin:0px;
@@ -1759,8 +1769,6 @@ height: 25px;}
         width:calc(100% - 30px); /* wt.width - 24 + "px";//"100%";*/
         background-color:white;
         overflow: hidden;
-        
-
     }
 #test1 .nodestyle {
     padding-left:30px;
@@ -1931,6 +1939,7 @@ height: 22px;
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
         <h2>Upload File</h2>
+        Title: <input id="fileuploadtitle" type="text" name="fileuploadtitle" /><br/>
         <input id="fileupload" type="file" name="fileupload" /><br/><br/>
         <button onclick="uploaddialog()">Cancel</button><button onclick="uploadfile()">Upload</button>
       </div>
