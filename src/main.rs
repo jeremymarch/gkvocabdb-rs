@@ -844,19 +844,15 @@ pub mod process_xml {
         let mut a = "".to_string();
         let mut words:Vec<TextWord> = Vec::new();
         let mut title:String = "".to_string();
-        let mut realtitle:String = "".to_string();
+        
         // iterate over multipart stream
         while let Ok(Some(mut field)) = payload.try_next().await {
             let content_type = field.content_disposition();//.unwrap();
             //if let Some(filename) = content_type.get_filename() {
             //    println!("file: {}", filename);
             //}
-            if let Some(name) = content_type.get_name() {
-                title = name.to_string();
-            }
-            else {
-                title = "".to_string();
-            }
+            let name = content_type.get_name().unwrap_or("").to_string();
+
             //let filepath = format!(".{}", file_path);
 
             // File::create is blocking operation, use threadpool
@@ -868,8 +864,8 @@ pub mod process_xml {
             while let Some(chunk) = field.next().await {
                 let data = chunk.unwrap();
                 if let Ok(xml_data) = std::str::from_utf8(&data) {
-                    if title == "title" {
-                        realtitle = xml_data.to_string();
+                    if name == "title" {
+                        title = xml_data.to_string();
                     }
                     else {
                         a.push_str(xml_data);
@@ -918,7 +914,7 @@ pub mod process_xml {
                     if let b"text" = e.name() { in_text = false }
                 },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(_e) => { words.clear(); return (words,title) }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(_e) => { words.clear(); return (words, title) }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
             }
         
@@ -929,8 +925,7 @@ pub mod process_xml {
         for a in words {
             println!("{} {}", a.word, a.word_type);
         }*/
-        println!("title: {}", realtitle);
-        (words, realtitle)
+        (words, title)
     }
 }
 
