@@ -259,131 +259,147 @@ async fn login((session, post, req): (Session, web::Form<LoginRequest>, HttpRequ
 }
 
 #[allow(clippy::eval_order_dependence)]
-async fn update_or_add_gloss((_session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let user_id = 2;
-    let timestamp = get_timestamp();
-    let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
-    let user_agent = get_user_agent(&req).unwrap_or("");
+    if let Some(user_id) = get_user_id(session) {
 
-    match post.qtype.as_str() {
-        "newlemma" => {           
-            
-            let rows_affected = insert_gloss(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+        let timestamp = get_timestamp();
+        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
+        let user_agent = get_user_agent(&req).unwrap_or("");
 
-            let res = UpdateLemmaResponse {
-                qtype: post.qtype.to_string(),
-                success: true,
-                affectedrows: rows_affected,
-            };
-            return Ok(HttpResponse::Ok().json(res));          
-        },
-        "editlemma" => {
-            if post.hqid.is_some() {
-                let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
-    
+        match post.qtype.as_str() {
+            "newlemma" => {           
+                
+                let rows_affected = insert_gloss(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+
                 let res = UpdateLemmaResponse {
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
                 };
-                return Ok(HttpResponse::Ok().json(res));               
-            }
-        },
-        _ => (),
-    }
-    let res = UpdateLemmaResponse {
-        qtype: post.qtype.to_string(),
-        success: false,
-        affectedrows: 0,
-    };
+                return Ok(HttpResponse::Ok().json(res));          
+            },
+            "editlemma" => {
+                if post.hqid.is_some() {
+                    let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+        
+                    let res = UpdateLemmaResponse {
+                        qtype: post.qtype.to_string(),
+                        success: true,
+                        affectedrows: rows_affected,
+                    };
+                    return Ok(HttpResponse::Ok().json(res));               
+                }
+            },
+            _ => (),
+        }
+        let res = UpdateLemmaResponse {
+            qtype: post.qtype.to_string(),
+            success: false,
+            affectedrows: 0,
+        };
 
-    Ok(HttpResponse::Ok().json(res))
+        Ok(HttpResponse::Ok().json(res))
+    }
+    else {
+        //not logged in
+        let res = UpdateLemmaResponse {
+            qtype: post.qtype.to_string(),
+            success: false,
+            affectedrows: 0,
+        };
+
+        Ok(HttpResponse::Ok().json(res))
+    }
 }
 
 #[allow(clippy::eval_order_dependence)]
 async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let course_id = 1;
-    let user_id = 2;
-    let timestamp = get_timestamp();
-    let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
-    let user_agent = get_user_agent(&req).unwrap_or("");
+    if let Some(user_id) = get_user_id(session) {
+        let course_id = 1;
 
-    match post.qtype.as_str() {
-        "arrowWord" => {
-            
-            let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
-            let res = UpdateResponse  {
-                success: true,
-                affected_rows: 1,
-                arrowed_value: 1,
-                lemmaid:1,
-            };
-            return Ok(HttpResponse::Ok().json(res));
-        }
-        "flagUnflagWord" => (),
-        "updateLemmaID" => {
-            //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
-            
-            if post.textwordid.is_some() && post.lemmaid.is_some() {
-                let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+        let timestamp = get_timestamp();
+        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
+        let user_agent = get_user_agent(&req).unwrap_or("");
 
-                println!("TESTING: {}", words.len());
-
-                let res = UpdateGlossIdResponse {
-                    qtype: "updateLemmaID".to_string(),
-                    words,
+        match post.qtype.as_str() {
+            "arrowWord" => {
+                
+                let _ = arrow_word(db, course_id, post.for_lemma_id.unwrap(), post.set_arrowed_id_to.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                let res = UpdateResponse  {
                     success: true,
-                    affectedrows: 1,
+                    affected_rows: 1,
+                    arrowed_value: 1,
+                    lemmaid:1,
                 };
                 return Ok(HttpResponse::Ok().json(res));
             }
-        },
+            "flagUnflagWord" => (),
+            "updateLemmaID" => {
+                //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
+                
+                if post.textwordid.is_some() && post.lemmaid.is_some() {
+                    let words = set_gloss_id(db, course_id, post.lemmaid.unwrap(), post.textwordid.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
-        "getWordAnnotation" => (),
-        "removeDuplicate" => (),
-        "updateCounts" => (),
-        "getWordsByLemmaId" => (),
-        _ => (),
+                    //println!("TESTING: {}", words.len());
+
+                    let res = UpdateGlossIdResponse {
+                        qtype: "updateLemmaID".to_string(),
+                        words,
+                        success: true,
+                        affectedrows: 1,
+                    };
+                    return Ok(HttpResponse::Ok().json(res));
+                }
+            },
+
+            "getWordAnnotation" => (),
+            "removeDuplicate" => (),
+            "updateCounts" => (),
+            "getWordsByLemmaId" => (),
+            _ => (),
+        }
+
+        /*
+        history topics:
+
+        arrow word
+        change word's gloss
+        new gloss
+        edit gloss
+        flagged word/unflagged
+
+        delete gloss
+
+        changed text seq
+
+        inserted word
+        deleted word
+        changed word seq
+        */
+
+        let res = QueryResponse {
+            this_text: 1,
+            words: [].to_vec(),
+            selected_id: 1,
+            error: "fall through error (update_words)".to_string(),
+        };
+
+        Ok(HttpResponse::Ok().json(res))
     }
+    else {
+        let res = QueryResponse {
+            this_text: 1,
+            words: [].to_vec(),
+            selected_id: 1,
+            error: "Not logged in (update_words)".to_string(),
+        };
 
-    /*
-    history topics:
-
-    arrow word
-    change word's gloss
-    new gloss
-    edit gloss
-    flagged word/unflagged
-
-    delete gloss
-
-    changed text seq
-
-    inserted word
-    deleted word
-    changed word seq
-    */
-    
-
-    if let Some(count) = session.get::<i32>("counter")? {
-        session.insert("counter", count + 1)?;
-    } else {
-        session.insert("counter", 1)?;
+        Ok(HttpResponse::Ok().json(res))
     }
-
-
-    let res = QueryResponse {
-        this_text: 1,
-        words: [].to_vec(),
-        selected_id: 1,
-        error: "".to_string(),
-    };
-
-    Ok(HttpResponse::Ok().json(res))
 }
 
 #[allow(clippy::eval_order_dependence)]
@@ -599,38 +615,39 @@ struct LoginCheckResponse {
     user_id:u32,
 }
 
-async fn import_text((payload, req): (Multipart, HttpRequest)) -> Result<HttpResponse> {
+async fn import_text((session, payload, req): (Session, Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let user_id = 2;
-    let timestamp = get_timestamp();
-    let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
-    let user_agent = get_user_agent(&req).unwrap_or("");
+    if let Some(user_id) = get_user_id(session) {
+        let timestamp = get_timestamp();
+        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
+        let user_agent = get_user_agent(&req).unwrap_or("");
 
-    let (words, title) = process_xml::process_imported_text(payload).await;
-    
-    if !words.is_empty() && !title.is_empty() {
+        let (words, title) = process_xml::process_imported_text(payload).await;
+        
+        if !words.is_empty() && !title.is_empty() {
 
-            let _affected_rows = add_text(db, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                let _affected_rows = add_text(db, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
-            Ok(HttpResponse::Ok()
+                Ok(HttpResponse::Ok()
+                    .content_type("text/plain")
+                    .body("update_succeeded"))
+            }
+            else { 
+                Ok(HttpResponse::BadRequest()
                 .content_type("text/plain")
-                .body("update_succeeded"))
+                .body("update_failed"))
         }
-        else { 
-            Ok(HttpResponse::BadRequest()
-            .content_type("text/plain")
-            .body("update_failed"))
+    }
+    else {
+        Ok(HttpResponse::BadRequest()
+                .content_type("text/plain")
+                .body("update_failed: not logged in"))
     }
 }
 
 fn get_user_id(session:Session) -> Option<u32> {
-    if let Ok(user_id) = session.get::<u32>("user_id") {
-        if let Some(u) = user_id {
-            return user_id;
-        }
-    }
-    None
+    session.get::<u32>("user_id").unwrap_or(None)
 }
 
 async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResponse, AWError> {
@@ -758,19 +775,19 @@ async fn main() -> io::Result<()> {
                     .route(web::get().to(get_assignments)),
             )*/
             .service(
-                web::resource("/updatedb")
-                    .route(web::post().to(update_words)),
-            )
-            .service(
                 web::resource("/getgloss")
                     .route(web::post().to(get_gloss)),
             )
             .service(
-                web::resource("/updategloss")
+                web::resource("/updatedb") //checks session
+                    .route(web::post().to(update_words)),
+            )
+            .service(
+                web::resource("/updategloss") //checks session
                     .route(web::post().to(update_or_add_gloss)),
             )
             .service(
-                web::resource("/importtext")
+                web::resource("/importtext") //checks session
                     .route(web::post().to(import_text)),
             )
             .service(
