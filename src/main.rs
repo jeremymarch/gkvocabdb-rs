@@ -29,13 +29,13 @@ use std::pin::Pin;
 
 //use percent_encoding::percent_decode_str;
 
-
-
 use std::io;
 use actix_files as fs;
 use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
 use actix_session::{Session, CookieSession};
 use actix_multipart::Multipart;
+use actix_web::http::header::ContentType;
+use actix_web::http::header::LOCATION;
 
 //use mime;
 
@@ -234,28 +234,6 @@ pub struct GetGlossResponse {
     #[serde(rename(deserialize = "affectedRows"), rename(serialize = "affectedRows"))]
     pub affected_rows: u64,
     pub words: Vec<GlossEntry>,
-}
-
-#[allow(clippy::eval_order_dependence)]
-async fn login((session, post, req): (Session, web::Form<LoginRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
-    let _db = req.app_data::<SqlitePool>().unwrap(); 
-
-    if post.username == "JM" && post.password == "1234" {
-        let user_id = 1;
-        if let Ok(_a) = session.insert("user_id", user_id) {
-
-            let res = LoginResponse {
-                success: true,
-            };
-
-            return Ok(HttpResponse::Ok().json(res));
-        }
-    }
-
-    let res = LoginResponse {
-        success: false,
-    };
-    Ok(HttpResponse::Ok().json(res))
 }
 
 #[allow(clippy::eval_order_dependence)]
@@ -650,6 +628,80 @@ fn get_user_id(session:Session) -> Option<u32> {
     session.get::<u32>("user_id").unwrap_or(None)
 }
 
+#[allow(clippy::eval_order_dependence)]
+async fn login_get() -> Result<HttpResponse, AWError> {
+
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        //.insert_header(("X-Hdr", "sample"))
+        .body(r#"<!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta http-equiv="content-type" content="text/html; charset=utf-8">
+            <title>Login</title>
+        </head>
+        <body>
+            <form action="/login" method="post">
+                <label>Username
+                    <input 
+                        type="text" 
+                        placeholder="Username" 
+                        name="username">
+                </label>
+                <label>Password
+                    <input 
+                        type="password" 
+                        placeholder="Password"
+                        name="password">
+                </label>
+                <button type="submit">Login</button>
+            </form>
+        </body>
+    </html>"#))
+}
+
+//use secrecy::Secret;
+#[derive(serde::Deserialize)]
+pub struct FormData {
+    username: String,
+    password: String, //Secret<String>,
+}
+
+fn validate_login(username:String, password:String) -> Option<u32> {
+    if username.to_lowercase() == "jm" && password == "1234" {
+        Some(3)
+    }
+    else if username.to_lowercase() == "kk" && password == "1234" {
+        Some(4)
+    }
+    else {
+        None
+    }
+}
+
+#[allow(clippy::eval_order_dependence)]
+async fn login_post((session, form, req): (Session, web::Form<FormData>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let _db = req.app_data::<SqlitePool>().unwrap(); 
+
+    let username = form.0.username;
+    let password = form.0.password;
+    
+    if let Some(user_id) = validate_login(username, password) {
+        session.renew(); //https://www.lpalmieri.com/posts/session-based-authentication-in-rust/#4-5-2-session
+        if session.insert("user_id", user_id).is_ok() {
+
+            return Ok(HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/"))
+                .finish());
+        }
+    }
+    session.purge();
+    Ok(HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/login"))
+                .finish())
+}
+
+/* *
 async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResponse, AWError> {
     //session.insert("user_id", 1);
     //session.renew();
@@ -659,14 +711,14 @@ async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResp
     }
     Ok(HttpResponse::Ok().json(LoginCheckResponse { is_logged_in:false,user_id:0 }))
 }
-
-async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
+*/
+async fn validator_basic(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
 
     let config = req.app_data::<Config>()
     .map(|data| Pin::new(data).get_ref().clone())
     .unwrap_or_else(Default::default);
 
-    match validate_credentials(credentials.user_id(), credentials.password().unwrap().trim()) {
+    match validate_credentials_basic(credentials.user_id(), credentials.password().unwrap().trim()) {
         Ok(res) => {
             if res {
                 Ok(req)
@@ -678,7 +730,7 @@ async fn validator(req: ServiceRequest, credentials: BasicAuth) -> Result<Servic
     }
 }
 
-fn validate_credentials(user_id: &str, user_password: &str) -> Result<bool, std::io::Error> {
+fn validate_credentials_basic(user_id: &str, user_password: &str) -> Result<bool, std::io::Error> {
     if user_id.eq("greekdb") && user_password.eq("pass") {
         return Ok(true);
     }
@@ -739,25 +791,23 @@ async fn main() -> io::Result<()> {
         .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
         .handler(http::StatusCode::NOT_FOUND, api::not_found);
         */
-        let auth = HttpAuthentication::basic(validator);
+        let auth_basic = HttpAuthentication::basic(validator_basic);
         App::new()
             //.wrap(json_cfg)
             .app_data(db_pool.clone())
             
             .wrap(middleware::Logger::default())
-            .wrap(auth)
+            .wrap(auth_basic)
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
             .wrap(middleware::Compress::default())
-            
             //.wrap(error_handlers)
-            .service(
-                web::resource("/login")
-                    .route(web::get().to(login)),
-            )
+            .route("/login", web::get().to(login_get))
+            .route("/login", web::post().to(login_post))
+            /* 
             .service(
                 web::resource("/checklogin")
                     .route(web::get().to(check_login)),
-            )
+            )*/
             .service(
                 web::resource("/query")
                     .route(web::get().to(get_text_words)),
