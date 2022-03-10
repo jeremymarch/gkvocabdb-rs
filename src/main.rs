@@ -492,7 +492,7 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
     let w = get_assignment_rows(db, course_id).await.map_err(map_sqlx_error)?;
     let mut assignment_rows:Vec<AssignmentTree> = vec![];
     for r in &w {
-        if r.parent_id.is_none() {
+        if r.parent_id.is_none() && r.course_id.is_some() && r.course_id.unwrap() == course_id {
             let mut a = AssignmentTree{ i:r.id,col:vec![r.assignment.clone(), r.id.to_string()],h:false,c:vec![] };
             for r2 in &w {
                 if r2.parent_id.is_some() && r2.parent_id.unwrap() == a.i {

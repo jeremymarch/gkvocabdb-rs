@@ -101,6 +101,7 @@ pub struct AssignmentRow {
   pub id:u32,
   pub assignment:String,
   pub parent_id:Option<u32>,
+  pub course_id:Option<u32>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -592,7 +593,7 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
     .bind(word_id.0)
     .bind(running_count)
     .execute(&mut *tx).await?;
-    
+
     running_count += 1;
   }
 
@@ -673,10 +674,13 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
 
 pub async fn get_assignment_rows(pool: &SqlitePool, course_id:u32) -> Result<Vec<AssignmentRow>, sqlx::Error> {
   //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
-  let query = "SELECT A.text_id,A.name,A.parent_id FROM texts A LEFT JOIN course_x_text B On (A.text_id=B.text_id AND B.course_id = ?) ORDER BY B.text_order,A.text_id;";
+  let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id \
+    FROM texts A \
+    LEFT JOIN course_x_text B On (A.text_id=B.text_id AND B.course_id = ?) \
+    ORDER BY B.text_order,A.text_id;";
   let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
   .bind(course_id)
-  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name"),parent_id:rec.get("parent_id")} )
+  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name"), parent_id:rec.get("parent_id") , course_id:rec.get("course_id")} )
   .fetch_all(pool)
   .await;
 

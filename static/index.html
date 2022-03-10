@@ -766,15 +766,24 @@ function handleKey(evt) {
                 console.log("error getting words... trying again...");
     			//getwords(url); //redo request on error
                 return;
-
     		}
 	    });
+    }
+
+    function insertSpaceAfter(w) {
+        var punc = ["—"];
+        if (punc.indexOf(w) > -1) {
+            return false;
+        }
+        else {
+            return true;
+        }
     }
 
     function insertSpaceBefore(w) {
         //if (w == ">" || w == ";" || w == ";" || w == "·" || w == "." || w == "," || w == "·" || w == ";") {
 
-        var punc = [">", ";"/*037E*/, "·"/*0387*/, ";", "·", ".", ",", "·", ";"];
+        var punc = [">", ";"/*037E*/, "·"/*0387*/, ";", "·", ".", ",", "·", ";", "’", "—"];
         if (punc.indexOf(w) > -1) {
             return false;
         }
@@ -824,6 +833,8 @@ function handleKey(evt) {
         var a = document.getElementById("wordscontents"); 
         a.innerHTML = ""; //clear old content
         var firstOfSection = true;
+
+        var lastWord = false;
 
         if (returnObj.words && Array.isArray(returnObj.words)) {
             returnObj.words.forEach(function (i,v) {
@@ -898,7 +909,9 @@ function handleKey(evt) {
                 }
                 else
                 {
-                    t += (insertSpaceBefore(i.w) ? " " : "") + "<span id='text" + i.i + "' class='textword'>" + i.w + "<\/span>" /*+ "<span class='superscript'>" + i.i + "<\/span> "*/;
+                    
+                    t += ((insertSpaceBefore(i.w) && lastWord !== false && insertSpaceAfter(lastWord)) ? " " : "") + "<span id='text" + i.i + "' class='textword'>" + i.w + "<\/span>" /*+ "<span class='superscript'>" + i.i + "<\/span> "*/;
+                    lastWord = i.w;
                 }
             });
         }
