@@ -550,6 +550,8 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
   .execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
 
   //to update running counts for gloss in course
+  /* 
+  //this did not work:
   let query = "REPLACE INTO running_counts_by_course \
     SELECT c.course_id,a.word_id,COUNT(*) AS running_count \
     FROM words a \
@@ -558,17 +560,42 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
     INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id = ?) \
     WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = ? \
     GROUP BY a.word_id;";
-    
-  sqlx::query(query)
-  .bind(course_id)
-  .bind(course_id)
-  .bind(gloss_id)
-  .execute(&mut *tx).await?;
 
-  //to select running counts
+  /to select running counts
   //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
 
+
+
+    //???this works
+    //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and d.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;    
+    //???but not this
+    //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and c.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=1422 group by a.word_id order by a.gloss_id, num;
+
+    
+
   //when updating running count of just one we only need to update the words equal and after this one?
+*/
+  let query = "SELECT a.word_id FROM words a \
+  INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
+  WHERE a.gloss_id = ? \
+  ORDER BY c.text_order, a.seq;";
+  let words:Vec<(u32,)> = sqlx::query_as(query)
+  .bind(course_id)
+  .bind(gloss_id)
+  .fetch_all(&mut *tx).await?;
+
+  let mut running_count = 1;
+  for word_id in words {
+    let query = "REPLACE INTO running_counts_by_course VALUES (?,?,?)";
+    sqlx::query(query)
+    .bind(course_id)
+    .bind(word_id.0)
+    .bind(running_count)
+    .execute(&mut *tx).await?;
+    
+    running_count += 1;
+  }
+
   Ok(())
 }
 
