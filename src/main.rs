@@ -522,6 +522,16 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
     Ok(HttpResponse::Ok().json(res))
 }
 
+/* 
+#[allow(clippy::eval_order_dependence)]
+async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+    fix_assignments(db).await.map_err(map_sqlx_error)?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+*/
+
 #[allow(clippy::eval_order_dependence)]
 async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -807,6 +817,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/checklogin")
                     .route(web::get().to(check_login)),
+            )*/
+            /* .service(
+                web::resource("/fixassignmentstemp")
+                    .route(web::get().to(fix_assignments_web)),
             )*/
             .service(
                 web::resource("/query")

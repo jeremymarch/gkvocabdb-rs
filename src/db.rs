@@ -600,25 +600,106 @@ pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b,
   Ok(())
 }
 
-pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<u32, sqlx::Error> {
+/* 
+pub async fn fix_assignments(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+  let mut tx = pool.begin().await?;
+/*
+INSERT INTO texts (SELECT NULL,title,6,1 from assignments where id=28; 
+
+update words set text=129
+where seq >= (select seq from words where word_id=22463) 
+and seq <= (select seq from words where word_id =23069);
+*/
+let mut text_order:u32 = 35;
+
+  let query = "SELECT title,start,end,id FROM assignments WHERE id > 27 and id < 116;";
+  let assignments:Vec<(String,u32,u32,u32,)> = sqlx::query_as(query)
+  .fetch_all(&mut *tx).await?;
+
+  for assignment in assignments {
+
+    let parent_id = match assignment.3 {
+      27..=69 => 6,
+      70..=95 => 7,
+      _ => 8
+    };
+
+    let query = "INSERT INTO texts VALUES (NULL,?,?,1); ";
+    let text_id = sqlx::query(query)
+    .bind(assignment.0) //title
+    .bind(parent_id)
+    .execute(&mut *tx).await?
+    .last_insert_rowid();
+
+    if assignment.1 > 0 && assignment.2 > 0 {
+      let query = "update words set text=? \
+      where seq >= (select seq from words where word_id=?) \
+      and seq <= (select seq from words where word_id =?);";
+      sqlx::query(query)
+      .bind(text_id)
+      .bind(assignment.1) //start
+      .bind(assignment.2) //end
+      .execute(&mut *tx).await?;
+    }
+    let query = "INSERT INTO course_x_text VALUES (1,?,?); ";
+    sqlx::query(query)
+    .bind(text_id)
+    .bind(text_order)
+    .execute(&mut *tx).await?;
+
+    text_order += 1;
+
+    if assignment.3 == 70 || assignment.3 == 97 {
+      text_order += 1;
+    }
+  }
+
+  tx.commit().await?;
+    
+  Ok(())
+}
+*/
+
+pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option<u32>, sqlx::Error> {
   let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
   let rec: (Option<u32>,) = sqlx::query_as(query)
   .bind(text_id)
   .fetch_one(pool)
   .await?;
   
-  if rec.0.is_some() {
-    Ok(rec.0.unwrap())
-  }
-  else {
-    Ok(text_id)
-  }
+    Ok(rec.0)
 }
 
-pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
-    //let (start,end) = get_start_end(pool, text_id).await?;
+pub async fn num_child_texts(pool: &SqlitePool, text_id:u32) -> Result<u32, sqlx::Error> {
+  let query = "SELECT COUNT(*) FROM texts WHERE parent_id = ?;";
+  let rec: (u32,) = sqlx::query_as(query)
+  .bind(text_id)
+  .fetch_one(pool)
+  .await?;
+  
+    Ok(rec.0)
+}
 
-    let parent_text_id = get_parent_text_id(pool, text_id).await?;
+/* 
+*update get_words to not look for parent_id (just use text_id)
+update db: 
+    add each text/assignment to course_x_text table with a text_order
+    add rest of ULG to text table select by seq between update text_id
+
+check for session user_id for each function, redirect to login if not set
+
+add tests
+add basic lemmatising to import for non-declined words
+add arrows to change order
+*/
+
+pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
+
+    //do not get words of whole text, if text is split into assignments
+    let children = num_child_texts(pool, text_id).await?;
+    if children > 0 {
+      return Ok(vec![]);
+    }
 
     let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
     I.total_count, H.running_count,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
@@ -626,13 +707,13 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
     LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
     LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
     LEFT JOIN words E ON E.word_id = D.word_id \
-    LEFT JOIN course_x_text F ON ({parent_text_id} = F.text_id AND F.course_id = {course_id}) \
-    LEFT JOIN course_x_text G ON ({parent_text_id} = G.text_id AND G.course_id = {course_id}) \
+    LEFT JOIN course_x_text F ON ({text_id} = F.text_id AND F.course_id = {course_id}) \
+    LEFT JOIN course_x_text G ON ({text_id} = G.text_id AND G.course_id = {course_id}) \
     LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
     LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
-    WHERE A.text = {text} AND A.type > -1 \
+    WHERE A.text = {text_id} AND A.type > -1 \
     ORDER BY A.seq \
-    LIMIT 55000;", parent_text_id = parent_text_id, text = text_id, course_id = course_id);
+    LIMIT 55000;", text_id = text_id, course_id = course_id);
 
     //WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
 
@@ -676,8 +757,8 @@ pub async fn get_assignment_rows(pool: &SqlitePool, course_id:u32) -> Result<Vec
   //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
   let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id \
     FROM texts A \
-    LEFT JOIN course_x_text B On (A.text_id=B.text_id AND B.course_id = ?) \
-    ORDER BY B.text_order,A.text_id;";
+    INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = ?) \
+    ORDER BY B.text_order, A.text_id;";
   let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
   .bind(course_id)
   .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name"), parent_id:rec.get("parent_id") , course_id:rec.get("course_id")} )
