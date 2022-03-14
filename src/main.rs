@@ -631,6 +631,7 @@ fn get_timestamp() -> i64 {
 }
 
 async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
+    //remember that basic authentication blocks this
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
@@ -847,7 +848,7 @@ async fn main() -> io::Result<()> {
             .app_data(db_pool.clone())
             
             .wrap(middleware::Logger::default())
-            //.wrap(auth_basic)
+            //.wrap(auth_basic) //this blocks healthcheck
             .wrap(CookieSession::signed(&[0; 32]).secure(false).expires_in(2147483647))
             .wrap(middleware::Compress::default())
             //.wrap(error_handlers)
