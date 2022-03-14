@@ -671,7 +671,7 @@ let mut text_order:u32 = 35;
   Ok(())
 }
 */
-
+/* 
 pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option<u32>, sqlx::Error> {
   let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
   let rec: (Option<u32>,) = sqlx::query_as(query)
@@ -681,7 +681,7 @@ pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option
   
     Ok(rec.0)
 }
-
+*/
 pub async fn num_child_texts(pool: &SqlitePool, text_id:u32) -> Result<u32, sqlx::Error> {
   let query = "SELECT COUNT(*) FROM texts WHERE parent_id = ?;";
   let rec: (u32,) = sqlx::query_as(query)

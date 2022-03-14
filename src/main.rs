@@ -236,6 +236,7 @@ pub struct GetGlossResponse {
     pub words: Vec<GlossEntry>,
 }
 
+#[allow(dead_code)]
 enum WordType {
     Word = 0,
     Punctuation = 1,
@@ -559,7 +560,7 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    if let Some(user_id) = get_user_id(session) {
+    if get_user_id(session).is_some() {
         let course_id = 1;
 
         //let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -1043,6 +1044,11 @@ pub mod process_xml {
         let mut in_text = false;
         let mut in_speaker = false;
         let mut in_head = false;
+        /*
+        TEI: verse lines can either be empty <lb n="5"/>blah OR <l n="5">blah</l> 
+        see Perseus's Theocritus for <lb/> and Euripides for <l></l>
+        */
+
         loop {
             match reader.read_event(&mut buf) {
             // for triggering namespaced events, use this instead:
@@ -1050,9 +1056,19 @@ pub mod process_xml {
                 Ok(Event::Start(ref e)) => {
                 // for namespaced:
                 // Ok((ref namespace_value, Event::Start(ref e)))                
-                    if let b"text" = e.name() { in_text = true }
-                    else if let b"speaker" = e.name() { in_speaker = true }
-                    else if let b"head" = e.name() { in_head = true }
+                    if b"text" == e.name() { in_text = true }
+                    else if b"speaker" == e.name() { in_speaker = true }
+                    else if b"head" == e.name() { in_head = true }
+                    else if b"l" == e.name() { 
+                        let mut line_num = "".to_string();
+                        
+                        for a in e.attributes().into_iter() { //.next().unwrap().unwrap();
+                            if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {         
+                                line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
+                            }
+                        }
+                        words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32 }); 
+                    }
                 },
                 // unescape and decode the text event using the reader encoding
                 Ok(Event::Text(e)) => { 
@@ -1069,21 +1085,21 @@ pub mod process_xml {
                     }
                 },
                 Ok(Event::Empty(ref e)) => {
-                    if e.name() == b"lb" { 
-                        let mut lineNum = "".to_string();
+                    if b"lb" == e.name() { 
+                        let mut line_num = "".to_string();
                         
                         for a in e.attributes().into_iter() { //.next().unwrap().unwrap();
                             if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {         
-                                lineNum = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
+                                line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                             }
                         }
-                        words.push( TextWord{ word: format!("[line]{}", lineNum), word_type: WordType::VerseLine as u32 }); 
+                        words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32 }); 
                     }
                 },
                 Ok(Event::End(ref e)) => {
-                    if let b"text" = e.name() { in_text = false }     
-                    else if let b"speaker" = e.name() { in_speaker = false }
-                    else if let b"head" = e.name() { in_head = false }
+                    if b"text" == e.name() { in_text = false }     
+                    else if b"speaker" == e.name() { in_speaker = false }
+                    else if b"head" == e.name() { in_head = false }
                },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(_e) => { words.clear(); return (words, title) }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
