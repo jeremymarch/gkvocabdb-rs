@@ -840,14 +840,15 @@ async fn main() -> io::Result<()> {
         .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
         .handler(http::StatusCode::NOT_FOUND, api::not_found);
         */
-        let auth_basic = HttpAuthentication::basic(validator_basic);
+        
+        //let auth_basic = HttpAuthentication::basic(validator_basic);
         App::new()
             //.wrap(json_cfg)
             .app_data(db_pool.clone())
             
             .wrap(middleware::Logger::default())
-            .wrap(auth_basic)
-            .wrap(CookieSession::signed(&[0; 32]).secure(false))
+            //.wrap(auth_basic)
+            .wrap(CookieSession::signed(&[0; 32]).secure(false).expires_in(2147483647))
             .wrap(middleware::Compress::default())
             //.wrap(error_handlers)
             .route("/login", web::get().to(login_get))
