@@ -795,7 +795,7 @@ function handleKey(evt) {
     function insertSpaceBefore(w) {
         //if (w == ">" || w == ";" || w == ";" || w == "·" || w == "." || w == "," || w == "·" || w == ";") {
 
-        var punc = [">", ";"/*037E*/, "·"/*0387*/, ":", ";", "·", ".", ",", "·", ";", "’", "—"];
+        var punc = [">", ";"/*037E*/, "·"/*0387*/, "᾽", ":", ";", "·", ".", ",", "·", ";", "’", "—", "'"];
         if (punc.indexOf(w) > -1) {
             return false;
         }
@@ -932,6 +932,9 @@ const TYPE_PARA_NO_INDENT = 10;
 
                     i.w = "<b style='font-family:helvetica,arial;'>" + i.w + "</b><br>";
                     t += i.w.replace("[section]", "");
+                }
+                else if (i.t == TYPE_WORK_TITLE || i.t == TYPE_SECTION_TITLE) {
+                    t += "<b style='font-family:helvetica,arial;'>" + i.w + "</b><br/><br/>";
                 }
                 else if (i.t == TYPE_VERSE_LINE)
                 {
