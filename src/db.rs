@@ -342,7 +342,7 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   res
 }
 
-pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+pub async fn add_text(pool: &SqlitePool, course_id: u32, text_name:&str, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
   let mut tx = pool.begin().await?;
 
   let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
@@ -383,6 +383,18 @@ pub async fn add_text(pool: &SqlitePool, text_name:&str, words:Vec<TextWord>, us
     }
     count += affected_rows;
   }
+
+  let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = ?;";
+  let max_text_order: (u32,) = sqlx::query_as(query)
+      .bind(course_id)
+      .fetch_one(&mut tx).await?;
+
+  let query = "INSERT INTO course_x_text VALUES (?, ?, ?);";
+  sqlx::query(query)
+      .bind(course_id)
+      .bind(text_id)
+      .bind(max_text_order.0 + 1)
+      .execute(&mut tx).await?;
 
   let _ = update_log_trx(&mut tx, UpdateType::ImportText, Some(text_id), None, None, format!("Imported {} words into text ({})", count, text_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
 

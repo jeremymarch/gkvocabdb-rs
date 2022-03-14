@@ -236,6 +236,29 @@ pub struct GetGlossResponse {
     pub words: Vec<GlossEntry>,
 }
 
+enum WordType {
+    Word = 0,
+    Punctuation = 1,
+    Speaker = 2,
+    Section = 4,
+    VerseLine = 5, //for verse #
+    ParaWithIndent = 6,
+    WorkTitle = 7,
+    SectionTitle = 8,
+    InlineSpeaker = 9,
+    ParaNoIndent = 10
+//0 word
+//1 punct
+//2 speaker
+//4 section
+//5 new line for verse #
+//6 new para with indent
+//7 work title
+//8 section title centered
+//9 inline speaker, so 2, but inline
+//10 new para without indent
+}
+
 #[allow(clippy::eval_order_dependence)]
 async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -533,42 +556,55 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 */
 
 #[allow(clippy::eval_order_dependence)]
-async fn get_text_words((info, req): (web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-    let course_id = 1;
 
-    //let query_params: WordQuery = serde_json::from_str(&info.query)?;
+    if let Some(user_id) = get_user_id(session) {
+        let course_id = 1;
 
-    let text_id = match info.wordid {
-        0 => info.text,
-        _ => {
-            get_text_id_for_word_id(db, info.wordid).await.map_err(map_sqlx_error)?
+        //let query_params: WordQuery = serde_json::from_str(&info.query)?;
+
+        let text_id = match info.wordid {
+            0 => info.text,
+            _ => {
+                get_text_id_for_word_id(db, info.wordid).await.map_err(map_sqlx_error)?
+            }
+        };
+
+        let w = get_words(db, text_id, course_id).await.map_err(map_sqlx_error)?;
+
+    /*
+        $j = new \stdClass();
+        if ($words == "WordAssignmentError" ) {
+            $j->error = "Error getting text assignments.";
         }
-    };
+        $j->thisText = $textid;
+        $j->words = $words;
+        $j->selectedid = $selectedid;
+    */
 
-    let w = get_words(db, text_id, course_id).await.map_err(map_sqlx_error)?;
+    //{"thisText":"1","words":[{"i":"1","w":"530a","t":"4","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"1","s2":null,"c":null,"rc":"0","if":"0"},
+    //{"i":"2","w":"ΣΩ.","t":"2","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"2","s2":null,"c":null,"rc":"0","if":"0"}],"selectedid":0}
+    
+        let res = QueryResponse {
+            this_text: 1,
+            words: w,
+            selected_id: 1,
+            error: "".to_string(),
+        };
 
-/*
-    $j = new \stdClass();
-    if ($words == "WordAssignmentError" ) {
-        $j->error = "Error getting text assignments.";
+        Ok(HttpResponse::Ok().json(res))
     }
-    $j->thisText = $textid;
-    $j->words = $words;
-    $j->selectedid = $selectedid;
-*/
+    else {
+        let res = QueryResponse {
+            this_text: 1,
+            words: vec![],
+            selected_id: 1,
+            error: "Not logged in".to_string(),
+        };
 
-//{"thisText":"1","words":[{"i":"1","w":"530a","t":"4","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"1","s2":null,"c":null,"rc":"0","if":"0"},
-//{"i":"2","w":"ΣΩ.","t":"2","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"2","s2":null,"c":null,"rc":"0","if":"0"}],"selectedid":0}
- 
-    let res = QueryResponse {
-        this_text: 1,
-        words: w,
-        selected_id: 1,
-        error: "".to_string(),
-    };
-
-    Ok(HttpResponse::Ok().json(res))
+        Ok(HttpResponse::Ok().json(res))
+    }
 }
 /*
 #[allow(clippy::eval_order_dependence)]
@@ -606,6 +642,8 @@ struct LoginCheckResponse {
 async fn import_text((session, payload, req): (Session, Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
+    let course_id = 1;
+
     if let Some(user_id) = get_user_id(session) {
         let timestamp = get_timestamp();
         let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
@@ -615,7 +653,7 @@ async fn import_text((session, payload, req): (Session, Multipart, HttpRequest))
         
         if !words.is_empty() && !title.is_empty() {
 
-                let _affected_rows = add_text(db, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                let _affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
                 Ok(HttpResponse::Ok()
                     .content_type("text/plain")
@@ -928,23 +966,31 @@ pub mod process_xml {
 
     use super::*;
 
-    fn split_words(text: &str) -> Vec<TextWord> {
+    fn split_words(text: &str, in_speaker:bool, in_head:bool) -> Vec<TextWord> {
         let mut words:Vec<TextWord> = vec![];
         let mut last = 0;
-        for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
-            //add words
-            if last != index && &text[last..index] != " " {
-                words.push(TextWord{word:text[last..index].to_string(),word_type:0});
-            }
-            //add word separators
-            if matched != " " {
-                words.push(TextWord{word:matched.to_string(),word_type:1});
-            }
-            last = index + matched.len();
+        if in_head {
+            words.push(TextWord{word: text.to_string(),word_type:WordType::WorkTitle as u32});
         }
-        //add last word
-        if last < text.len() && &text[last..] != " " {
-            words.push(TextWord{word:text[last..].to_string(),word_type:0});
+        else if in_speaker {
+            words.push(TextWord{word: text.to_string(),word_type:WordType::Speaker as u32});
+        }
+        else {
+            for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
+                //add words
+                if last != index && &text[last..index] != " " {
+                    words.push(TextWord{word:text[last..index].to_string(),word_type:WordType::Word as u32});
+                }
+                //add word separators
+                if matched != " " {
+                    words.push(TextWord{word:matched.to_string(),word_type:WordType::Punctuation as u32});
+                }
+                last = index + matched.len();
+            }
+            //add last word
+            if last < text.len() && &text[last..] != " " {
+                words.push(TextWord{word:text[last..].to_string(),word_type:WordType::Word as u32});
+            }
         }
         words
     }
@@ -995,15 +1041,18 @@ pub mod process_xml {
         let mut buf = Vec::new();
 
         let mut in_text = false;
+        let mut in_speaker = false;
+        let mut in_head = false;
         loop {
             match reader.read_event(&mut buf) {
             // for triggering namespaced events, use this instead:
             // match reader.read_namespaced_event(&mut buf) {
                 Ok(Event::Start(ref e)) => {
                 // for namespaced:
-                // Ok((ref namespace_value, Event::Start(ref e)))
-                
+                // Ok((ref namespace_value, Event::Start(ref e)))                
                     if let b"text" = e.name() { in_text = true }
+                    else if let b"speaker" = e.name() { in_speaker = true }
+                    else if let b"head" = e.name() { in_head = true }
                 },
                 // unescape and decode the text event using the reader encoding
                 Ok(Event::Text(e)) => { 
@@ -1011,7 +1060,7 @@ pub mod process_xml {
                         if let Ok(s) = e.unescape_and_decode(&reader) {
                             
                             //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
-                            words.extend_from_slice(&split_words(&s)[..]);
+                            words.extend_from_slice(&split_words(&s, in_speaker, in_head)[..]);
 
                             //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
                             //words2.word.extend_from_slice(&words.word[..]);
@@ -1019,9 +1068,25 @@ pub mod process_xml {
                         }
                     }
                 },
-                Ok(Event::End(ref e)) => {
-                    if let b"text" = e.name() { in_text = false }
+                Ok(Event::Empty(ref e)) => {
+                    if e.name() == b"lb" { 
+                        let mut lineNum = "";
+                        /* 
+                        for a in e.attributes() { //.next().unwrap().unwrap();
+                            if std::str::from_utf8(a.key).unwrap() == "n" {
+                            
+                                lineNum = std::str::from_utf8(&*a.value).unwrap();
+                            }
+                        }*/
+                        //println!("{} {}", b, c);
+                        words.push( TextWord{ word: format!("[line]{}", lineNum), word_type: WordType::VerseLine as u32 }); 
+                    }
                 },
+                Ok(Event::End(ref e)) => {
+                    if let b"text" = e.name() { in_text = false }     
+                    else if let b"speaker" = e.name() { in_speaker = false }
+                    else if let b"head" = e.name() { in_head = false }
+               },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(_e) => { words.clear(); return (words, title) }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here

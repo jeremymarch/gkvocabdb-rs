@@ -23,6 +23,17 @@ if ( isset($_GET["wordid"]) ) {
 */
 //var landingWordId = -1;
 
+const TYPE_WORD = 0;
+const TYPE_PUNCTUATION = 1;
+const TYPE_SPEAKER = 2;
+const TYPE_SECTION = 4;
+const TYPE_VERSE_LINE = 5;
+const TYPE_PARA_WITH_INDENT = 6;
+const TYPE_WORK_TITLE = 7;
+const TYPE_SECTION_TITLE = 8;
+const TYPE_INLINE_SPEAKER = 9;
+const TYPE_PARA_NO_INDENT = 10;
+
       //https://github.com/le717/microajax
       function microAjax(options) {
       "use strict";
@@ -761,6 +772,7 @@ function handleKey(evt) {
     		dataType: "text",//JSON automatically deserializes json
     		success: function (data, textStatus, jqXHR){ 
     			procResponse(data, textStatus); 
+                
     		},
     		error: function(response) {
                 console.log("error getting words... trying again...");
@@ -783,7 +795,7 @@ function handleKey(evt) {
     function insertSpaceBefore(w) {
         //if (w == ">" || w == ";" || w == ";" || w == "·" || w == "." || w == "," || w == "·" || w == ";") {
 
-        var punc = [">", ";"/*037E*/, "·"/*0387*/, ";", "·", ".", ",", "·", ";", "’", "—"];
+        var punc = [">", ";"/*037E*/, "·"/*0387*/, ":", ";", "·", ".", ",", "·", ";", "’", "—"];
         if (punc.indexOf(w) > -1) {
             return false;
         }
@@ -812,6 +824,9 @@ function handleKey(evt) {
             return;
 
         if (returnObj.error) {
+            if (returnObj.error == "Not logged in") {
+                location = "/login"
+            }
             console.log(returnObj.error);
             return;
         }
@@ -828,6 +843,18 @@ function handleKey(evt) {
 //8 section title centered
 //9 inline speaker, so 2, but inline
 //10 new para without indent
+/*
+const TYPE_WORD = 0;
+const TYPE_PUNCTUATION = 1;
+const TYPE_SPEAKER = 2;
+const TYPE_SECTION = 4;
+const TYPE_VERSE_LINE = 5;
+const TYPE_PARA_WITH_INDENT = 6;
+const TYPE_WORK_TITLE = 7;
+const TYPE_SECTION_TITLE = 8;
+const TYPE_INLINE_SPEAKER = 9;
+const TYPE_PARA_NO_INDENT = 10;
+*/
         
         var t = "";
         var a = document.getElementById("wordscontents"); 
@@ -839,7 +866,8 @@ function handleKey(evt) {
         if (returnObj.words && Array.isArray(returnObj.words)) {
             returnObj.words.forEach(function (i,v) {
 
-                if (i.t < 1 )//&& !i.l)
+                //build gloss
+                if (i.t < TYPE_PUNCTUATION )//&& !i.l)
                 {
                     var b = document.createElement("div"); 
                     b.id = "word" + i.i;
@@ -891,7 +919,9 @@ function handleKey(evt) {
                     }
                     a.appendChild(b);
                 }
-                if (i.t == 2 || i.t == 4)
+
+                //build text
+                if (i.t == TYPE_SPEAKER || i.t == TYPE_SECTION)
                 {
                     if (firstOfSection) {
                         firstOfSection = false;
@@ -903,13 +933,12 @@ function handleKey(evt) {
                     i.w = "<b style='font-family:helvetica,arial;'>" + i.w + "</b><br>";
                     t += i.w.replace("[section]", "");
                 }
-                else if (i.t == 5)
+                else if (i.t == TYPE_VERSE_LINE)
                 {
                     t += "<br>" + i.w.replace("[line]", "") + "&nbsp;&nbsp;&nbsp;";
                 }
                 else
                 {
-                    
                     t += ((insertSpaceBefore(i.w) && lastWord !== false && insertSpaceAfter(lastWord)) ? " " : "") + "<span id='text" + i.i + "' class='textword'>" + i.w + "<\/span>" /*+ "<span class='superscript'>" + i.i + "<\/span> "*/;
                     lastWord = i.w;
                 }
