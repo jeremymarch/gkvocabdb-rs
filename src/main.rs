@@ -1070,15 +1070,13 @@ pub mod process_xml {
                 },
                 Ok(Event::Empty(ref e)) => {
                     if e.name() == b"lb" { 
-                        let mut lineNum = "";
-                        /* 
-                        for a in e.attributes() { //.next().unwrap().unwrap();
-                            if std::str::from_utf8(a.key).unwrap() == "n" {
-                            
-                                lineNum = std::str::from_utf8(&*a.value).unwrap();
+                        let mut lineNum = "".to_string();
+                        
+                        for a in e.attributes().into_iter() { //.next().unwrap().unwrap();
+                            if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {         
+                                lineNum = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                             }
-                        }*/
-                        //println!("{} {}", b, c);
+                        }
                         words.push( TextWord{ word: format!("[line]{}", lineNum), word_type: WordType::VerseLine as u32 }); 
                     }
                 },
