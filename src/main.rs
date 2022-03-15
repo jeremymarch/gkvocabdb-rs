@@ -1008,30 +1008,136 @@ pub mod process_xml {
 
     use super::*;
 
+    fn lemmatize_simple(word:&str) -> Option<u32> {
+        match word {
+            "ἀεί" => Some(260),
+            "ἀεὶ" => Some(260),
+            "ἀλλ" => Some(54),
+            "ἀλλ'" => Some(54),
+            "ἀλλ᾽" => Some(54),
+            "ἀλλὰ" => Some(54),
+            "ἀλλά" => Some(54),
+            "ἅμα" => Some(191),
+            "ἄν" => Some(78),
+            "ἂν" => Some(78),
+            "ἆρα" => Some(28),
+            "αὖ" => Some(483),
+            "γὰρ" => Some(29),
+            "γάρ" => Some(29),
+            "γε" => Some(135),
+            "δ'" => Some(30),
+            "δ᾽" => Some(30),
+            "δ" => Some(30),
+            "δέ" => Some(30),
+            "δὲ" => Some(30),
+            "δὴ" => Some(59),
+            "δή" => Some(59),
+            "διά" => Some(61),
+            "διὰ" => Some(61),
+            "ἐγώ" => Some(392),
+            "ἐγὼ" => Some(392),
+            "εἰ" => Some(88),
+            "εἴ" => Some(88),
+            "εἰς" => Some(6),
+            "εἴτε" => Some(488),
+            "ἐκ" => Some(7),
+            "ἐξ" => Some(7),
+            "ἐν" => Some(8),
+            "ἐπεί" => Some(64),
+            "ἐπεὶ" => Some(64),
+            "ἐπειδή" => Some(65),
+            "ἐπειδὴ" => Some(65),
+            "ἔπειτα" => Some(193),
+            "ἐπί" => Some(333),
+            "ἐπὶ" => Some(333),
+            "ἐπ" => Some(333),
+            "ἐς" => Some(6),
+            "ἔτι" => Some(367),
+            "εὖ" => Some(32),
+            "ἢ" => Some(34),
+            "ἤ" => Some(34),
+            "ἤδη" => Some(640),
+            "καὶ" => Some(11),
+            "καί" => Some(11),
+            "καίτοι" => Some(93),
+            "κατά" => Some(146),
+            "κατὰ" => Some(146),
+            "μάλα" => Some(515),
+            "μᾶλλον" => Some(310),
+            "μέν" => Some(39),
+            "μὲν" => Some(39),
+            "μέντοι" => Some(598),
+            "μετά" => Some(96),
+            "μετὰ" => Some(96),
+            "μή" => Some(69),
+            "μὴ" => Some(69),
+            "μηδέ" => Some(312),
+            "μηδὲ" => Some(312),
+            "μὴν" => Some(555),
+            "μήν" => Some(555),
+            "μήτε" => Some(196),
+            "νῦν" => Some(40),
+            "ὅπως" => Some(348),
+            "ὅταν" => Some(282),
+            "ὅτι" => Some(435),
+            "οὐ" => Some(42),
+            "οὐκ" => Some(42),
+            "οὖν" => Some(182),
+            "οὔτε" => Some(200),
+            "οὐχ" => Some(42),
+            "παρά" => Some(44),
+            "παρὰ" => Some(44),
+            "περί" => Some(74),
+            "περὶ" => Some(74),
+            "που" => Some(319),
+            "πρίν" => Some(521),
+            "πρὶν" => Some(521),
+            "πρός" => Some(320),
+            "πρὸς" => Some(320),
+            "πῶς" => Some(284),
+            "σύ" => Some(408),
+            "σὺ" => Some(408),
+            "τ" => Some(157),
+            "τε" => Some(157),
+            "τι" => Some(414),
+            "τότε" => Some(286),
+            "ὑπό" => Some(131),
+            "ὑπὸ" => Some(131),
+            "χρή" => Some(537),
+            "χρὴ" => Some(537),
+            "ὦ" => Some(25),
+            "ὡς" => Some(76),
+            "ὥστε" => Some(259),
+            _ => None
+        }
+    }
+
     fn split_words(text: &str, in_speaker:bool, in_head:bool) -> Vec<TextWord> {
         let mut words:Vec<TextWord> = vec![];
         let mut last = 0;
         if in_head {
-            words.push(TextWord{word: text.to_string(),word_type:WordType::WorkTitle as u32});
+            words.push(TextWord{word: text.to_string(),word_type:WordType::WorkTitle as u32, gloss_id:None});
         }
         else if in_speaker {
-            words.push(TextWord{word: text.to_string(),word_type:WordType::Speaker as u32});
+            words.push(TextWord{word: text.to_string(),word_type:WordType::Speaker as u32, gloss_id:None});
         }
         else {
             for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
                 //add words
                 if last != index && &text[last..index] != " " {
-                    words.push(TextWord{word:text[last..index].to_string(),word_type:WordType::Word as u32});
+                    let gloss_id = lemmatize_simple(&text[last..index]);
+                    words.push(TextWord{word: text[last..index].to_string(), word_type: WordType::Word as u32, gloss_id: gloss_id});
                 }
                 //add word separators
                 if matched != " " {
-                    words.push(TextWord{word:matched.to_string(),word_type:WordType::Punctuation as u32});
+                    words.push(TextWord{word:matched.to_string(),word_type:WordType::Punctuation as u32, gloss_id:None});
                 }
                 last = index + matched.len();
             }
             //add last word
             if last < text.len() && &text[last..] != " " {
-                words.push(TextWord{word:text[last..].to_string(),word_type:WordType::Word as u32});
+                let gloss_id = lemmatize_simple(&text[last..]);
+                words.push(TextWord{word:text[last..].to_string(),word_type:WordType::Word as u32, gloss_id:gloss_id});
             }
         }
         words
@@ -1108,7 +1214,7 @@ pub mod process_xml {
                                 line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                             }
                         }
-                        words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32 }); 
+                        words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32,gloss_id:None }); 
                     }
                 },
                 // unescape and decode the text event using the reader encoding
@@ -1134,7 +1240,7 @@ pub mod process_xml {
                                 line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                             }
                         }
-                        words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32 }); 
+                        words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32,gloss_id:None }); 
                     }
                 },
                 Ok(Event::End(ref e)) => {

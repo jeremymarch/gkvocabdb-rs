@@ -116,6 +116,7 @@ pub struct DefRow {
 pub struct TextWord {
     pub word: String,
     pub word_type: u32,
+    pub gloss_id: Option<u32>,
 }
 /*
 pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
@@ -360,13 +361,14 @@ pub async fn add_text(pool: &SqlitePool, course_id: u32, text_name:&str, words:V
   let query = "INSERT INTO words (word_id, seq, text, section, line, word, gloss_id, \
     lemma1, lemma2, o, runningcount, type, arrow, flagged, updated, \
     updatedUserAgent, updatedIP, updatedUser, isFlagged, note) \
-    VALUES (NULL, ?, ?, '', '', ?, NULL, '', '', '', 0, ?, 0, 0, ?, ?, ?, ?, 0, '');";
+    VALUES (NULL, ?, ?, '', '', ?, ?, '', '', '', 0, ?, 0, 0, ?, ?, ?, ?, 0, '');";
   let mut count = 0;
   for w in words {
     let res = sqlx::query(query)
       .bind(seq)
       .bind(text_id)
       .bind(w.word)
+      .bind(w.gloss_id)
       .bind(w.word_type)
       .bind(timestamp)
       .bind(user_agent)
