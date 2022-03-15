@@ -887,7 +887,7 @@ async fn main() -> io::Result<()> {
             //.wrap(auth_basic) //this blocks healthcheck
             .wrap(CookieSession::signed(&[0; 32])
                 .secure(false)
-                //.expires_in(2147483647)
+                //.expires_in(2147483647) //deprecated
                 .max_age(2147483647))
             .wrap(middleware::Compress::default())
             //.wrap(error_handlers)

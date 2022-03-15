@@ -93,7 +93,7 @@ function destroyWT()
 	return null;
 }
 
-function wordtree (idPrefix, width, height)
+function wordtree(idPrefix, width, height)
 {
     //alert("abc1");
 	this.showMorph = false;
@@ -154,10 +154,7 @@ function wordtree (idPrefix, width, height)
     d.classList.add("wordtree");
 
     var ti = document.createElement("div");
-    ti.style.position = "absolute";
-    ti.style.top = "17px";
-    ti.style.left = "6px";
-    ti.style.width = this.width - 33 + "px";
+    ti.classList.add("wordtreetitlediv");
     ti.innerHTML = "Title";
     this.title = ti;
 

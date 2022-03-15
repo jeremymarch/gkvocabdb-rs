@@ -348,18 +348,11 @@ function handleKey(evt) {
             getwords(parseInt(thisText));//ion = 2
         }
 
-        
-        
-        var w = new wordtree("test1", 480, $(document).height() - 36);
-        //w.columnOffsets = [0,240,0,0];
+        var w = new wordtree("test1", 480, $(document).height() - 38);
         w.columnOffsets = [0,0,0,0];
         w.params.lexicon = "hqvocab";
         w.url = "queryglosses";
         w.params.mode = "context";
-        w.div.style.borderRadius = "14px";
-        w.div.style.margin = "10px";
-        w.div.style.border = "2px solid black";
-        w.div.style.zIndex = "990";
         w.show(document.getElementById("leftlist"));
         lemmaListWordTree = w;
         w.hideFunction = hideLemmaList;
@@ -376,20 +369,12 @@ function handleKey(evt) {
         $("#test1Entry").css("font-size", "14pt").addClass("gkinput");
         $(".gkinput").keypress(handleKey);
 
-
-
-
-
-        var w2 = new wordtree("text", 480, $(document).height() - 36);
-        //w.columnOffsets = [0,240,0,0];
+        var w2 = new wordtree("text", 480, $(document).height() - 38);
         w2.columnOffsets = [0,0,0,0];
         w2.params.lexicon = "hqvocab";
         w2.url = "querytexts";
         w2.params.mode = "normal";
-        w2.div.style.borderRadius = "14px";
-        w2.div.style.margin = "10px";
-        w2.div.style.border = "2px solid black";
-        w2.div.style.zIndex = "990";
+
         w2.show(document.getElementById("textlist"));
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
@@ -403,6 +388,7 @@ function handleKey(evt) {
         //w2.onSelectionChanged = act;
         //$("#textContainer").css({"top":"41px"});
         $("#textEntry").css({"font-size":"14pt","display":"block"});
+        onResize();
     }
 
     function queryText(lex, cols) {
@@ -1580,6 +1566,22 @@ async function uploadfile() {
     }
 }
 
+function onResize() {
+        const offset = 38;
+        let w = lookupWT("test1");
+        let w2 = lookupWT("text");
+  
+        w.setHeight( $(document).height() - offset );
+        w2.setHeight( $(document).height() - offset );
+
+        let width = ($(document).width() / 2);
+
+        $(".WordContainer").css("width", "calc(100% - 30px");
+        $(".wordtree").css("width", width - 19 + "px");
+      }
+
+window.onresize = onResize;
+
 </script>
 <style>
 .openCloseBranch {
@@ -1679,7 +1681,7 @@ html {
     background-color:#ccc;
     
     }
-    #text { 
+    #textdiv { 
     position:absolute;
     left:10px;
     top:33px;
@@ -1865,13 +1867,21 @@ height: 25px;}
     display: none;
   }
 
+  .wordtreetitlediv {
+      position:absolute;
+      top:17px;
+      left:6px;
+      width:calc(100% - 30px);
+  }
+
   .wordtree {
-    margin: 0px;
+    margin: 2px 10px;
     background-color: white;
     text-align: left;
     position: relative;
-    border-radius: 14px;
-    
+    border-radius: 10px;
+    border: 2px solid black;
+    z-index:990;
   }
 
   .wordtree input {
@@ -1973,7 +1983,7 @@ height: 22px;
 <div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
     <button id="uploadbutton" onclick="uploaddialog()">Upload</button>
 
-    <button id="getTexts" onclick="selectTextFormToggle()">Texts</button>
+    <button id="getTexts" onclick="selectTextFormToggle()">Select Text</button>
 
     <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen Glosses</button> 
     <button id="showButton"  onclick="show1()">Show All Glosses</button> 
@@ -1983,14 +1993,14 @@ height: 22px;
     <button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>
     <!--<button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button>-->
 </div>
-<div id="text">
+<div id="textdiv">
     <div id="textcontents"></div>
 </div>
 <div id="words">
     <div id="wordscontents"></div>
 </div>
-  <div id="leftlist" style="display:none;position:absolute;top:0px;left:0px;height:100%;width:220px;"></div>
-  <div id="textlist" style="display:none;position:absolute;top:30px;left:0px;height:100%;width:220px;"></div>
+  <div id="leftlist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
+  <div id="textlist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
   <div id="snackbar"></div>
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
@@ -2025,21 +2035,6 @@ height: 22px;
         </tr>
         <tr>
             <td colspan="2" align="center"><button onclick="newLemmaFormClose()">Cancel</button><button onclick="newLemmaFormSubmit()">Submit</button></td>
-        </tr>
-        </table>
-    </div>
-</div>
-<div id="loginformcontainer">
-    <div id="loginform" style="display:none;">
-        <table style="width:100%;">
-        <tr>
-            <td colspan="2" class="editformlabel">Login</td>
-        </tr>
-        <tr>
-            <td class="editformlabel">Username</td><td><input class="inputText" id="usernamefield" style="width:90%" type="text"/></td>
-        </tr>
-        <tr>
-            <td class="editformlabel">Password</td><td><input class="inputText" id="passwordfield" style="width:90%" type="text"/></td>
         </tr>
         </table>
     </div>
