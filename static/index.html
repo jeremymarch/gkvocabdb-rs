@@ -23,6 +23,17 @@ if ( isset($_GET["wordid"]) ) {
 */
 //var landingWordId = -1;
 
+function setTheme() {
+    var mode = localStorage.getItem("mode");
+    if ((window.matchMedia( "(prefers-color-scheme: dark)" ).matches || mode == "dark") && mode != "light") {
+        document.querySelector("HTML").classList.add("dark");
+    }
+    else {
+        document.querySelector("HTML").classList.remove("dark");
+    }
+}
+setTheme();
+
 const TYPE_WORD = 0;
 const TYPE_PUNCTUATION = 1;
 const TYPE_SPEAKER = 2;
@@ -930,11 +941,11 @@ const TYPE_PARA_NO_INDENT = 10;
                         t += "<br><br>"; //not for first section
                     }
 
-                    i.w = "<b style='font-family:helvetica,arial;'>" + i.w + "</b><br>";
+                    i.w = "<b>" + i.w + "</b><br>";
                     t += i.w.replace("[section]", "");
                 }
                 else if (i.t == TYPE_WORK_TITLE || i.t == TYPE_SECTION_TITLE) {
-                    t += "<b style='font-family:helvetica,arial;'>" + i.w + "</b><br/><br/>";
+                    t += "<b>" + i.w + "</b><br/><br/>";
                 }
                 else if (i.t == TYPE_VERSE_LINE)
                 {
@@ -1970,7 +1981,7 @@ height: 22px;
     <button id="editLemmaButton" onclick="editLemmaFormToggle()" style="">Edit Gloss</button> 
     <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" style="">Select Gloss</button>
     <button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>
-    <button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button> 
+    <!--<button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button>-->
 </div>
 <div id="text">
     <div id="textcontents"></div>
@@ -1983,7 +1994,7 @@ height: 22px;
   <div id="snackbar"></div>
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
-        <h2>Upload File</h2>
+        <h2>Upload TEI XML File</h2>
         Title: <input id="fileuploadtitle" type="text" name="fileuploadtitle" /><br/>
         <input id="fileupload" type="file" name="fileupload" /><br/><br/>
         <button onclick="uploaddialog()">Cancel</button><button onclick="uploadfile()">Upload</button>

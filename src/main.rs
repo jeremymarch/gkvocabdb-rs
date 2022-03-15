@@ -17,15 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>. 
 */
 use thiserror::Error;
-use actix_web::dev::ServiceRequest;
-use actix_web::{ ResponseError, http::StatusCode, Error};
-
-
-use actix_web_httpauth::extractors::basic::BasicAuth;
-use actix_web_httpauth::middleware::HttpAuthentication;
-use actix_web_httpauth::extractors::basic::Config;
-use actix_web_httpauth::extractors::AuthenticationError;
-use std::pin::Pin;
+use actix_web::{ ResponseError, http::StatusCode};
 
 //use percent_encoding::percent_decode_str;
 
@@ -685,29 +677,62 @@ async fn login_get() -> Result<HttpResponse, AWError> {
         .content_type(ContentType::html())
         //.insert_header(("X-Hdr", "sample"))
         .body(r#"<!DOCTYPE html>
-    <html lang="en">
-        <head>
-            <meta http-equiv="content-type" content="text/html; charset=utf-8">
-            <title>Login</title>
-        </head>
-        <body>
-            <form action="/login" method="post">
-                <label>Username
-                    <input 
-                        type="text" 
-                        placeholder="Username" 
-                        name="username">
-                </label>
-                <label>Password
-                    <input 
-                        type="password" 
-                        placeholder="Password"
-                        name="password">
-                </label>
-                <button type="submit">Login</button>
-            </form>
-        </body>
-    </html>"#))
+<html lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <title>Login</title>
+        <script>
+            function setTheme() {
+                var mode = localStorage.getItem("mode");
+                if ((window.matchMedia( "(prefers-color-scheme: dark)" ).matches || mode == "dark") && mode != "light") {
+                    document.querySelector("HTML").classList.add("dark");
+                }
+                else {
+                    document.querySelector("HTML").classList.remove("dark");
+                }
+            }
+            setTheme();
+        </script>
+        <style>
+            BODY {font-family:helvetica;arial;display: flex;align-items: center;justify-content: center;height: 87vh;}
+            TABLE { border:2px solid black;padding: 24px;border-radius: 10px; }
+            BUTTON { padding: 3px 16px; }
+            .dark BODY { background-color:black;color:white; }
+            .dark INPUT { background-color:black;color:white; }
+            .dark TABLE { border:2px solid white; }
+            .dark BUTTON { background-color:black;color:white;border:1px solid white; }
+        </style>
+    </head>
+    <body>
+        <form action="/login" method="post">
+            <table>
+                <tbody>
+                    <tr>
+                        <td>               
+                            <label for="username">Username</label>
+                        </td>
+                        <td>
+                            <input type="text" id="username" name="username">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <label for="password">Password</label>
+                        </td>
+                        <td>
+                            <input type="password" id="password" name="password">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" align="center">
+                            <button type="submit">Login</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </form>
+    </body>
+</html>"#))
 }
 
 //use secrecy::Secret;
@@ -721,7 +746,7 @@ fn validate_login(username:String, password:String) -> Option<u32> {
     if username.to_lowercase() == "jm" && password == "1234" {
         Some(3)
     }
-    else if username.to_lowercase() == "kk" && password == "1234" {
+    else if username.to_lowercase() == "ykk" && password == "1234" {
         Some(4)
     }
     else {
@@ -745,13 +770,14 @@ async fn login_post((session, form, req): (Session, web::Form<FormData>, HttpReq
                 .finish());
         }
     }
+
     session.purge();
     Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/login"))
                 .finish())
 }
 
-/* *
+/*
 async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResponse, AWError> {
     //session.insert("user_id", 1);
     //session.renew();
@@ -762,6 +788,15 @@ async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResp
     Ok(HttpResponse::Ok().json(LoginCheckResponse { is_logged_in:false,user_id:0 }))
 }
 */
+
+/* For Basic Authentication 
+use actix_web_httpauth::middleware::HttpAuthentication;
+use actix_web_httpauth::extractors::basic::BasicAuth;
+use actix_web_httpauth::extractors::basic::Config;
+use actix_web_httpauth::extractors::AuthenticationError;
+use actix_web::dev::ServiceRequest;
+use std::pin::Pin;
+
 async fn validator_basic(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
 
     let config = req.app_data::<Config>()
@@ -786,6 +821,7 @@ fn validate_credentials_basic(user_id: &str, user_password: &str) -> Result<bool
     }
     Err(std::io::Error::new(std::io::ErrorKind::Other, "Authentication failed!"))
 }
+*/
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -849,7 +885,10 @@ async fn main() -> io::Result<()> {
             
             .wrap(middleware::Logger::default())
             //.wrap(auth_basic) //this blocks healthcheck
-            .wrap(CookieSession::signed(&[0; 32]).secure(false).expires_in(2147483647))
+            .wrap(CookieSession::signed(&[0; 32])
+                .secure(false)
+                //.expires_in(2147483647)
+                .max_age(2147483647))
             .wrap(middleware::Compress::default())
             //.wrap(error_handlers)
             .route("/login", web::get().to(login_get))
