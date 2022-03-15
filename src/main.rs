@@ -743,11 +743,20 @@ pub struct FormData {
 }
 
 fn validate_login(username:String, password:String) -> Option<u32> {
-    if username.to_lowercase() == "jm" && password == "1234" {
+    if username.to_lowercase() == "jm" && password == "clam1234" {
         Some(3)
     }
-    else if username.to_lowercase() == "ykk" && password == "1234" {
+    else if username.to_lowercase() == "ykk" && password == "greekdb555" {
         Some(4)
+    }
+    else if username.to_lowercase() == "hh" && password == "greekdb555" {
+        Some(5)
+    }
+    else if username.to_lowercase() == "cd" && password == "greekdb555" {
+        Some(6)
+    }
+    else if username.to_lowercase() == "rr" && password == "greekdb555" {
+        Some(7)
     }
     else {
         None
@@ -1008,6 +1017,7 @@ pub mod process_xml {
 
     use super::*;
 
+    //select b.gloss_id,b.lemma,count(b.gloss_id) c from words a inner join glosses b on a.gloss_id=b.gloss_id group by b.gloss_id order by c;
     fn lemmatize_simple(word:&str) -> Option<u32> {
         match word {
             "ἀεί" => Some(260),

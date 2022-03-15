@@ -357,7 +357,7 @@ function handleKey(evt) {
         lemmaListWordTree = w;
         w.hideFunction = hideLemmaList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideLemmaList()'><div style='padding:6px;'>X</div></div></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideLemmaList()'><div style='padding:6px;'>X</div></div></div>";
         w.title.innerHTML = title;
         
         //w.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
@@ -379,7 +379,7 @@ function handleKey(evt) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideTextList()'><div style='padding:6px;'>X</div></div></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideTextList()'><div style='padding:6px;'>X</div></div></div>";
         w2.title.innerHTML = title;
         
         //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
