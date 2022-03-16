@@ -374,6 +374,7 @@ function handleKey(evt) {
         w2.params.lexicon = "hqvocab";
         w2.url = "querytexts";
         w2.params.mode = "normal";
+        w2.refreshOnESC = false;
 
         w2.show(document.getElementById("textlist"));
         textListWordTree = w2;
@@ -394,8 +395,9 @@ function handleKey(evt) {
     function queryText(lex, cols) {
         //alert(cols);
         if (Array.isArray(cols) && cols.length > 1 && Number.isInteger(parseInt(cols[1]))) {
+            selectedWordInList = null;
             getwords(cols[1]);
-            setCookie("selectedText", cols[1], 60);
+            //setCookie("selectedText", cols[1], 60); set this when received in procResponse
             hideTextList();
         }
     }
@@ -826,6 +828,10 @@ function handleKey(evt) {
             }
             console.log(returnObj.error);
             return;
+        }
+
+        if (returnObj.thisText && Number.isInteger(parseInt(returnObj.thisText))) {
+            setCookie("selectedText", returnObj.thisText, 60);
         }
             
         //alert(returnObj.blah[2].word);
@@ -2019,7 +2025,7 @@ height: 22px;
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
         <h2>Upload TEI XML File</h2>
-        Title: <input id="fileuploadtitle" type="text" name="fileuploadtitle" /><br/>
+        Title: <input id="fileuploadtitle" type="text" name="fileuploadtitle" /><br/><br/>
         <input id="fileupload" type="file" name="fileupload" /><br/><br/>
         <button onclick="uploaddialog()">Cancel</button><button onclick="uploadfile()">Upload</button>
       </div>

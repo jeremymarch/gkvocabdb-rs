@@ -108,6 +108,7 @@ function wordtree(idPrefix, width, height)
     this.lastKeyTimeout = null;
     this.indentWidth = 15; //for tree branches
     this.conTopOffset = 79;
+    this.refreshOnESC = true;
     
     /*
     At first we were using the system default rate for scrolling when
@@ -666,9 +667,10 @@ function wordtree(idPrefix, width, height)
 				}
 			}
         }
-        
+
         if (!wt.downkey)
         {
+
             //put non-repeating downkey stuff here
             if (ev.ctrlKey)
             {
@@ -720,13 +722,15 @@ function wordtree(idPrefix, width, height)
                                     //alert(wt.asYouType);
                 	if (wt.asYouType == false)
                 	{
-						//alert(wt.url);
                 		wt.refresh();
                 	}
-                    else if (typeof wt.onEnterActivate == "function" && wt.selectedRow)
+                    else if (typeof wt.onEnterActivate == "function")
                     {     
-                    		//				alert("a" + wt.url);
-                        wt.onEnterActivate(wt.params.lexicon, getColumnValues(wt.selectedRow));
+                        let row = document.querySelector("#" + wt.idPrefix + " .selectedRowClass");
+                        if (row) {
+                            wt.onEnterActivate(wt.params.lexicon, getColumnValues(row) );
+                        }
+                        return; //since we dont' want to set this: wt.downkey
                     }        
                     break;
                 case 27: //esc
@@ -738,11 +742,13 @@ function wordtree(idPrefix, width, height)
         			wt.entry.value = "";
                     wt.page = 0;
                     wt.selectedRow = null;
-                    
-                    //block fast typers from making requests for every keystroke
-                    if (wt.lastKeyTimeout)
-                        clearTimeout(wt.lastKeyTimeout);
-                    wt.lastKeyTimeout = setTimeout("var a = lookupWT('" + wt.idPrefix + "'); a.refresh(); if (a.entry && a.autofocus) a.entry.focus()", keyDelay);
+
+                    if (wt.refreshOnESC) {                
+                        //block fast typers from making requests for every keystroke
+                        if (wt.lastKeyTimeout)
+                            clearTimeout(wt.lastKeyTimeout);
+                        wt.lastKeyTimeout = setTimeout("var a = lookupWT('" + wt.idPrefix + "'); a.refresh(); if (a.entry && a.autofocus) a.entry.focus()", keyDelay);
+                    }
                     break;
                 default:
                     break;
@@ -1659,6 +1665,8 @@ function parseNodeImgId(id)
 
 function getColumnValues(row)
 {
+    //alert(row.tagName + ", " + row.classList);
+    //try {
 	var values = new Array();
 	var col = row.firstChild;
 	
@@ -1671,6 +1679,8 @@ function getColumnValues(row)
 			values[i] = col.firstChild.nodeValue;
 		col = col.nextSibling;
 	}
+//}catch(e) {alert(e.message)}
+    //alert("values: " + values);
 	return values;
 }
 

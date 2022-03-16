@@ -581,7 +581,7 @@ async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>
     //{"i":"2","w":"ΣΩ.","t":"2","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"2","s2":null,"c":null,"rc":"0","if":"0"}],"selectedid":0}
     
         let res = QueryResponse {
-            this_text: 1,
+            this_text: text_id,
             words: w,
             selected_id: 1,
             error: "".to_string(),
