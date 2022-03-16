@@ -986,6 +986,7 @@ const TYPE_PARA_NO_INDENT = 10;
 
     function showToast(msg) {
   // Get the snackbar DIV
+  console.log(msg); //also save to console
   var x = document.getElementById("snackbar");
   if (msg)
   {
@@ -1563,17 +1564,17 @@ async function uploadfile() {
             contentType: false
         });
 
-        if(response.status == 200) {
+        if (response.status == 200) {
             let json_response = await response.json();
-	        if(json_response.success) {
-                alert("Successfully imported text with " + json_response.words_inserted + " words.");
+	        if (json_response.success) {
+                showToast("Successfully imported text with " + json_response.words_inserted + " words.");
             }
             else {
-                alert("Error importing text (1).");
+                showToast("Error importing text (1): " + (typeof(json_response.error) != "undefined") ? json_response.error : "Unknown error" + ".");
             }
         }
         else {
-            alert("Error importing text (2).");
+            showToast("Error importing text (2).");
         }
         $("#uploadform").hide();
     }
