@@ -380,7 +380,7 @@ function handleKey(evt) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><div style='height: 26px;width: 26px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideTextList()'><div style='padding:6px;'>X</div></div></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><div style='height: 26px;width: 26px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: -5px;text-align: center;cursor:pointer;' onclick='hideTextList()'><div style='padding:6px;'>X</div></div></div>";
         w2.title.innerHTML = title;
         
         //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
@@ -1604,6 +1604,17 @@ window.onresize = onResize;
 
 </script>
 <style>
+#showButton,
+#hideButton {
+    position: absolute;
+    top: 0px;
+    right: 8px;
+}
+#uploadbutton {
+    position: absolute;
+    top: -4px;
+    right: 42px;
+}
 .openCloseBranch {
     display:inline-block;
     padding-right:8px;
@@ -2001,15 +2012,16 @@ height: 22px;
 </head>
 <body onload="onload()">
 <div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
-    <button id="uploadbutton" onclick="uploaddialog()">Upload</button>
 
     <button id="getTexts" onclick="selectTextFormToggle()">Select Text</button>
 
-    <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen Glosses</button> 
-    <button id="showButton"  onclick="show1()">Show All Glosses</button> 
+    <div style="position:absolute;top:0px;left:50%;width:50%;">
+    <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" style="">Select Gloss</button>
     <button id="newLemmaButton" onclick="newLemmaFormToggle()" style="">New Gloss</button> 
     <button id="editLemmaButton" onclick="editLemmaFormToggle()" style="">Edit Gloss</button> 
-    <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" style="">Select Gloss</button>
+    <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen Glosses</button> 
+    <button id="showButton"  onclick="show1()">Show All Glosses</button>
+</div>
     <!--<button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>-->
     <!--<button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button>-->
 </div>
