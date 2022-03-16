@@ -650,26 +650,39 @@ async fn import_text((session, payload, req): (Session, Multipart, HttpRequest))
         let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
         let user_agent = get_user_agent(&req).unwrap_or("");
 
-        let (words, title) = process_xml::process_imported_text(payload).await;
+        match process_xml::get_xml_string(payload).await {
+            Ok((xml_string, title)) => {
+
+                let words = process_xml::process_imported_text(xml_string).await;
         
-        if !words.is_empty() && !title.is_empty() {
-
-            let affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
-
-            let res = ImportResponse {
-                success: true,
-                words_inserted: affected_rows,
-                error: "".to_string(),
-            };
-            Ok(HttpResponse::Ok().json(res))
-        }
-        else { 
-            let res = ImportResponse {
-                success: false,
-                words_inserted: 0,
-                error: "Error importing text.".to_string(),
-            };
-            Ok(HttpResponse::Ok().json(res))
+                if !words.is_empty() && !title.is_empty() {
+        
+                    let affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+        
+                    let res = ImportResponse {
+                        success: true,
+                        words_inserted: affected_rows,
+                        error: "".to_string(),
+                    };
+                    Ok(HttpResponse::Ok().json(res))
+                }
+                else { 
+                    let res = ImportResponse {
+                        success: false,
+                        words_inserted: 0,
+                        error: "Error importing text.".to_string(),
+                    };
+                    Ok(HttpResponse::Ok().json(res))
+                }
+            },
+            Err(e) => {
+                let res = ImportResponse {
+                    success: false,
+                    words_inserted: 0,
+                    error: format!("Error importing text: invalid utf8. Valid up to position: {}.", e.valid_up_to() ),
+                };
+                Ok(HttpResponse::Ok().json(res))
+            }
         }
     }
     else {
@@ -686,6 +699,7 @@ async fn import_text((session, payload, req): (Session, Multipart, HttpRequest))
         */
     }
 }
+
 
 fn get_user_id(session:Session) -> Option<u32> {
     session.get::<u32>("user_id").unwrap_or(None)
@@ -1175,9 +1189,8 @@ pub mod process_xml {
         words
     }
 
-    pub async fn process_imported_text(mut payload: Multipart) -> (Vec<TextWord>, String) {
-        let mut a = "".to_string();
-        let mut words:Vec<TextWord> = Vec::new();
+    pub async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), std::str::Utf8Error> {
+        let mut xml_string = "".to_string();
         let mut title:String = "".to_string();
         
         // iterate over multipart stream
@@ -1198,25 +1211,32 @@ pub mod process_xml {
             // Field in turn is stream of *Bytes* object
             while let Some(chunk) = field.next().await {
                 let data = chunk.unwrap();
-                if let Ok(xml_data) = std::str::from_utf8(&data) {
-                    if name == "title" {
-                        title = xml_data.to_string();
+                match std::str::from_utf8(&data) {
+                    Ok(xml_data) => {
+                        if name == "title" {
+                            title = xml_data.to_string();
+                        }
+                        else if name == "file" {
+                            xml_string.push_str(xml_data);
+                        }
+                    },
+                    Err(e) => {
+                        return Err(e); //utf8 error
                     }
-                    else {
-                        a.push_str(xml_data);
-                    }
-                }
-                else {
-                    return (words, title); //return empty vec on error
-                }
                 // filesystem operations are blocking, we have to use threadpool
                 /*f = web::block(move || f.write_all(&data).map(|_| f))
                     .await
                     .unwrap();*/
+                }
             }
         }
-        
-        let mut reader = Reader::from_str(&a);
+        Ok((xml_string, title))
+    }
+
+    pub async fn process_imported_text(xml_string: String) -> Vec<TextWord> {
+        let mut words:Vec<TextWord> = Vec::new();
+
+        let mut reader = Reader::from_str(&xml_string);
         reader.trim_text(true);
         let mut buf = Vec::new();
 
@@ -1281,7 +1301,7 @@ pub mod process_xml {
                     else if b"head" == e.name() { in_head = false }
                },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(_e) => { words.clear(); return (words, title) }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(_e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
             }
         
@@ -1292,7 +1312,7 @@ pub mod process_xml {
         for a in words {
             println!("{} {}", a.word, a.word_type);
         }*/
-        (words, title)
+        words
     }
 }
 
