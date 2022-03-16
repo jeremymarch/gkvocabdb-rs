@@ -671,7 +671,7 @@ async fn import_text((session, payload, req): (Session, Multipart, HttpRequest))
                             let res = ImportResponse {
                                 success: false,
                                 words_inserted: 0,
-                                error: "Error importing text.".to_string(),
+                                error: "Error importing text: File and/or Title field(s) is/are empty.".to_string(),
                             };
                             Ok(HttpResponse::Ok().json(res))
                         }

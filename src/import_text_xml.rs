@@ -198,6 +198,7 @@ pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, 
     let mut in_text = false;
     let mut in_speaker = false;
     let mut in_head = false;
+    let mut found_tei = false;
     /*
     TEI: verse lines can either be empty <lb n="5"/>blah OR <l n="5">blah</l> 
     see Perseus's Theocritus for <lb/> and Euripides for <l></l>
@@ -213,6 +214,7 @@ pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, 
                 if b"text" == e.name() { in_text = true }
                 else if b"speaker" == e.name() { in_speaker = true }
                 else if b"head" == e.name() { in_head = true }
+                else if b"TEI.2" == e.name() { found_tei = true }
                 else if b"l" == e.name() { 
                     let mut line_num = "".to_string();
                     
@@ -265,6 +267,10 @@ pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, 
     
         // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
         buf.clear();
+    }
+    if !found_tei {
+        //using this error for now, if doc does not even try to be tei
+        return Err(quick_xml::Error::UnexpectedToken("Missing TEI.2 tags".to_string()));
     }
     /* 
     for a in words {
