@@ -653,26 +653,36 @@ async fn import_text((session, payload, req): (Session, Multipart, HttpRequest))
         match process_xml::get_xml_string(payload).await {
             Ok((xml_string, title)) => {
 
-                let words = process_xml::process_imported_text(xml_string).await;
+                match process_xml::process_imported_text(xml_string).await {
+                    Ok(words) => {
+                        if !words.is_empty() && !title.is_empty() {
         
-                if !words.is_empty() && !title.is_empty() {
-        
-                    let affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
-        
-                    let res = ImportResponse {
-                        success: true,
-                        words_inserted: affected_rows,
-                        error: "".to_string(),
-                    };
-                    Ok(HttpResponse::Ok().json(res))
-                }
-                else { 
-                    let res = ImportResponse {
-                        success: false,
-                        words_inserted: 0,
-                        error: "Error importing text.".to_string(),
-                    };
-                    Ok(HttpResponse::Ok().json(res))
+                            let affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                
+                            let res = ImportResponse {
+                                success: true,
+                                words_inserted: affected_rows,
+                                error: "".to_string(),
+                            };
+                            Ok(HttpResponse::Ok().json(res))
+                        }
+                        else { 
+                            let res = ImportResponse {
+                                success: false,
+                                words_inserted: 0,
+                                error: "Error importing text.".to_string(),
+                            };
+                            Ok(HttpResponse::Ok().json(res))
+                        }
+                    },
+                    Err(e) => {
+                        let res = ImportResponse {
+                            success: false,
+                            words_inserted: 0,
+                            error: format!("Error importing text: XML parse error: {:?}.", e),
+                        };
+                        Ok(HttpResponse::Ok().json(res))
+                    }
                 }
             },
             Err(e) => {
@@ -1233,7 +1243,7 @@ pub mod process_xml {
         Ok((xml_string, title))
     }
 
-    pub async fn process_imported_text(xml_string: String) -> Vec<TextWord> {
+    pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, quick_xml::Error> {
         let mut words:Vec<TextWord> = Vec::new();
 
         let mut reader = Reader::from_str(&xml_string);
@@ -1301,7 +1311,10 @@ pub mod process_xml {
                     else if b"head" == e.name() { in_head = false }
                },
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(_e) => { words.clear(); return words }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(e) => { 
+                    words.clear(); 
+                    return Err(e); 
+                }, //return empty vec on error //panic!("Error at position {}: {:?}", reader.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
             }
         
@@ -1312,7 +1325,7 @@ pub mod process_xml {
         for a in words {
             println!("{} {}", a.word, a.word_type);
         }*/
-        words
+        Ok(words)
     }
 }
 
