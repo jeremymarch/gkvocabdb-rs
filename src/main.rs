@@ -1182,7 +1182,7 @@ pub mod process_xml {
                 //add words
                 if last != index && &text[last..index] != " " {
                     let gloss_id = lemmatize_simple(&text[last..index]);
-                    words.push(TextWord{word: text[last..index].to_string(), word_type: WordType::Word as u32, gloss_id: gloss_id});
+                    words.push(TextWord{word: text[last..index].to_string(), word_type: WordType::Word as u32, gloss_id});
                 }
                 //add word separators
                 if matched != " " {
@@ -1193,7 +1193,7 @@ pub mod process_xml {
             //add last word
             if last < text.len() && &text[last..] != " " {
                 let gloss_id = lemmatize_simple(&text[last..]);
-                words.push(TextWord{word:text[last..].to_string(),word_type:WordType::Word as u32, gloss_id:gloss_id});
+                words.push(TextWord{word:text[last..].to_string(),word_type:WordType::Word as u32, gloss_id});
             }
         }
         words
@@ -1271,7 +1271,7 @@ pub mod process_xml {
                     else if b"l" == e.name() { 
                         let mut line_num = "".to_string();
                         
-                        for a in e.attributes().into_iter() { //.next().unwrap().unwrap();
+                        for a in e.attributes() { //.next().unwrap().unwrap();
                             if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {         
                                 line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                             }
@@ -1297,7 +1297,7 @@ pub mod process_xml {
                     if b"lb" == e.name() { 
                         let mut line_num = "".to_string();
                         
-                        for a in e.attributes().into_iter() { //.next().unwrap().unwrap();
+                        for a in e.attributes() { //.next().unwrap().unwrap();
                             if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {         
                                 line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                             }
