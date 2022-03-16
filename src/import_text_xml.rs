@@ -130,7 +130,6 @@ fn split_words(text: &str, in_speaker:bool, in_head:bool) -> Vec<TextWord> {
 
 pub async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), std::str::Utf8Error> {
     let mut xml_string = "".to_string();
-    let mut xml_string_data:Vec<u8> = Vec::new();
     let mut title:String = "".to_string();
     
     // iterate over multipart stream
@@ -151,33 +150,23 @@ pub async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
-            
-            //match std::str::from_utf8(&data) {
-            //    Ok(xml_data) => {
+            match std::str::from_utf8(&data) {
+                Ok(xml_data) => {
                     if name == "title" {
-                        //title = xml_data.to_string();
+                        title = xml_data.to_string();
                     }
                     else if name == "file" {
-                        //xml_string.push_str(xml_data);
-                        xml_string_data.push(data);
+                        xml_string.push_str(xml_data);
                     }
-           /*      },
+                },
                 Err(e) => {
                     return Err(e); //utf8 error
-                }*/
+                }
             // filesystem operations are blocking, we have to use threadpool
             /*f = web::block(move || f.write_all(&data).map(|_| f))
                 .await
                 .unwrap();*/
             }
-        }
-    
-    match std::str::from_utf8(&xml_string_data) {
-        Ok(xml_data) => {
-            xml_string = xml_data.to_string();
-        },
-        Err(e) => {
-            return Err(e); //utf8 error
         }
     }
     Ok((xml_string, title))
