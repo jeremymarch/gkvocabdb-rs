@@ -837,6 +837,22 @@ pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry,
   res
 }
 
+pub async fn get_update_log(pool: &SqlitePool, _searchprefix: &str, _page: u32, _limit: u32) -> Result<Vec<(String, String, String, String)>, sqlx::Error> {
+  let query = format!("SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, \
+    b.update_type, c.initials, update_desc \
+    FROM update_log a \
+    INNER JOIN update_types b ON a.update_type = b.update_type_id \
+    INNER JOIN users c ON a.user_id = c.user_id \
+    ORDER BY updated DESC \
+    LIMIT 20000;");
+  let res: Result<Vec<(String, String, String, String)>, sqlx::Error> = sqlx::query(&query)
+  .map(|rec: SqliteRow| (rec.get("timestamp"),rec.get("update_type"),rec.get("initials"),rec.get("update_desc") ) )
+  .fetch_all(pool)
+  .await;
+
+  res
+}
+
 pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
   let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
   let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)

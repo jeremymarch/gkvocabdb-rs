@@ -1,3 +1,22 @@
+/*
+gkvocabdb
+
+Copyright (C) 2021  Jeremy March
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+*/
+
 //https://users.rust-lang.org/t/file-upload-in-actix-web/64871/3
 
 use quick_xml::Reader;
@@ -8,135 +27,73 @@ use futures::{StreamExt, TryStreamExt};
 
 use super::*;
 
-//select b.gloss_id,b.lemma,count(b.gloss_id) c from words a inner join glosses b on a.gloss_id=b.gloss_id group by b.gloss_id order by c;
-fn lemmatize_simple(word:&str) -> Option<u32> {
-    match word {
-        "ὁ" => Some(16),
-        "τοῦ" => Some(16),
-        "τὸν" => Some(16),
-        "τῷ" => Some(16),
-        "οἱ" => Some(16),
-        "τῶν" => Some(16),
-        "τοὺς" => Some(16),
-        "τοῖς" => Some(16),
-        "ἡ" => Some(16),
-        "τῆς" => Some(16),
-        "τὴν" => Some(16),
-        "τῇ" => Some(16),
-        "αἱ" => Some(16),
-        "τὰς" => Some(16),
-        "ταῖς" => Some(16),
-        "τὸ" => Some(16),
-        "τὰ" => Some(16),
-        
-        "οὗτος" => Some(16),
-        "τοῦτο" => Some(16),
-        "ταῦτα" => Some(16),
-        "ἐκεῖνο" => Some(16),
+pub async fn import_text((session, payload, req): (Session, Multipart, HttpRequest)) -> Result<HttpResponse> {
+    let db = req.app_data::<SqlitePool>().unwrap();
 
-        "ἀεί" => Some(260),
-        "ἀεὶ" => Some(260),
-        "ἀλλ" => Some(54),
-        "ἀλλ'" => Some(54),
-        "ἀλλ᾽" => Some(54),
-        "ἀλλὰ" => Some(54),
-        "ἀλλά" => Some(54),
-        "ἅμα" => Some(191),
-        "ἄν" => Some(78),
-        "ἂν" => Some(78),
-        "ἆρα" => Some(28),
-        "αὖ" => Some(483),
-        "γὰρ" => Some(29),
-        "γάρ" => Some(29),
-        "γε" => Some(135),
-        "δ'" => Some(30),
-        "δ᾽" => Some(30),
-        "δ" => Some(30),
-        "δέ" => Some(30),
-        "δὲ" => Some(30),
-        "δὴ" => Some(59),
-        "δή" => Some(59),
-        "διά" => Some(61),
-        "διὰ" => Some(61),
-        "ἐγώ" => Some(392),
-        "ἐγὼ" => Some(392),
-        "εἰ" => Some(88),
-        "εἴ" => Some(88),
-        "εἰς" => Some(6),
-        "εἴτε" => Some(488),
-        "ἐκ" => Some(7),
-        "ἐξ" => Some(7),
-        "ἐν" => Some(8),
-        "ἐπεί" => Some(64),
-        "ἐπεὶ" => Some(64),
-        "ἐπειδή" => Some(65),
-        "ἐπειδὴ" => Some(65),
-        "ἔπειτα" => Some(193),
-        "ἐπί" => Some(333),
-        "ἐπὶ" => Some(333),
-        "ἐπ" => Some(333),
-        "ἐς" => Some(6),
-        "ἔτι" => Some(367),
-        "εὖ" => Some(32),
-        "ἢ" => Some(34),
-        "ἤ" => Some(34),
-        "ἤδη" => Some(640),
-        "καὶ" => Some(11),
-        "καί" => Some(11),
-        "καίτοι" => Some(93),
-        "κατά" => Some(146),
-        "κατὰ" => Some(146),
-        "μάλα" => Some(515),
-        "μᾶλλον" => Some(310),
-        "μέν" => Some(39),
-        "μὲν" => Some(39),
-        "μέντοι" => Some(598),
-        "μετά" => Some(96),
-        "μετὰ" => Some(96),
-        "μή" => Some(69),
-        "μὴ" => Some(69),
-        "μηδέ" => Some(312),
-        "μηδὲ" => Some(312),
-        "μὴν" => Some(555),
-        "μήν" => Some(555),
-        "μήτε" => Some(196),
-        "νῦν" => Some(40),
-        "ὅπως" => Some(348),
-        "ὅταν" => Some(282),
-        "ὅτι" => Some(435),
-        "οὐ" => Some(42),
-        "οὐκ" => Some(42),
-        "οὖν" => Some(182),
-        "οὔτε" => Some(200),
-        "οὐχ" => Some(42),
-        "παρά" => Some(44),
-        "παρὰ" => Some(44),
-        "περί" => Some(74),
-        "περὶ" => Some(74),
-        "που" => Some(319),
-        "πρίν" => Some(521),
-        "πρὶν" => Some(521),
-        "πρός" => Some(320),
-        "πρὸς" => Some(320),
-        "πῶς" => Some(284),
-        "σοι" => Some(408),
-        "σε" => Some(408),
-        "σὲ" => Some(408),
-        "σέ" => Some(408),
-        "σύ" => Some(408),
-        "σὺ" => Some(408),
-        "τ" => Some(157),
-        "τε" => Some(157),
-        "τι" => Some(414),
-        "τότε" => Some(286),
-        "ὑπό" => Some(131),
-        "ὑπὸ" => Some(131),
-        "χρή" => Some(537),
-        "χρὴ" => Some(537),
-        "ὦ" => Some(25),
-        "ὡς" => Some(76),
-        "ὥστε" => Some(259),
-        _ => None
+    let course_id = 1;
+
+    if let Some(user_id) = login::get_user_id(session) {
+        let timestamp = get_timestamp();
+        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
+        let user_agent = get_user_agent(&req).unwrap_or("");
+
+        match import_text_xml::get_xml_string(payload).await {
+            Ok((xml_string, title)) => {
+
+                match import_text_xml::process_imported_text(xml_string).await {
+                    Ok(words) => {
+                        if !words.is_empty() && !title.is_empty() {
+        
+                            let affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+                
+                            let res = ImportResponse {
+                                success: true,
+                                words_inserted: affected_rows,
+                                error: "".to_string(),
+                            };
+                            Ok(HttpResponse::Ok().json(res))
+                        }
+                        else { 
+                            let res = ImportResponse {
+                                success: false,
+                                words_inserted: 0,
+                                error: "Error importing text: File and/or Title field(s) is/are empty.".to_string(),
+                            };
+                            Ok(HttpResponse::Ok().json(res))
+                        }
+                    },
+                    Err(e) => {
+                        let res = ImportResponse {
+                            success: false,
+                            words_inserted: 0,
+                            error: format!("Error importing text: XML parse error: {:?}.", e),
+                        };
+                        Ok(HttpResponse::Ok().json(res))
+                    }
+                }
+            },
+            Err(e) => {
+                let res = ImportResponse {
+                    success: false,
+                    words_inserted: 0,
+                    error: format!("Error importing text: invalid utf8. Valid up to position: {}.", e.valid_up_to() ),
+                };
+                Ok(HttpResponse::Ok().json(res))
+            }
+        }
+    }
+    else {
+        let res = ImportResponse {
+            success: false,
+            words_inserted: 0,
+            error: "Import failed: not logged in".to_string(),
+        };
+        Ok(HttpResponse::Ok().json(res))
+        /*
+        Ok(HttpResponse::BadRequest()
+                .content_type("text/plain")
+                .body("update_failed: not logged in"))
+        */
     }
 }
 
@@ -304,4 +261,136 @@ pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, 
         println!("{} {}", a.word, a.word_type);
     }*/
     Ok(words)
+}
+
+//select b.gloss_id,b.lemma,count(b.gloss_id) c from words a inner join glosses b on a.gloss_id=b.gloss_id group by b.gloss_id order by c;
+fn lemmatize_simple(word:&str) -> Option<u32> {
+    match word {
+        "ὁ" => Some(16),
+        "τοῦ" => Some(16),
+        "τὸν" => Some(16),
+        "τῷ" => Some(16),
+        "οἱ" => Some(16),
+        "τῶν" => Some(16),
+        "τοὺς" => Some(16),
+        "τοῖς" => Some(16),
+        "ἡ" => Some(16),
+        "τῆς" => Some(16),
+        "τὴν" => Some(16),
+        "τῇ" => Some(16),
+        "αἱ" => Some(16),
+        "τὰς" => Some(16),
+        "ταῖς" => Some(16),
+        "τὸ" => Some(16),
+        "τὰ" => Some(16),
+
+        "οὗτος" => Some(16),
+        "τοῦτο" => Some(16),
+        "ταῦτα" => Some(16),
+        "ἐκεῖνο" => Some(16),
+
+        "ἀεί" => Some(260),
+        "ἀεὶ" => Some(260),
+        "ἀλλ" => Some(54),
+        "ἀλλ'" => Some(54),
+        "ἀλλ᾽" => Some(54),
+        "ἀλλὰ" => Some(54),
+        "ἀλλά" => Some(54),
+        "ἅμα" => Some(191),
+        "ἄν" => Some(78),
+        "ἂν" => Some(78),
+        "ἆρα" => Some(28),
+        "αὖ" => Some(483),
+        "γὰρ" => Some(29),
+        "γάρ" => Some(29),
+        "γε" => Some(135),
+        "δ'" => Some(30),
+        "δ᾽" => Some(30),
+        "δ" => Some(30),
+        "δέ" => Some(30),
+        "δὲ" => Some(30),
+        "δὴ" => Some(59),
+        "δή" => Some(59),
+        "διά" => Some(61),
+        "διὰ" => Some(61),
+        "ἐγώ" => Some(392),
+        "ἐγὼ" => Some(392),
+        "εἰ" => Some(88),
+        "εἴ" => Some(88),
+        "εἰς" => Some(6),
+        "εἴτε" => Some(488),
+        "ἐκ" => Some(7),
+        "ἐξ" => Some(7),
+        "ἐν" => Some(8),
+        "ἐπεί" => Some(64),
+        "ἐπεὶ" => Some(64),
+        "ἐπειδή" => Some(65),
+        "ἐπειδὴ" => Some(65),
+        "ἔπειτα" => Some(193),
+        "ἐπί" => Some(333),
+        "ἐπὶ" => Some(333),
+        "ἐπ" => Some(333),
+        "ἐς" => Some(6),
+        "ἔτι" => Some(367),
+        "εὖ" => Some(32),
+        "ἢ" => Some(34),
+        "ἤ" => Some(34),
+        "ἤδη" => Some(640),
+        "καὶ" => Some(11),
+        "καί" => Some(11),
+        "καίτοι" => Some(93),
+        "κατά" => Some(146),
+        "κατὰ" => Some(146),
+        "μάλα" => Some(515),
+        "μᾶλλον" => Some(310),
+        "μέν" => Some(39),
+        "μὲν" => Some(39),
+        "μέντοι" => Some(598),
+        "μετά" => Some(96),
+        "μετὰ" => Some(96),
+        "μή" => Some(69),
+        "μὴ" => Some(69),
+        "μηδέ" => Some(312),
+        "μηδὲ" => Some(312),
+        "μὴν" => Some(555),
+        "μήν" => Some(555),
+        "μήτε" => Some(196),
+        "νῦν" => Some(40),
+        "ὅπως" => Some(348),
+        "ὅταν" => Some(282),
+        "ὅτι" => Some(435),
+        "οὐ" => Some(42),
+        "οὐκ" => Some(42),
+        "οὖν" => Some(182),
+        "οὔτε" => Some(200),
+        "οὐχ" => Some(42),
+        "παρά" => Some(44),
+        "παρὰ" => Some(44),
+        "περί" => Some(74),
+        "περὶ" => Some(74),
+        "που" => Some(319),
+        "πρίν" => Some(521),
+        "πρὶν" => Some(521),
+        "πρός" => Some(320),
+        "πρὸς" => Some(320),
+        "πῶς" => Some(284),
+        "σοι" => Some(408),
+        "σε" => Some(408),
+        "σὲ" => Some(408),
+        "σέ" => Some(408),
+        "σύ" => Some(408),
+        "σὺ" => Some(408),
+        "τ" => Some(157),
+        "τε" => Some(157),
+        "τι" => Some(414),
+        "τότε" => Some(286),
+        "ὑπό" => Some(131),
+        "ὑπὸ" => Some(131),
+        "χρή" => Some(537),
+        "χρὴ" => Some(537),
+        "ὦ" => Some(25),
+        "ὡς" => Some(76),
+        "ὥστε" => Some(259),
+        _ => None
+    }
 }
