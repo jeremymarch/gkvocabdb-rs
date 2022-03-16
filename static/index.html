@@ -1557,11 +1557,24 @@ async function uploadfile() {
         formData.append("title", $("#fileuploadtitle").val());
         formData.append("file", fileupload.files[0]);
         
-        await fetch('importtext', {
+        let response = await fetch('importtext', {
             method: "POST", 
             body: formData,
             contentType: false
         });
+
+        if(response.status == 200) {
+            let json_response = await response.json();
+	        if(json_response.success) {
+                alert("Successfully imported text with " + json_response.words_inserted + " words.");
+            }
+            else {
+                alert("Error importing text (1).");
+            }
+        }
+        else {
+            alert("Error importing text (2).");
+        }
         $("#uploadform").hide();
     }
 }
@@ -1990,7 +2003,7 @@ height: 22px;
     <button id="newLemmaButton" onclick="newLemmaFormToggle()" style="">New Gloss</button> 
     <button id="editLemmaButton" onclick="editLemmaFormToggle()" style="">Edit Gloss</button> 
     <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" style="">Select Gloss</button>
-    <button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>
+    <!--<button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>-->
     <!--<button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button>-->
 </div>
 <div id="textdiv">

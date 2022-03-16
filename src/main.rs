@@ -633,6 +633,13 @@ struct LoginCheckResponse {
     user_id:u32,
 }
 
+#[derive(Debug, Serialize)]
+struct ImportResponse {
+    success: bool,
+    words_inserted:u64,
+    error:String,
+}
+
 async fn import_text((session, payload, req): (Session, Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
@@ -647,22 +654,36 @@ async fn import_text((session, payload, req): (Session, Multipart, HttpRequest))
         
         if !words.is_empty() && !title.is_empty() {
 
-                let _affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+            let affected_rows = add_text(db, course_id, &title, words, user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
-                Ok(HttpResponse::Ok()
-                    .content_type("text/plain")
-                    .body("update_succeeded"))
-            }
-            else { 
-                Ok(HttpResponse::BadRequest()
-                .content_type("text/plain")
-                .body("update_failed"))
+            let res = ImportResponse {
+                success: true,
+                words_inserted: affected_rows,
+                error: "".to_string(),
+            };
+            Ok(HttpResponse::Ok().json(res))
+        }
+        else { 
+            let res = ImportResponse {
+                success: false,
+                words_inserted: 0,
+                error: "Error importing text.".to_string(),
+            };
+            Ok(HttpResponse::Ok().json(res))
         }
     }
     else {
+        let res = ImportResponse {
+            success: false,
+            words_inserted: 0,
+            error: "Import failed: not logged in".to_string(),
+        };
+        Ok(HttpResponse::Ok().json(res))
+        /*
         Ok(HttpResponse::BadRequest()
                 .content_type("text/plain")
                 .body("update_failed: not logged in"))
+        */
     }
 }
 
@@ -694,7 +715,7 @@ async fn login_get() -> Result<HttpResponse, AWError> {
             setTheme();
         </script>
         <style>
-            BODY {font-family:helvetica;arial;display: flex;align-items: center;justify-content: center;height: 87vh;}
+            BODY { font-family:helvetica;arial;display: flex;align-items: center;justify-content: center;height: 87vh; }
             TABLE { border:2px solid black;padding: 24px;border-radius: 10px; }
             BUTTON { padding: 3px 16px; }
             .dark BODY { background-color:black;color:white; }
@@ -731,6 +752,7 @@ async fn login_get() -> Result<HttpResponse, AWError> {
                 </tbody>
             </table>
         </form>
+        <script>/*document.getElementById("username").focus();*/</script>
     </body>
 </html>"#))
 }
