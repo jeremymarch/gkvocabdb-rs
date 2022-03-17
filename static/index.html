@@ -1566,8 +1566,8 @@ async function uploadfile() {
         
         let response = await fetch('importtext', {
             method: "POST", 
-            headers: { 'Content-Type': 'text/xml;charset=UTF-8' },
             body: formData
+            //,headers: {'Content-Type': 'text/plain;charset=UTF-8' },  this breaks it, says no TEI.2 tag
         });
 
         if (response.status == 200) {
