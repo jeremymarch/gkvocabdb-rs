@@ -903,6 +903,8 @@ const TYPE_PARA_NO_INDENT = 10;
         if (returnObj.words && Array.isArray(returnObj.words)) {
             returnObj.words.forEach(function (i,v) {
 
+                i.w = i.w.trim(); //because there are some spaces in the punctuation of Xenophon and elsewhere.  Maybe remove them in the db?
+
                 //build gloss
                 if (i.t < TYPE_PUNCTUATION )//&& !i.l)
                 {
