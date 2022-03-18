@@ -357,7 +357,7 @@ function handleKey(evt) {
         lemmaListWordTree = w;
         w.hideFunction = hideLemmaList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Select</button><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
         w.title.innerHTML = title;
         
         //w.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
@@ -368,7 +368,7 @@ function handleKey(evt) {
 
         $("#test1Entry").css("font-size", "14pt").addClass("gkinput");
         $(".gkinput").keypress(handleKey);
-
+/*
         var select = document.createElement("BUTTON");
         var selectText = document.createTextNode("Select");
         select.appendChild(selectText);
@@ -377,7 +377,7 @@ function handleKey(evt) {
         select.style.right = "5px";
         select.onclick = selectGlossClicked;
         document.querySelector("#test1 .wordtreetitlediv").appendChild(select);
-
+*/
 
 
         var w2 = new wordtree("text", 480, $(document).height() - 38);
@@ -391,9 +391,9 @@ function handleKey(evt) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='testlistclosebutton' onclick='hideTextList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='testlistclosebutton' onclick='hideTextList()'>X</button></div>";
         w2.title.innerHTML = title;
-
+/*
         var select = document.createElement("BUTTON");
         var selectText = document.createTextNode("Select");
         select.appendChild(selectText);
@@ -402,7 +402,7 @@ function handleKey(evt) {
         select.style.right = "5px";
         select.onclick = selectTextClicked;
         document.querySelector("#text .wordtreetitlediv").appendChild(select);
-        
+        */
         //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
         w2.onEnterActivate = queryText;
         //w2.onClickActivate = act;
@@ -1647,10 +1647,20 @@ BUTTON {
     top: 0px;
     right: 8px;
 }
+#glosslistSelectButton {
+    position: absolute;
+    top: -4px;
+    right: 35px;  
+}
+#selectTextButton {
+    position: absolute;
+    top: -4px;
+    right: 106px;  
+}
 #uploadbutton {
     position: absolute;
     top: -4px;
-    right: 42px;
+    right: 35px;
 }
 #glosslistclosebutton,
 #testlistclosebutton {
