@@ -864,6 +864,8 @@ function handleKey(evt) {
             return;
         }
 
+        $("#showButton").css("display", "");
+        $("#hideButton").css("display", "none");
         if (returnObj.thisText && Number.isInteger(parseInt(returnObj.thisText))) {
             setCookie("selectedText", returnObj.thisText, 60);
         }
