@@ -296,15 +296,7 @@ function wordtree(idPrefix, width, height)
     
     function makeQueryString(paramsObj)
     {
-        var json = "{";
-
-        for (prop in paramsObj)
-            json += '"' + prop + '":"' + paramsObj[prop] + '",';
-        
-        json = json.replace(/[,]+$/,""); //trim trailing comma
-        json += "}";
-        
-        return json;    
+        return JSON.stringify(paramsObj);
     }
 
 	function cellInit()
