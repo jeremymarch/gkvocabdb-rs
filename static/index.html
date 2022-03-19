@@ -531,7 +531,7 @@ function handleKey(evt) {
             return;
         }
         var lemmaid = a.attr("lemmaid");
-        if (typeof(lemmaid) == "undefined" || lemmaid === null || lemmaid == "")
+        if (typeof(lemmaid) == "undefined" || lemmaid === null || lemmaid == ""|| lemmaid == 0)
         {
             alert("A gloss must be set on a word before you can edit it.  Use Select Gloss.");
             return;
