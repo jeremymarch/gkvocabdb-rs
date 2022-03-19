@@ -2064,6 +2064,21 @@ height: 22px;
 #leftlist {
   /*background-color:white;*/
 }
+
+BUTTON { color:black;text-align:center;}
+
+.dark BODY {background-color:black;color:white;}
+.dark BUTTON{background-color:black;color:white;border:2px solid white;}
+.dark #textcontents {background-color:#202124;color:white;}
+.dark #wordscontents {background-color:#202124;color:white;}
+.dark #textdiv {background-color:#202124;color:white;}
+.dark #words {background-color:#202124;color:white;}
+.dark .nodestyle {background-color:#202124;color:white;}
+.dark .wordtree {background-color:#202124;color:white;}
+.dark .wordtreeEntry {background-color:#202124;color:white;}
+.dark .selectedRowClass { background-color: #8899EE; color: white; }
+.dark #editformcontainer, .dark #uploadform {background-color:black;color:white;border:2px solid white;}
+.dark .inputText {background-color:black;color:white;border:2px solid white;}
 </style>
 </head>
 <body onload="onload()">
@@ -2093,7 +2108,7 @@ height: 22px;
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
         <h2>Upload TEI XML File</h2>
-        Title: <input id="fileuploadtitle" type="text" name="fileuploadtitle" /><br/><br/>
+        Title: <input id="fileuploadtitle" class="inputText" type="text" name="fileuploadtitle" /><br/><br/>
         <input id="fileupload" type="file" name="fileupload" /><br/><br/>
         <button onclick="uploaddialog()">Cancel</button><button onclick="uploadfile()">Upload</button>
       </div>

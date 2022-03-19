@@ -172,6 +172,7 @@ function wordtree(idPrefix, width, height)
 	input.setAttribute("spellcheck", "false");
     //input.setAttribute("lang", "el");
     input.id = idPrefix + "Entry";
+    input.classList.add("wordtreeEntry");
     this.entry = input;
     
     var loading = document.createElement("div");

@@ -4,7 +4,6 @@ version = "0.2.0"
 edition = "2021"
 authors = ["Jeremy March <jmarch@gradcenter.cuny.edu>"]
 license = "AGPL-3.0"
-license-file = "LICENSE.md"
 
 [dependencies]
 actix-web = { version = "4.0.1" }
