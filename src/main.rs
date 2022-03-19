@@ -73,7 +73,7 @@ pub struct QueryResponse {
     pub this_text: u32,
     pub words: Vec<WordRow>,
     #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
-    pub selected_id: u32,
+    pub selected_id: Option<u32>,
     pub error: String,
 }
 
@@ -379,7 +379,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         let res = QueryResponse {
             this_text: 1,
             words: [].to_vec(),
-            selected_id: 1,
+            selected_id: None,
             error: "fall through error (update_words)".to_string(),
         };
 
@@ -389,7 +389,7 @@ async fn update_words((session, post, req): (Session, web::Form<UpdateRequest>, 
         let res = QueryResponse {
             this_text: 1,
             words: [].to_vec(),
-            selected_id: 1,
+            selected_id: None,
             error: "Not logged in (update_words)".to_string(),
         };
 
@@ -583,7 +583,7 @@ async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>
         let res = QueryResponse {
             this_text: text_id,
             words: w,
-            selected_id: 1,
+            selected_id: None,
             error: "".to_string(),
         };
 
@@ -593,7 +593,7 @@ async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>
         let res = QueryResponse {
             this_text: 1,
             words: vec![],
-            selected_id: 1,
+            selected_id: None,
             error: "Not logged in".to_string(),
         };
 
