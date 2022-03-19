@@ -27,6 +27,31 @@ use futures::{StreamExt, TryStreamExt};
 
 use super::*;
 
+#[allow(dead_code)]
+enum WordType {
+    Word = 0,
+    Punctuation = 1,
+    Speaker = 2,
+    Section = 4,
+    VerseLine = 5, //for verse #
+    ParaWithIndent = 6,
+    WorkTitle = 7,
+    SectionTitle = 8,
+    InlineSpeaker = 9,
+    ParaNoIndent = 10,
+    PageBreak = 11,
+//0 word
+//1 punct
+//2 speaker
+//4 section
+//5 new line for verse #
+//6 new para with indent
+//7 work title
+//8 section title centered
+//9 inline speaker, so 2, but inline
+//10 new para without indent
+}
+
 pub async fn import_text((session, payload, req): (Session, Multipart, HttpRequest)) -> Result<HttpResponse> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
@@ -286,6 +311,9 @@ pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, 
                         }
                     }
                     words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32,gloss_id:None }); 
+                }
+                else if b"gkvocab_page_break" == e.name() { 
+                    words.push( TextWord{ word: "".to_string(), word_type: WordType::PageBreak as u32,gloss_id:None }); 
                 }
             },
             Ok(Event::End(ref e)) => {

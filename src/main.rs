@@ -229,30 +229,6 @@ pub struct GetGlossResponse {
     pub words: Vec<GlossEntry>,
 }
 
-#[allow(dead_code)]
-enum WordType {
-    Word = 0,
-    Punctuation = 1,
-    Speaker = 2,
-    Section = 4,
-    VerseLine = 5, //for verse #
-    ParaWithIndent = 6,
-    WorkTitle = 7,
-    SectionTitle = 8,
-    InlineSpeaker = 9,
-    ParaNoIndent = 10
-//0 word
-//1 punct
-//2 speaker
-//4 section
-//5 new line for verse #
-//6 new para with indent
-//7 work title
-//8 section title centered
-//9 inline speaker, so 2, but inline
-//10 new para without indent
-}
-
 #[allow(clippy::eval_order_dependence)]
 async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
