@@ -460,7 +460,7 @@ async fn get_glosses((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest
 
     //strip any numbers from end of string
     //let re = Regex::new(r"[0-9]").unwrap();
-    let result_rows_stripped:Vec<(String,u32)> = result_rows.into_iter().map( |mut row| { row.0 = format!("<b>{}</b> {} [count {}] <a href='javascript:editLemmaFormToggle2({})'>edit</a>", row.0,row.2,row.3,row.1); (row.0,row.1) }).collect();
+    let result_rows_stripped:Vec<(String,u32)> = result_rows.into_iter().map( |mut row| { row.0 = format!("<b>{}</b> {} [count {}]", row.0, row.2, row.3); (row.0,row.1) }).collect();
 
     let mut gloss_rows:Vec<AssignmentTree> = vec![];
     for r in &result_rows_stripped {
@@ -697,7 +697,10 @@ async fn main() -> io::Result<()> {
         */
         
         //let auth_basic = HttpAuthentication::basic(validator_basic);
+
         App::new()
+            //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
+            //    err, HttpResponse::Conflict().finish()).into()))
             //.wrap(json_cfg)
             .app_data(db_pool.clone())
             

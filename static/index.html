@@ -357,7 +357,7 @@ function handleKey(evt) {
         lemmaListWordTree = w;
         w.hideFunction = hideLemmaList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Select</button><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
         w.title.innerHTML = title;
         
         //w.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
@@ -412,6 +412,13 @@ function handleKey(evt) {
         onResize();
     }
 
+    function editGlossListClicked() {
+        let row = document.querySelector("#test1 .selectedRowClass");
+        if (row) {
+            //addLemmaIDEnter("hqvocab", getColumnValues(row));
+            editLemmaFormToggle2(getColumnValues(row)[1]);
+        }
+    }
     function selectGlossClicked() {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
@@ -1651,10 +1658,15 @@ BUTTON {
     top: 2px;
     right: 8px;
 }
-#glosslistSelectButton {
+#glosslistEditButton {
     position: absolute;
     top: -4px;
     right: 35px;  
+}
+#glosslistSelectButton {
+    position: absolute;
+    top: -4px;
+    right: 85px;  
 }
 #selectTextButton {
     position: absolute;
@@ -2081,6 +2093,10 @@ BUTTON { color:black;text-align:center;}
 .dark .selectedRowClass { background-color: #8899EE; color: white; }
 .dark #editformcontainer, .dark #uploadform {background-color:black;color:white;border:2px solid white;}
 .dark .inputText {background-color:black;color:white;border:2px solid white;}
+.dark .selectedWord { background-color:orange !important; }
+.dark .listfrequency {color:#03a5fc;}
+
+
 </style>
 </head>
 <body onload="onload()">
@@ -2092,8 +2108,8 @@ BUTTON { color:black;text-align:center;}
     <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" >Select Gloss</button>
     <button id="newLemmaButton" onclick="newLemmaFormToggle()">New Gloss</button> 
     <button id="editLemmaButton" onclick="editLemmaFormToggle()">Edit Gloss</button> 
-    <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen Glosses</button> 
-    <button id="showButton"  onclick="show1()">Show All Glosses</button>
+    <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen</button> 
+    <button id="showButton"  onclick="show1()">Show All</button>
 </div>
     <!--<button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>-->
     <!--<button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button>-->
