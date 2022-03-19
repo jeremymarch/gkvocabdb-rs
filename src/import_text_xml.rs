@@ -97,17 +97,68 @@ pub async fn import_text((session, payload, req): (Session, Multipart, HttpReque
     }
 }
 
+fn sanitize_greek(s:&str) -> String {
+
+    use regex::Regex;
+    let smooth_breathing_re = Regex::new(r"\u{1FBF}(?P<letter>.)").unwrap();
+    let r = smooth_breathing_re.replace_all(s, "$letter\u{0313}");
+    
+    let rough_breathing_re = Regex::new(r"\u{1FFE}(?P<letter>.)").unwrap();
+    let r = rough_breathing_re.replace_all(&r, "$letter\u{0314}");
+
+    let rough_breathing_acute_re = Regex::new(r"\u{1FDE}(?P<letter>.)").unwrap();
+    let r = rough_breathing_acute_re.replace_all(&r, "$letter\u{0314}\u{0301}");
+
+    let smooth_breathing_acute_re = Regex::new(r"\u{1FCE}(?P<letter>.)").unwrap();
+    let r = smooth_breathing_acute_re.replace_all(&r, "$letter\u{0313}\u{0301}");
+
+    let smooth_breathing_circumflex_re = Regex::new(r"\u{1FCF}(?P<letter>.)").unwrap();
+    let r = smooth_breathing_circumflex_re.replace_all(&r, "$letter\u{0313}\u{0342}");
+
+    let rough_breathing_circumflex_re = Regex::new(r"\u{1FCD}(?P<letter>.)").unwrap();
+    let r = rough_breathing_circumflex_re.replace_all(&r, "$letter\u{0314}\u{0342}");
+
+    let smooth_breathing_grave_re = Regex::new(r"\u{1FCD}(?P<letter>.)").unwrap();
+    let r = smooth_breathing_grave_re.replace_all(&r, "$letter\u{0313}\u{0300}");
+
+    let rough_breathing_grave_re = Regex::new(r"\u{1FDD}(?P<letter>.)").unwrap();
+    let r = rough_breathing_grave_re.replace_all(&r, "$letter\u{0314}\u{0300}");
+
+    //https://apagreekkeys.org/technicalDetails.html
+    let r = r.replace("\u{1F71}", "\u{03AC}") //acute -> tonos, etc...
+        .replace("\u{1FBB}", "\u{0386}") 
+        .replace("\u{1F73}", "\u{03AD}")
+        .replace("\u{1FC9}", "\u{0388}")
+        .replace("\u{1F75}", "\u{03AE}")
+        .replace("\u{1FCB}", "\u{0389}")
+        .replace("\u{1F77}", "\u{03AF}")
+        .replace("\u{1FDB}", "\u{038A}")
+        .replace("\u{1F79}", "\u{03CC}")
+        .replace("\u{1FF9}", "\u{038C}")
+        .replace("\u{1F7B}", "\u{03CD}")
+        .replace("\u{1FEB}", "\u{038E}")
+        .replace("\u{1F7D}", "\u{03CE}")
+        .replace("\u{1FFB}", "\u{038F}")
+        .replace("\u{1FD3}", "\u{0390}") //iota + diaeresis + acute
+        .replace("\u{1FE3}", "\u{03B0}") //upsilon + diaeresis + acute
+        .replace("\u{037E}", "\u{003B}") //semicolon
+        .replace("\u{0387}", "\u{00B7}") //middle dot
+        .replace("\u{0344}", "\u{0308}\u{0301}"); //combining diaeresis with acute
+               
+    r.to_string()
+}
+
 fn split_words(text: &str, in_speaker:bool, in_head:bool) -> Vec<TextWord> {
     let mut words:Vec<TextWord> = vec![];
     let mut last = 0;
     if in_head {
-        words.push(TextWord{word: text.to_string(),word_type:WordType::WorkTitle as u32, gloss_id:None});
+        words.push(TextWord{word: text.to_string(), word_type:WordType::WorkTitle as u32, gloss_id:None});
     }
     else if in_speaker {
-        words.push(TextWord{word: text.to_string(),word_type:WordType::Speaker as u32, gloss_id:None});
+        words.push(TextWord{word: text.to_string(), word_type:WordType::Speaker as u32, gloss_id:None});
     }
     else {
-        for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'')) {
+        for (index, matched) in text.match_indices(|c: char| !(c.is_alphanumeric() || c == '\'' || unicode_normalization::char::is_combining_mark(c))) {
             //add words
             if last != index && &text[last..index] != " " {
                 let gloss_id = lemmatize_simple(&text[last..index]);
@@ -115,14 +166,14 @@ fn split_words(text: &str, in_speaker:bool, in_head:bool) -> Vec<TextWord> {
             }
             //add word separators
             if matched != " " {
-                words.push(TextWord{word:matched.to_string(),word_type:WordType::Punctuation as u32, gloss_id:None});
+                words.push(TextWord{word:matched.to_string(), word_type:WordType::Punctuation as u32, gloss_id:None});
             }
             last = index + matched.len();
         }
         //add last word
         if last < text.len() && &text[last..] != " " {
             let gloss_id = lemmatize_simple(&text[last..]);
-            words.push(TextWord{word:text[last..].to_string(),word_type:WordType::Word as u32, gloss_id});
+            words.push(TextWord{word:text[last..].to_string(), word_type:WordType::Word as u32, gloss_id});
         }
     }
     words
@@ -216,7 +267,8 @@ pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, 
                     if let Ok(s) = e.unescape_and_decode(&reader) {
                         
                         //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
-                        words.extend_from_slice(&split_words(&s, in_speaker, in_head)[..]);
+                        let clean_string = sanitize_greek(&s);
+                        words.extend_from_slice(&split_words(&clean_string, in_speaker, in_head)[..]);
 
                         //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
                         //words2.word.extend_from_slice(&words.word[..]);
@@ -394,3 +446,32 @@ fn lemmatize_simple(word:&str) -> Option<u32> {
         _ => None
     }
 }
+
+#[test]
+fn test_split() {
+    assert_eq!('\u{0313}'.is_alphanumeric(), false); //combining chars are not alphanumeric, so
+    // be sure combining diacritics do not divide words (this is why we use unicode_normalization::char::is_combining_mark(c))
+    let a = split_words("α\u{0313}α ββ", false, false);
+    assert_eq!(a.len(), 2);
+
+    // be sure ' does not divide words
+    let a = split_words("δ' ββ", false, false);
+    assert_eq!(a.len(), 2);
+    assert_eq!(a[0].word, "δ'");
+}
+
+#[test]
+fn test_sanitize_greek() {
+    let a = sanitize_greek("\u{1FBF}Αφροδίτ\u{1FBF}Αα ββ");
+    assert_eq!(a, "Α\u{0313}φροδίτΑ\u{0313}α ββ");
+
+    let a = sanitize_greek("\u{1FFE}Εκάτα\u{1FFE}Εκάτα ββ");
+    assert_eq!(a, "Ε\u{0314}κάταΕ\u{0314}κάτα ββ");
+
+    let a = sanitize_greek("\u{1FDE}Αιδα\u{1FDE}Αιδα ββ");
+    assert_eq!(a, "Α\u{0314}\u{0301}ιδαΑ\u{0314}\u{0301}ιδα ββ");
+
+    let a = sanitize_greek("\u{1FCE}Ερως\u{1FCE}Αρτεμι ββ");
+    assert_eq!(a, "Ε\u{0313}\u{0301}ρωςΑ\u{0313}\u{0301}ρτεμι ββ");
+}
+
