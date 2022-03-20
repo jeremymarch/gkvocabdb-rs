@@ -1645,6 +1645,61 @@ function onResize() {
         $(".wordtree").css("width", width - 19 + "px");
       }
 
+      function toggleSettings() {
+    var s = document.getElementById("settingsdiv");
+    if (!s) {
+      var s = document.createElement("div");
+      s.id = "settingsdiv";
+      s.classList.add("settings");
+      s.style.display = "block";
+      s.innerHTML = "Settings<br><ul><li><div tabindex='0' style='height:70px;'>dark mode: <div style='text-align:right;float:right;padding:0px;border:none;'>system <input id='darkModeSystem' type='radio' name='darkmode' onclick='darkModeClick(this);' value='system'/><br>dark <input id='darkModeDark' type='radio' name='darkmode' onclick='darkModeClick(this);' value='dark'/><br>light<input id='darkModeLight' type='radio' name='darkmode' onclick='darkModeClick(this);' value='light'/></div></div></li></ul>";
+      var c = document.createElement("div");
+      c.id="backdrop";
+      c.onclick = function() {
+        document.querySelector("#backdrop").style.display = "none";
+        toggleSettings();
+      };
+      document.body.appendChild(c);
+      document.body.appendChild(s);
+    }
+    else if (s.style.display == "block") {
+      document.querySelector("#backdrop").style.display = "none";
+      s.style.display = "none";
+    }
+    else {
+      document.querySelector("#backdrop").style.display = "block";
+      s.style.display = "block";
+    }
+
+    var a = localStorage.getItem("mode");
+    switch (a) {
+    case "dark":
+      document.querySelector("#darkModeDark").checked = true;
+      break;
+    case "light":
+      document.querySelector("#darkModeLight").checked = true;
+      break;
+    default:
+      document.querySelector("#darkModeSystem").checked = true;
+      break;
+    }
+  }
+
+function darkModeClick(radio) {
+  switch (radio.value) {
+    case "dark":
+      localStorage.setItem("mode", "dark");
+      break;
+    case "light":
+      localStorage.setItem("mode", "light");
+      break;
+    default:
+      localStorage.removeItem("mode");
+      break;
+  }
+  setTheme();
+}
+
 window.onresize = onResize;
 
 </script>
@@ -1656,12 +1711,12 @@ BUTTON {
 #hideButton {
     position: absolute;
     top: 2px;
-    right: 8px;
+    right: 46px;
 }
 #glosslistEditButton {
     position: absolute;
     top: -4px;
-    right: 35px;  
+    right: 40px;  
 }
 #glosslistSelectButton {
     position: absolute;
@@ -2079,6 +2134,64 @@ height: 22px;
   /*background-color:white;*/
 }
 
+#hamburger {
+  background-color: white;
+  border:1px solid #666;
+  border-radius:4px;
+  cursor: pointer;
+  height:26px;
+  width:26px;
+  position: absolute;
+  right:10px;
+}
+#hamburger rect {
+  fill: black;
+}
+
+#backdrop {
+  position: absolute;
+  top:0px;
+  left:0px;
+  width:100%;
+  height:100%;
+  z-index:900;
+}
+
+#settingsdiv ul {
+  list-style-type: none;
+  margin: 0px;
+  padding: 0px;
+  text-align: left;
+}
+
+.settings {
+      position: absolute;
+      top: 40px;
+      right: 11px;
+      height: 104px;
+      width: 230px;
+      z-index: 999;
+      padding:10px;
+    }
+
+#settingsdiv {
+  background-color: white;
+  color:black;
+  border: 2px solid black;
+  border-radius:10px;
+}
+
+.dark #settingsdiv {
+  background-color: black;
+  color:white;
+  border: 2px solid white;
+}
+
+.dark #settingsdiv li {
+  color:white;
+}
+
+
 BUTTON { color:black;text-align:center;}
 
 .dark BODY {background-color:black;color:white;}
@@ -2096,6 +2209,13 @@ BUTTON { color:black;text-align:center;}
 .dark .selectedWord { background-color:orange !important; }
 .dark .listfrequency {color:#03a5fc;}
 
+.dark #hamburger {
+  background-color: black;
+}
+.dark #hamburger rect {
+  fill: white;
+}
+
 
 </style>
 </head>
@@ -2110,6 +2230,11 @@ BUTTON { color:black;text-align:center;}
     <button id="editLemmaButton" onclick="editLemmaFormToggle()">Edit Gloss</button> 
     <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen</button> 
     <button id="showButton"  onclick="show1()">Show All</button>
+    <svg onclick="toggleSettings()" id="hamburger" viewBox="0 0 120 120">
+        <rect x="10" y="30" width="100" height="12"></rect>
+        <rect x="10" y="56" width="100" height="12"></rect>
+        <rect x="10" y="82" width="100" height="12"></rect>
+      </svg>
 </div>
     <!--<button id="flagButton" onclick="flagToggle()" style="">Flag/Unflag</button>-->
     <!--<button id="annotateButton" onclick="annotateGloss()" style="">Annotate</button>-->
