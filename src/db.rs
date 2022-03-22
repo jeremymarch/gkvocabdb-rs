@@ -800,6 +800,17 @@ pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::E
 }
 */
 pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
+  let query = "SELECT text FROM words WHERE word_id = ?;";
+  
+  let rec: (u32,) = sqlx::query_as(query)
+  .bind(word_id)
+  .fetch_one(pool)
+  .await?;
+  
+  Ok(rec.0)
+}
+/* 
+pub async fn old_get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
   let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = ?) AND C.seq >= (SELECT seq FROM words WHERE word_id = ?) LIMIT 1;";
   
   let rec: (u32,) = sqlx::query_as(query)
@@ -810,6 +821,7 @@ pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u
   
   Ok(rec.0)
 }
+*/
 
 /*
 pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), sqlx::Error> {

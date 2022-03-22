@@ -585,6 +585,8 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
+    let selected_word_id:Option<u32> = Some(info.wordid);
+
     if login::get_user_id(session).is_some() {
         let course_id = 1;
 
@@ -615,7 +617,7 @@ async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>
         let res = QueryResponse {
             this_text: text_id,
             words: w,
-            selected_id: None,
+            selected_id: selected_word_id,
             error: "".to_string(),
         };
 
@@ -625,7 +627,7 @@ async fn get_text_words((session, info, req): (Session, web::Query<QueryRequest>
         let res = QueryResponse {
             this_text: 1,
             words: vec![],
-            selected_id: None,
+            selected_id: selected_word_id,
             error: "Not logged in".to_string(),
         };
 

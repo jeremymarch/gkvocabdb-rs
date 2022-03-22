@@ -404,18 +404,24 @@ function handleKey(evt) {
         glossUsesWordTree = w3;
         w3.hideFunction = hideGlossUsesList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Gloss Occurrences<button id='gotoGlossOccurrenceButton' onclick=''>Go to Occurrence</button><button id='glossusesclosebutton' onclick='hideGlossUsesList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Gloss Occurrences<button id='gotoGlossOccurrenceButton' onclick='showOccurrenceClicked()'>Go to Occurrence</button><button id='glossusesclosebutton' onclick='hideGlossUsesList()'>X</button></div>";
         w3.title.innerHTML = title;
 
         //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
-        //w3.onEnterActivate = queryText;
+        w3.onEnterActivate = showOccurrenceClicked;
         //w2.onClickActivate = act;
         //w2.onSelectionChanged = act;
         //$("#textContainer").css({"top":"41px"});
         $("#glossusesEntry").css({"font-size":"14pt","display":"block"});
         onResize();
     }
-    
+
+    function showOccurrenceClicked() {
+        let row = document.querySelector("#glossuses .selectedRowClass");
+        if (row) {
+            showOccurrence(getColumnValues(row)[1]);
+        }
+    }
     function showGlossUsesClicked() {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
@@ -440,6 +446,12 @@ function handleKey(evt) {
         if (row) {
             queryText("hqvocab", getColumnValues(row) );
         }
+    }
+
+    function showOccurrence(word_id) {
+        getTextByWordId(word_id);
+        selectedWordInList = null;
+        hideGlossUsesList();
     }
 
     function queryText(lex, cols) {
@@ -832,7 +844,7 @@ function handleKey(evt) {
             },
             error: function(response) {
                 console.log("error getting words by wordid... trying again...");
-                getwords(url); //redo request on error
+                //getwords(url); //redo request on error
 
             }
         });
