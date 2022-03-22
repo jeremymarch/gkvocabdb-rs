@@ -21,6 +21,22 @@ use actix_web::{ ResponseError, http::StatusCode};
 
 //use percent_encoding::percent_decode_str;
 
+/*
+To do:
+Delete gloss button (if count is 0 in all courses)
+See Uses button
+Log button
+Flag/Unflag button
+Edit Word button
+Export LateX button
+Update Counts button
+Word counts for each text in test list
+
+Lock H&Q arrows from being deleted?
+Lock H&Q glosses from being edited?
+
+*/
+
 use std::io;
 use actix_files as fs;
 use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpRequest, HttpServer, Result};
@@ -105,7 +121,7 @@ struct UpdateLemmaResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponse {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
-    select_id: u32,
+    select_id: Option<u32>,
     error: String,
     wtprefix: String,
     nocache: u8,
@@ -126,7 +142,7 @@ struct WordtreeQueryResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponseTree {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
-    select_id: u32,
+    select_id: Option<u32>,
     error: String,
     wtprefix: String,
     nocache: u8,
@@ -444,7 +460,7 @@ async fn get_glosses((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest
     }
 
     let res = WordtreeQueryResponse {
-        select_id: seq,
+        select_id: Some(seq),
         error: "".to_owned(),
         wtprefix: info.idprefix.clone(),
         nocache: if query_params.wordid.is_none() { 0 } else { 1 }, //prevents caching when queried by wordid in url
@@ -458,6 +474,46 @@ async fn get_glosses((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest
         arr_options: gloss_rows//result_rows_stripped//result_rows
     };
 
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[allow(clippy::eval_order_dependence)]
+async fn gloss_uses((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+
+    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+
+        //only check page 0 or page less than 0
+        let vlast_page_up = 1;
+        //only check page 0 or page greater than 0
+        let vlast_page = 1;
+
+    let course_id = 1;
+    let gloss_id = query_params.tag_id.unwrap_or(0);
+
+    let result_rows = get_gloss_uses(db, course_id, gloss_id).await.map_err(map_sqlx_error)?;
+
+    let result_rows_formatted:Vec<(String,u32)> = result_rows.into_iter().map( |mut row| { row.0 = format!("<b>{}</b> {} - {}", if row.3.is_some() { "→" } else {""}, row.0,  row.2); (row.0,row.1) }).collect();
+
+    let mut gloss_rows:Vec<AssignmentTree> = vec![];
+    for r in &result_rows_formatted {
+        gloss_rows.push(AssignmentTree{i:r.1,col:vec![r.0.clone(), r.1.to_string()],h:false,c:vec![]});
+    }
+
+let res = WordtreeQueryResponse {
+    select_id: None,
+    error: "".to_owned(),
+    wtprefix: info.idprefix.clone(),
+    nocache: 1, //prevents caching when queried by wordid in url
+    container: format!("{}Container", info.idprefix),
+    request_time: info.request_time,
+    page: info.page,
+    last_page: vlast_page,
+    lastpage_up: vlast_page_up,
+    scroll: "top".to_string() , //scroll really only needs to return top
+    query: query_params.w.to_owned(),
+    arr_options: gloss_rows//result_rows_stripped//result_rows
+};
     Ok(HttpResponse::Ok().json(res))
 }
 
@@ -498,7 +554,7 @@ async fn get_texts((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest))
     }
 
     let res = WordtreeQueryResponse {
-        select_id: seq,
+        select_id: Some(seq),
         error: "".to_owned(),
         wtprefix: info.idprefix.clone(),
         nocache: if query_params.wordid.is_none() { 0 } else { 1 }, //prevents caching when queried by wordid in url
@@ -710,6 +766,10 @@ async fn main() -> io::Result<()> {
             .service(
                 web::resource("/querytexts")
                     .route(web::get().to(get_texts)),
+            )
+            .service(
+                web::resource("/glossuses")
+                    .route(web::get().to(gloss_uses)),
             )
             /* .service(
                 web::resource("/assignments")

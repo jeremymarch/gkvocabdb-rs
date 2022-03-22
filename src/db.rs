@@ -177,6 +177,13 @@ pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:
   
   let mut tx = pool.begin().await?;
 
+  /*
+  if word_id < 100 {
+    Err("cannot change arrow on h&q word")
+  }
+
+  */
+
   let _ = arrow_word_trx(&mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent).await?;
 
   tx.commit().await?;
@@ -832,6 +839,29 @@ pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry,
       } }
     ) 
   .fetch_one(pool)
+  .await;
+
+  res
+}
+
+//SELECT c.name, a.word_id, a.word, d.word_id as arrowed FROM words a INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = 1) INNER JOIN texts c ON a.text = c.text_id LEFT JOIN arrowed_words d ON (d.course_id=1 AND d.gloss_id=564 AND d.word_id = a.word_id) WHERE a.gloss_id = 564 ORDER BY b.text_order, a.seq LIMIT 20000;
+
+pub async fn get_gloss_uses(pool: &SqlitePool, course_id:u32, gloss_id: u32) -> Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> {
+  let query = format!("SELECT c.name, a.word_id, a.word, d.word_id as arrowed \
+    FROM words a \
+    INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = ?) \
+    INNER JOIN texts c ON a.text = c.text_id \
+    LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
+    WHERE a.gloss_id = ?
+    ORDER BY b.text_order, a.seq \
+    LIMIT 2000;");
+  let res: Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> = sqlx::query(&query)
+  .bind(course_id)
+  .bind(course_id)
+  .bind(gloss_id)
+  .bind(gloss_id)
+  .map(|rec: SqliteRow| (rec.get("name"), rec.get("word_id"), rec.get("word"), rec.get("arrowed")) )
+  .fetch_all(pool)
   .await;
 
   res

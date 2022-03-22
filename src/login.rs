@@ -19,6 +19,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
 
+use secrecy::Secret;
+use secrecy::ExposeSecret;
+#[derive(serde::Deserialize)]
+pub struct FormData {
+    username: String,
+    password: Secret<String>,
+}
+
+pub struct Credentials {
+    pub username: String,
+    pub password: Secret<String>,
+}
+
 pub fn get_user_id(session:Session) -> Option<u32> {
     session.get::<u32>("user_id").unwrap_or(None)
 }
@@ -89,27 +102,20 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 </html>"#))
 }
 
-//use secrecy::Secret;
-#[derive(serde::Deserialize)]
-pub struct FormData {
-    username: String,
-    password: String, //Secret<String>,
-}
-
-fn validate_login(username:String, password:String) -> Option<u32> {
-    if username.to_lowercase() == "jm" && password == "clam1234" {
+fn validate_login(credentials:Credentials) -> Option<u32> {
+    if credentials.username.to_lowercase() == "jm" && credentials.password.expose_secret() == "clam1234" {
         Some(3)
     }
-    else if username.to_lowercase() == "ykk" && password == "greekdb555" {
+    else if credentials.username.to_lowercase() == "ykk" && credentials.password.expose_secret() == "greekdb555" {
         Some(4)
     }
-    else if username.to_lowercase() == "hh" && password == "greekdb555" {
+    else if credentials.username.to_lowercase() == "hh" && credentials.password.expose_secret() == "greekdb555" {
         Some(5)
     }
-    else if username.to_lowercase() == "cd" && password == "greekdb555" {
+    else if credentials.username.to_lowercase() == "cd" && credentials.password.expose_secret() == "greekdb555" {
         Some(6)
     }
-    else if username.to_lowercase() == "rr" && password == "greekdb555" {
+    else if credentials.username.to_lowercase() == "rr" && credentials.password.expose_secret() == "greekdb555" {
         Some(7)
     }
     else {
@@ -121,10 +127,12 @@ fn validate_login(username:String, password:String) -> Option<u32> {
 pub async fn login_post((session, form, req): (Session, web::Form<FormData>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let _db = req.app_data::<SqlitePool>().unwrap(); 
 
-    let username = form.0.username;
-    let password = form.0.password;
+    let credentials = Credentials {
+        username: form.0.username,
+        password: form.0.password,
+    };
     
-    if let Some(user_id) = validate_login(username, password) {
+    if let Some(user_id) = validate_login(credentials) {
         session.renew(); //https://www.lpalmieri.com/posts/session-based-authentication-in-rust/#4-5-2-session
         if session.insert("user_id", user_id).is_ok() {
 

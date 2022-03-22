@@ -305,6 +305,7 @@ function handleKey(evt) {
 
     var lemmaListWordTree = null;
     var textListWordTree = null;
+    var glossUsesWordTree = null;
     function onload()
     {
         /*
@@ -357,7 +358,7 @@ function handleKey(evt) {
         lemmaListWordTree = w;
         w.hideFunction = hideLemmaList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
         w.title.innerHTML = title;
         
         //w.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
@@ -368,16 +369,7 @@ function handleKey(evt) {
 
         $("#test1Entry").css("font-size", "14pt").addClass("gkinput");
         $(".gkinput").keypress(handleKey);
-/*
-        var select = document.createElement("BUTTON");
-        var selectText = document.createTextNode("Select");
-        select.appendChild(selectText);
-        select.style.position = "absolute";
-        select.style.top = "25px";
-        select.style.right = "5px";
-        select.onclick = selectGlossClicked;
-        document.querySelector("#test1 .wordtreetitlediv").appendChild(select);
-*/
+
 
 
         var w2 = new wordtree("text", 480, $(document).height() - 38);
@@ -393,29 +385,46 @@ function handleKey(evt) {
 
 	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='testlistclosebutton' onclick='hideTextList()'>X</button></div>";
         w2.title.innerHTML = title;
-/*
-        var select = document.createElement("BUTTON");
-        var selectText = document.createTextNode("Select");
-        select.appendChild(selectText);
-        select.style.position = "absolute";
-        select.style.top = "25px";
-        select.style.right = "5px";
-        select.onclick = selectTextClicked;
-        document.querySelector("#text .wordtreetitlediv").appendChild(select);
-        */
+
         //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
         w2.onEnterActivate = queryText;
         //w2.onClickActivate = act;
         //w2.onSelectionChanged = act;
         //$("#textContainer").css({"top":"41px"});
         $("#textEntry").css({"font-size":"14pt","display":"block"});
+
+        var w3 = new wordtree("glossuses", 480, $(document).height() - 38);
+        w3.columnOffsets = [0,0,0,0];
+        w3.params.lexicon = "hqvocab";
+        w3.url = "glossuses";
+        w3.params.mode = "normal";
+        w3.refreshOnESC = false;
+
+        w3.show(document.getElementById("glossuseslist"));
+        glossUsesWordTree = w3;
+        w3.hideFunction = hideGlossUsesList;
+
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Gloss Occurrences<button id='gotoGlossOccurrenceButton' onclick=''>Go to Occurrence</button><button id='glossusesclosebutton' onclick='hideGlossUsesList()'>X</button></div>";
+        w3.title.innerHTML = title;
+
+        //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
+        //w3.onEnterActivate = queryText;
+        //w2.onClickActivate = act;
+        //w2.onSelectionChanged = act;
+        //$("#textContainer").css({"top":"41px"});
+        $("#glossusesEntry").css({"font-size":"14pt","display":"block"});
         onResize();
     }
-
+    
+    function showGlossUsesClicked() {
+        let row = document.querySelector("#test1 .selectedRowClass");
+        if (row) {
+            showGlossUsesList(getColumnValues(row)[1]);
+        }
+    }
     function editGlossListClicked() {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
-            //addLemmaIDEnter("hqvocab", getColumnValues(row));
             editLemmaFormToggle2(getColumnValues(row)[1]);
         }
     }
@@ -455,6 +464,7 @@ function handleKey(evt) {
         }
         else {
             hideTextList();
+            hideGlossUsesList();
             showLemmaList();
         }
     }
@@ -471,6 +481,7 @@ function handleKey(evt) {
         }
         else {
             hideLemmaList();
+            hideGlossUsesList();
             showTextList();
         }
     }
@@ -624,7 +635,7 @@ function handleKey(evt) {
     {
         $("#test1Entry")[0].value = "";
         $("#leftlist").css("display", "none");
-        lemmaListWordTree.refresh();
+        lemmaListWordTree.clearWordTree();
         hideNoClick();
     }
 
@@ -643,7 +654,33 @@ function handleKey(evt) {
     {
         $("#textEntry")[0].value = "";
         $("#textlist").css("display", "none");
-        textListWordTree.refresh();
+        textListWordTree.clearWordTree();
+        hideNoClick();
+    }
+
+    function showGlossUsesList(gloss_id)
+    {
+        hideTextList();
+        hideLemmaList();
+        //$("#test1Entry")[0].value = "";
+        glossUsesWordTree.url = "glossuses";
+        glossUsesWordTree.params.tag_id = parseInt(gloss_id);
+        glossUsesWordTree.refresh();
+
+        //var a = "";
+        //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
+        $("#glossuseslist").css("display", "");
+        $("#glossusesEntry").focus();
+
+        hideLemmaList();
+
+        //showNoClick();
+    }
+    function hideGlossUsesList()
+    {
+        $("#glossusesEntry")[0].value = "";
+        $("#glossuseslist").css("display", "none");
+        glossUsesWordTree.clearWordTree();
         hideNoClick();
     }
 
@@ -959,7 +996,7 @@ const TYPE_PARA_NO_INDENT = 10;
                             b.className += " flagged";
                         }
                         //setListRow(textwordid, lemmaid, lemma, pos, def, arrowed, seq);
-                        b.innerHTML = getListWordString(i.i, i.l, i.pos, i.def, i.rc, i.c);//"<div id='arrow" + i.i + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + i.i + "'>" + i.l + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + i.i + "'>" + i.pos + "</span>) </span><span class='listdef' id='listdef" + i.i + "'>" + i.def + "</span> <a class='listfrequency' href=''>[" + i.rc + " of " + i.c + "]</a></div>";
+                        b.innerHTML = getListWordString(i.i, i.l, i.pos, i.def, i.rc, i.c, i.hqid);//"<div id='arrow" + i.i + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + i.i + "'>" + i.l + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + i.i + "'>" + i.pos + "</span>) </span><span class='listdef' id='listdef" + i.i + "'>" + i.def + "</span> <a class='listfrequency' href=''>[" + i.rc + " of " + i.c + "]</a></div>";
                     }
                     b.setAttribute("textseq", i.word_text_seq);
                     if (i.arrowed_text_seq) {
@@ -1347,8 +1384,8 @@ function updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid)
     });
 }
 
-function getListWordString(wid, lemma, pos, gloss, count, total) {
-    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href=''>[" + count + " of " + total + "]</a></div>";
+function getListWordString(wid, lemma, pos, gloss, count, total, gloss_id) {
+    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href='javascript:showGlossUsesList(" + gloss_id + ")'>[" + count + " of " + total + "]</a></div>";
 }
 
 function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, lemmaSeq, wordSeq, flagged, arrowed_text_seq, word_text_seq)
@@ -1384,7 +1421,7 @@ function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, l
             $a.removeClass("flagged");
         }
         
-        var row = getListWordString(wid, lemma, pos, gloss, count, total);
+        var row = getListWordString(wid, lemma, pos, gloss, count, total, lemmaid);
         $a.html(row);
         return true;
     }
@@ -1713,15 +1750,20 @@ BUTTON {
     top: 2px;
     right: 46px;
 }
+#showGlossUsesButton {
+    position: absolute;
+    top: -4px;
+    right: 30px;  
+}
 #glosslistEditButton {
     position: absolute;
     top: -4px;
-    right: 40px;  
+    right: 128px;  
 }
 #glosslistSelectButton {
     position: absolute;
     top: -4px;
-    right: 85px;  
+    right: 175px;  
 }
 #selectTextButton {
     position: absolute;
@@ -1733,6 +1775,12 @@ BUTTON {
     top: -4px;
     right: 35px;
 }
+#gotoGlossOccurrenceButton {
+    position: absolute;
+    top: -4px;
+    right: 35px;
+}
+#glossusesclosebutton,
 #glosslistclosebutton,
 #testlistclosebutton {
     position: absolute;
@@ -2247,6 +2295,7 @@ BUTTON { color:black;text-align:center;}
 </div>
   <div id="leftlist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
   <div id="textlist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
+  <div id="glossuseslist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
   <div id="snackbar"></div>
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
