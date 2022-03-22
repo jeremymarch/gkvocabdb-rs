@@ -1385,7 +1385,7 @@ function updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid)
 }
 
 function getListWordString(wid, lemma, pos, gloss, count, total, gloss_id) {
-    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href='javascript:showGlossUsesList(" + gloss_id + ")'>[" + count + " of " + total + "]</a></div>";
+    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href='javascript:showGlossUsesList(" + gloss_id + ")'>(" + count + " of " + total + ")</a></div>";
 }
 
 function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, lemmaSeq, wordSeq, flagged, arrowed_text_seq, word_text_seq)
