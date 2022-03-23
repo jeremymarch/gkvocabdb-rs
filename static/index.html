@@ -13,15 +13,6 @@
 <script type="text/javascript" src="jquery.min.js"></script>
   <script type="text/javascript" src="wordtree.js?v10"></script>
 <script>
-/*
-<?php 
-if ( isset($_GET["wordid"]) ) {
-    echo "var landingWordId = " . $_GET["wordid"] . ";\n";
-}
-
-?>
-*/
-//var landingWordId = -1;
 
 function setTheme() {
     var mode = localStorage.getItem("mode");
@@ -308,46 +299,12 @@ function handleKey(evt) {
     var glossUsesWordTree = null;
     function onload()
     {
-        /*
-        var blah = new Array();
-        for (var i = 0; i < 2000; i++)
-        {
-            blah.push(["blah",i]);
-        }
-        var t = "";
-        blah.forEach(function (i,v) {
-            var a = document.getElementById("wordscontents"); 
-            
-            var b = document.createElement("div"); 
-            b.id = "word" + i[1];
-            b.className += "listword";
-            b.setAttribute("tabindex","0");
-            b.innerHTML = i[0] + i[1];
-            a.appendChild(b);
-            t += "<span id='text" + i[1] + "' class='textword'>" + i[0] + "<\/span>"+ "<span class='superscript'>" + i[1] + "<\/span> ";
-        });
-        var text = document.getElementById("textcontents"); 
-        text.innerHTML = t;
-        $(".textword").click(function() {scrollToTextID(this.id)});
-        $(".listword").click(function() {scrollToWordID(this.id)});
-        //$("#words").css("border","2px solid green");
-        */
-
-//
-
         var thisText = getCookie("selectedText");     
-        if (thisText === null || parseInt(thisText) < 1/* || parseInt(thisText) > 116*/)
-        {
+        if (thisText === null || parseInt(thisText) < 1) {
             thisText = 1;
         }
-        //fix me get landingWord from wordid GET variable if present, else it should be left undefined
-        if ( typeof(landingWordId) != "undefined" ) {
-            getTextByWordId(landingWordId);
-        }
-        else
-        {
-            getwords(parseInt(thisText));//ion = 2
-        }
+        
+        getwords(parseInt(thisText));
 
         var w = new wordtree("test1", 480, $(document).height() - 38);
         w.columnOffsets = [0,0,0,0];
@@ -356,13 +313,11 @@ function handleKey(evt) {
         w.params.mode = "context";
         w.show(document.getElementById("leftlist"));
         lemmaListWordTree = w;
-        w.hideFunction = hideLemmaList;
+        w.hideFunction = hideGlossList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' onclick='hideLemmaList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' onclick='hideGlossList()'>X</button></div>";
         w.title.innerHTML = title;
-        
-        //w.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
-        w.onEnterActivate = addLemmaIDEnter;//addWordToList;
+        w.onEnterActivate = addLemmaIDEnter;
         //w.onEnterActivate = removeDuplicate;
         //w.onClickActivate = act;
         //w.onSelectionChanged = act;
@@ -383,10 +338,9 @@ function handleKey(evt) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newLemmaFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='testlistclosebutton' onclick='hideTextList()'>X</button></div>";
+	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Texts<!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='testlistclosebutton' onclick='hideTextList()'>X</button></div>";
         w2.title.innerHTML = title;
 
-        //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
         w2.onEnterActivate = queryText;
         //w2.onClickActivate = act;
         //w2.onSelectionChanged = act;
@@ -407,11 +361,9 @@ function handleKey(evt) {
 	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Gloss Occurrences<button id='gotoGlossOccurrenceButton' onclick='showOccurrenceClicked()'>Go to Occurrence</button><button id='glossusesclosebutton' onclick='hideGlossUsesList()'>X</button></div>";
         w3.title.innerHTML = title;
 
-        //w2.refresh(); //fix me: this was causing the select option box to not show selected option? maybe don't need it anyway
         w3.onEnterActivate = showOccurrenceClicked;
         //w2.onClickActivate = act;
         //w2.onSelectionChanged = act;
-        //$("#textContainer").css({"top":"41px"});
         $("#glossusesEntry").css({"font-size":"14pt","display":"block"});
         onResize();
     }
@@ -431,7 +383,7 @@ function handleKey(evt) {
     function editGlossListClicked() {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
-            editLemmaFormToggle2(getColumnValues(row)[1]);
+            editGlossFormToggle(getColumnValues(row)[1]);
         }
     }
     function selectGlossClicked() {
@@ -455,55 +407,40 @@ function handleKey(evt) {
     }
 
     function queryText(lex, cols) {
-        //alert(cols);
         if (Array.isArray(cols) && cols.length > 1 && Number.isInteger(parseInt(cols[1]))) {
             selectedWordInList = null;
             getwords(cols[1]);
-            //setCookie("selectedText", cols[1], 60); set this when received in procResponse
             hideTextList();
         }
     }
 
-    function selectLemmaFormToggle()
-    {
-        /*if (selectedWordInList === null)
-        {
-            alert("First select a word.");
-            return;
-        }*/
+    function toggleGlossListClicked() {
         if ( $("#leftlist").is(":visible") ) {
-            hideLemmaList();
+            hideGlossList();
         }
         else {
             hideTextList();
             hideGlossUsesList();
-            showLemmaList();
+            showGlossList();
         }
     }
 
-    function selectTextFormToggle()
-    {
-        /*if (selectedWordInList === null)
-        {
-            alert("First select a word.");
-            return;
-        }*/
+    function selectTextFormToggleClicked() {
         if ( $("#textlist").is(":visible") ) {
             hideTextList();
         }
         else {
-            hideLemmaList();
+            hideGlossList();
             hideGlossUsesList();
             showTextList();
         }
     }
 
-    function showNoClick()
-    {
+    function showNoClick() {
         $("#noclick").css("display", "block");
     }
-    function hideNoClick()
-    {
+
+    function hideNoClick() {
         $("#noclick").css("display", "none");
     }
 
@@ -547,7 +484,7 @@ function handleKey(evt) {
         $("#AnnotateInput").val("");
     }
 
-    function editLemmaFormToggle()
+    function toggleEditGlossFormClicked()
     {
         if (selectedWordInList === null)
         {
@@ -568,23 +505,23 @@ function handleKey(evt) {
         }
 
         if ( $("#editformcontainer").is(":visible") ) {
-            newLemmaFormClose();
+            newGlossFormClose();
         }
         else {
             $("#editFormTitle").html("<b>Edit</b>");
             $("#EditInputHQID").html(""); //clear before loading
             getEditLemmaData(lemmaid);
 
-            newLemmaFormShow();
+            newGlossFormShow();
         }        
     }
 
-    function editLemmaFormToggle2(lemmaid) {
+    function editGlossFormToggle(lemmaid) {
         $("#editFormTitle").html("<b>Edit</b>");
         $("#EditInputHQID").html(""); //clear before loading
         getEditLemmaData(lemmaid);
 
-        newLemmaFormShow();
+        newGlossFormShow();
     }
 
     function uploaddialog()
@@ -596,33 +533,33 @@ function handleKey(evt) {
             $("#uploadform").show();
         }
     }
-    function newLemmaFormToggle()
+    function toggleNewGlossFormClicked()
     {
         if ( $("#editformcontainer").is(":visible") ) {
-            newLemmaFormClose();
+            newGlossFormClose();
         }
         else {
             $("#editFormTitle").html("<b>New</b>");
             $("#EditInputHQID").html(""); //clear before loading
-            newLemmaFormShow();
+            newGlossFormShow();
         }
     }
-    function newLemmaFormShow()
+    function newGlossFormShow()
     {
-    	newLemmaFormClear();
+    	newGlossFormClear();
     	$("#arrowedrow").hide();
     	$("#editformcontainer").show();
     	$("#editform").show();
         $("#EditInputLemma").focus();
         showNoClick();
     }
-    function newLemmaFormClose()
+    function newGlossFormClose()
     {
     	$("#editformcontainer").hide();
     	$("#editform").hide();
         hideNoClick();
     }
-	function newLemmaFormClear()
+	function newGlossFormClear()
 	{
 		$("#EditInputGloss").val("");
 		$("#EditInputPOS").val("");
@@ -632,7 +569,7 @@ function handleKey(evt) {
 		$("#EditInputArrowed").attr("checked",false);
 	}
     
-    function showLemmaList()
+    function showGlossList()
     {
         //$("#test1Entry")[0].value = "";
         lemmaListWordTree.url = "queryglosses";
@@ -643,7 +580,7 @@ function handleKey(evt) {
         $("#test1Entry").focus();
         //showNoClick();
     }
-    function hideLemmaList()
+    function hideGlossList()
     {
         $("#test1Entry")[0].value = "";
         $("#leftlist").css("display", "none");
@@ -673,7 +610,7 @@ function handleKey(evt) {
     function showGlossUsesList(gloss_id)
     {
         hideTextList();
-        hideLemmaList();
+        hideGlossList();
         //$("#test1Entry")[0].value = "";
         glossUsesWordTree.url = "glossuses";
         glossUsesWordTree.params.tag_id = parseInt(gloss_id);
@@ -684,7 +621,7 @@ function handleKey(evt) {
         $("#glossuseslist").css("display", "");
         $("#glossusesEntry").focus();
 
-        hideLemmaList();
+        hideGlossList();
 
         //showNoClick();
     }
@@ -755,11 +692,11 @@ function handleKey(evt) {
         /*
         if ($("#leftlist").is(":visible") == true)
         {
-            hideLemmaList();
+            hideGlossList();
         }
         else
         {
-            showLemmaList();
+            showGlossList();
         }
         */
     }
@@ -920,8 +857,8 @@ function handleKey(evt) {
             return;
         }
 
-        $("#showButton").css("display", "");
-        $("#hideButton").css("display", "none");
+        $("#showAllGlossesButton").css("display", "");
+        $("#hideSeenGlossesButton").css("display", "none");
         if (returnObj.thisText && Number.isInteger(parseInt(returnObj.thisText))) {
             setCookie("selectedText", returnObj.thisText, 60);
         }
@@ -1067,21 +1004,21 @@ const TYPE_PARA_NO_INDENT = 10;
     {
     	selectedWordInList = id;
         //alert(selectedWordInList);
-    	showLemmaList();
+    	showGlossList();
     }
     */
 
-    function hide1()
+    function hideSeenGlossesClicked()
     {
         $(".alreadyArrowed").css("display","none");
-        $("#hideButton").css("display","none");
-        $("#showButton").css("display","");
+        $("#hideSeenGlossesButton").css("display","none");
+        $("#showAllGlossesButton").css("display","");
     }
-    function show1()
+    function showAllGlossesClicked()
     {
         $(".alreadyArrowed").css("display","block");
-        $("#showButton").css("display","none");
-        $("#hideButton").css("display","");
+        $("#showAllGlossesButton").css("display","none");
+        $("#hideSeenGlossesButton").css("display","");
     }
 
     function showToast(msg) {
@@ -1103,7 +1040,7 @@ function removeDuplicate(lex, id)
     var vlemmaid = id[1];
     
     //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
-    //hideLemmaList();
+    //hideGlossList();
 
     //console.log("xxx");//selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
     realRemoveDuplicate(selectedWordInList, vlemmaid);
@@ -1125,7 +1062,7 @@ function addLemmaIDEnter(lex, id)
     }
     
     //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
-    hideLemmaList();
+    hideGlossList();
 
     console.log("addLemmaIDEnter: " + selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
     realAddLemmaIDEnter(selectedWordInList, vlemmaid, vlemmastr);
@@ -1197,7 +1134,7 @@ function newLemmaFormSubmit()
         console.log("insert");
         realNewLemmaFormSubmit(newLemma, newPOS, newGloss, newNote);
     }
-    newLemmaFormClose();
+    newGlossFormClose();
 }
 
 var vToggleArrowPending = false;
@@ -1694,7 +1631,7 @@ function onResize() {
         $(".wordtree").css("width", width - 19 + "px");
       }
 
-      function toggleSettings() {
+      function toggleSettingsClicked() {
     var s = document.getElementById("settingsdiv");
     if (!s) {
       var s = document.createElement("div");
@@ -1706,7 +1643,7 @@ function onResize() {
       c.id="backdrop";
       c.onclick = function() {
         document.querySelector("#backdrop").style.display = "none";
-        toggleSettings();
+        toggleSettingsClicked();
       };
       document.body.appendChild(c);
       document.body.appendChild(s);
@@ -1762,8 +1699,8 @@ window.onresize = onResize;
 BUTTON {
     cursor:pointer;
 }
-#showButton,
-#hideButton {
+#showAllGlossesButton,
+#hideSeenGlossesButton {
     position: absolute;
     top: 2px;
     right: 46px;
@@ -2282,21 +2219,20 @@ BUTTON { color:black;text-align:center;}
   fill: white;
 }
 
-
 </style>
 </head>
 <body onload="onload()">
 <div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
 
-    <button id="getTexts" onclick="selectTextFormToggle()">Select Text</button>
+    <button id="getTexts" onclick="selectTextFormToggleClicked()">Select Text</button>
 
     <div style="position:absolute;top:0px;left:50%;width:50%;padding-top:2px;">
-    <button id="selectLemmaButton" onclick="selectLemmaFormToggle()" >Select Gloss</button>
-    <button id="newLemmaButton" onclick="newLemmaFormToggle()">New Gloss</button> 
-    <button id="editLemmaButton" onclick="editLemmaFormToggle()">Edit Gloss</button> 
-    <button id="hideButton" onclick="hide1()" style="display:none;">Hide Seen</button> 
-    <button id="showButton"  onclick="show1()">Show All</button>
-    <svg onclick="toggleSettings()" id="hamburger" viewBox="0 0 120 120">
+    <button id="selectLemmaButton" onclick="toggleGlossListClicked()" >Select Gloss</button>
+    <button id="newLemmaButton" onclick="toggleNewGlossFormClicked()">New Gloss</button> 
+    <button id="editLemmaButton" onclick="toggleEditGlossFormClicked()">Edit Gloss</button> 
+    <button id="hideSeenGlossesButton" onclick="hideSeenGlossesClicked()" style="display:none;">Hide Seen</button> 
+    <button id="showAllGlossesButton"  onclick="showAllGlossesClicked()">Show All</button>
+    <svg onclick="toggleSettingsClicked()" id="hamburger" viewBox="0 0 120 120">
         <rect x="10" y="30" width="100" height="12"></rect>
         <rect x="10" y="56" width="100" height="12"></rect>
         <rect x="10" y="82" width="100" height="12"></rect>
@@ -2347,7 +2283,7 @@ BUTTON { color:black;text-align:center;}
             <td class="editformlabel">Internal Note</td><td><textarea class="inputText" id="EditInputNote" style="width:90%;height:96px;"></textarea></td>
         </tr>
         <tr>
-            <td colspan="2" align="center"><button onclick="newLemmaFormClose()">Cancel</button><button onclick="newLemmaFormSubmit()">Submit</button></td>
+            <td colspan="2" align="center"><button onclick="newGlossFormClose()">Cancel</button><button onclick="newLemmaFormSubmit()">Submit</button></td>
         </tr>
         </table>
     </div>
