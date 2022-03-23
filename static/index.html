@@ -317,7 +317,7 @@ function handleKey(evt) {
 
 	    var title = "<div style='width:100%;position:relative;font-family:helvetica;padding-left:10px;'>Glosses<button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' onclick='hideGlossList()'>X</button></div>";
         w.title.innerHTML = title;
-        w.onEnterActivate = addLemmaIDEnter;
+        w.onEnterActivate = setGlossForWord;
         //w.onEnterActivate = removeDuplicate;
         //w.onClickActivate = act;
         //w.onSelectionChanged = act;
@@ -389,7 +389,7 @@ function handleKey(evt) {
     function selectGlossClicked() {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
-            addLemmaIDEnter("hqvocab", getColumnValues(row));
+            setGlossForWord("hqvocab", getColumnValues(row));
         }
     }
 
@@ -633,74 +633,6 @@ function handleKey(evt) {
         hideNoClick();
     }
 
-    function toggleLemmaList(wordid)
-    {
-        /*
-        $("#listheadword" + wordid).attr('contentEditable',true);
-        $("#listpos" + wordid).attr('contentEditable',true);
-        $("#listdef" + wordid).attr('contentEditable',true);
-        */
-        if ( $("#listheadword" + wordid).is(":visible") )
-        {
-            $("#listheadword" + wordid).css("display","none");
-            $("#listpos" + wordid).css("display","none");
-            $("#listdef" + wordid).css("display","none");
-            var a = $("#editform").detach();
-            a.css("display","");
-            $("#word" + wordid).prepend(a);
-
-            $("#EditInputLemma").val( $("#listheadword" + wordid).html() );
-            $("#EditInputPOS").val( $("#listpos" + wordid).html() );
-            $("#EditInputGloss").val( $("#listdef" + wordid).html() );
-
-/*
-            var l = $("<input></input>");
-            l.addClass("wordInput");
-            l.attr("id", "wordInput" + wordid);
-            l.attr("type", "text");
-            $("#word" + wordid).prepend(l);
-
-            var a = $("<input></input>");
-            a.addClass("wordInput");
-            a.attr("id", "wordInput" + wordid);
-            a.attr("type", "text");
-            $("#word" + wordid).prepend(a);
-
-            var a1 = $("<input></input>");
-            a1.addClass("wordInput");
-            a1.attr("id", "wordInput" + wordid);
-            a1.attr("type", "text");
-            $("#word" + wordid).prepend(a1);
-
-            var a2 = $("<input></input>");
-            a2.addClass("wordInput");
-            a2.attr("id", "wordInput" + wordid);
-            a2.attr("type", "text");
-            $("#word" + wordid).prepend(a2);
-            */
-        }
-        else
-        {
-            var a = $("#editform").detach();
-            a.css("display","none");
-            $("#editformcontainer").append(a);
-
-            $("#listheadword" + wordid).css("display","");
-            $("#listpos" + wordid).css("display","");
-            $("#listdef" + wordid).css("display","");
-        }
-        /*
-        if ($("#leftlist").is(":visible") == true)
-        {
-            hideGlossList();
-        }
-        else
-        {
-            showGlossList();
-        }
-        */
-    }
-
     var selectedWordInList = null;
     //click on wordlist
     function scrollToWordID(id)
@@ -734,12 +666,6 @@ function handleKey(evt) {
             }
 
             $("#editbutton").remove();
-            /* remove edit button for now
-            if ( $("#" + id).hasClass("hqListWord") )
-            {
-	            $("#" + id).append("<div id='editbutton'><button onclick='toggleLemmaList(" + match[1] + ")'>edit</button></div>");
-        	}
-        	*/
         }
     }
     
@@ -1034,19 +960,7 @@ const TYPE_PARA_NO_INDENT = 10;
   setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
 } 
 
-/**** ajax calls to db ******/
-function removeDuplicate(lex, id) 
-{     
-    var vlemmaid = id[1];
-    
-    //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
-    //hideGlossList();
-
-    //console.log("xxx");//selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
-    realRemoveDuplicate(selectedWordInList, vlemmaid);
-}
-
-function addLemmaIDEnter(lex, id) 
+function setGlossForWord(lex, id) 
 {     
     //alert("blah: " + lex + ", " + id);
     if (selectedWordInList === null)
@@ -1064,8 +978,8 @@ function addLemmaIDEnter(lex, id)
     //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
     hideGlossList();
 
-    console.log("addLemmaIDEnter: " + selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
-    realAddLemmaIDEnter(selectedWordInList, vlemmaid, vlemmastr);
+    console.log("setGlossForWord: " + selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
+    realSetGlossForWord(selectedWordInList, vlemmaid, vlemmastr);
 }
 
 function annotateFormSubmit()
@@ -1189,8 +1103,8 @@ function getAnnotateData(vWordid)
         },
         error: function(response) {
             //getwords(url); //redo request on error
-            showToast("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
-            console.log("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+            showToast("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
+            console.log("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
         }
     });
 }
@@ -1238,33 +1152,13 @@ function getEditLemmaData(vLemmaid)
         },
         error: function(response) {
             //getwords(url); //redo request on error
-            showToast("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
-            console.log("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+            showToast("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
+            console.log("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
         }
     });
 }
 
-function realRemoveDuplicate(vTextWordID, vlemmaid)
-{
-    return;
-    /*
-   $.ajax({
-        url: "updatedb",
-        type: "POST",
-        data: {qtype:"removeDuplicate",textwordid:vTextWordID, lemmaid:vlemmaid},
-        dataType: "text",//JSON automatically deserializes json
-        success: function (data, textStatus, jqXHR){  
-            showToast("success: " + data);
-            console.log("remove duplicate: " + data);
-        },
-        error: function(response) {
-            showToast("error in realRemoveDuplicate: " + vlemmaid);
-        }
-    });
-    */
-}
-
-function realAddLemmaIDEnter(vTextWordID, vlemmaid, vlemmastr)
+function realSetGlossForWord(vTextWordID, vlemmaid, vlemmastr)
 {
    $.ajax({
         url: "updatedb",
@@ -1308,17 +1202,9 @@ function realAddLemmaIDEnter(vTextWordID, vlemmaid, vlemmastr)
                 }
                 //alert("(" + w[i].rc + " of " + w[i].fr + ") " + w[i].ws + ", " + w[i].ls);
             }
-            
-            /*
-            else {
-                console.log("error");
-                return;
-            }
-            */
         },
         error: function(response) {
-            //getwords(url); //redo request on error
-            showToast("error in realAddLemmaIDEnter: " + vlemmaid + ", " + vlemmastr);
+            showToast("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
         }
     });
 }
