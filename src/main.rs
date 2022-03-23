@@ -493,7 +493,7 @@ async fn gloss_uses((info, req): (web::Query<WordtreeQueryRequest>, HttpRequest)
 
     let result_rows = get_gloss_uses(db, course_id, gloss_id).await.map_err(map_sqlx_error)?;
 
-    let result_rows_formatted:Vec<(String,u32)> = result_rows.into_iter().map( |mut row| { row.0 = format!("<b>{}</b> {} - {}", if row.3.is_some() { "→" } else {""}, row.0,  row.2); (row.0,row.1) }).collect();
+    let result_rows_formatted:Vec<(String,u32)> = result_rows.into_iter().enumerate().map( |(i, mut row)| { row.0 = format!("{}. <b>{}</b> {} - {}", i + 1, if row.3.is_some() { "→" } else {""}, row.0,  row.2); (row.0,row.1) }).collect();
 
     let mut gloss_rows:Vec<AssignmentTree> = vec![];
     for r in &result_rows_formatted {
