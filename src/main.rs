@@ -24,8 +24,7 @@ use actix_web::{ ResponseError, http::StatusCode};
 /*
 To do:
 Delete gloss button (if count is 0 in all courses)
-See Uses button
-Log button
+Show Update Log button
 Flag/Unflag button
 Edit Word button
 Export LateX button

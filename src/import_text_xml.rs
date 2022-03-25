@@ -65,7 +65,7 @@ pub async fn import_text((session, payload, req): (Session, Multipart, HttpReque
         match import_text_xml::get_xml_string(payload).await {
             Ok((xml_string, title)) => {
 
-                match import_text_xml::process_imported_text(xml_string).await {
+                match import_text_xml::process_imported_text(&xml_string).await {
                     Ok(words) => {
                         if !words.is_empty() && !title.is_empty() {
         
@@ -248,7 +248,7 @@ pub async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), 
     Ok((xml_string, title))
 }
 
-pub async fn process_imported_text(xml_string: String) -> Result<Vec<TextWord>, quick_xml::Error> {
+pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, quick_xml::Error> {
     let mut words:Vec<TextWord> = Vec::new();
 
     let mut reader = Reader::from_str(&xml_string);
@@ -478,31 +478,65 @@ fn lemmatize_simple(word:&str) -> Option<u32> {
     }
 }
 
-#[test]
-fn test_split() {
-    assert_eq!('\u{0313}'.is_alphanumeric(), false); //combining chars are not alphanumeric, so
-    // be sure combining diacritics do not divide words (this is why we use unicode_normalization::char::is_combining_mark(c))
-    let a = split_words("α\u{0313}α ββ", false, false);
-    assert_eq!(a.len(), 2);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // be sure ' does not divide words
-    let a = split_words("δ' ββ", false, false);
-    assert_eq!(a.len(), 2);
-    assert_eq!(a[0].word, "δ'");
+    #[actix_rt::test]
+    async fn test_import() {
+        //<?xml version="1.0" encoding="UTF-8"?> is optional
+        let xml_string = r#"<TEI.2>
+            <text lang="greek">
+                <head>Θύρσις ἢ ᾠδή</head>
+                <speaker>Θύρσις</speaker>
+                <lb rend="displayNum" n="5" />αἴκα δ᾽ αἶγα λάβῃ τῆνος γέρας, ἐς τὲ καταρρεῖ
+                <gkvocab_page_break/>
+                <l n="10">ὁσίου γὰρ ἀνδρὸς ὅσιος ὢν ἐτύγχανον</l>
+            </text>
+        </TEI.2>"#;
+        let r = process_imported_text(&xml_string).await.unwrap();
+        for a in &r {
+            println!("{:?}", a);
+        }
+        assert_eq!(r.len(), 22);
+        assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as u32);
+        assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as u32);
+        assert_eq!(r[2].word_type, import_text_xml::WordType::VerseLine as u32);
+        assert_eq!(r[2].word, "[line]5");
+        assert_eq!(r[3].word_type, import_text_xml::WordType::Word as u32);
+        assert_eq!(r[4].gloss_id, Some(30));
+        assert_eq!(r[10].word_type, import_text_xml::WordType::Punctuation as u32);
+        assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as u32);
+        assert_eq!(r[15].word, "[line]10");
+    }
+
+    #[test]
+    fn test_split() {
+        // establish that combining chars are not alphanumeric
+        assert_eq!('\u{0313}'.is_alphanumeric(), false);
+
+        // therefore: be sure combining diacritics do not divide words (this is why we use unicode_normalization::char::is_combining_mark(c))
+        let a = split_words("α\u{0313}α ββ", false, false);
+        assert_eq!(a.len(), 2);
+
+        // be sure ' does not divide words
+        let a = split_words("δ' ββ", false, false);
+        assert_eq!(a.len(), 2);
+        assert_eq!(a[0].word, "δ'");
+    }
+
+    #[test]
+    fn test_sanitize_greek() {
+        let a = sanitize_greek("\u{1FBF}Αφροδίτ\u{1FBF}Αα ββ");
+        assert_eq!(a, "Α\u{0313}φροδίτΑ\u{0313}α ββ");
+
+        let a = sanitize_greek("\u{1FFE}Εκάτα\u{1FFE}Εκάτα ββ");
+        assert_eq!(a, "Ε\u{0314}κάταΕ\u{0314}κάτα ββ");
+
+        let a = sanitize_greek("\u{1FDE}Αιδα\u{1FDE}Αιδα ββ");
+        assert_eq!(a, "Α\u{0314}\u{0301}ιδαΑ\u{0314}\u{0301}ιδα ββ");
+
+        let a = sanitize_greek("\u{1FCE}Ερως\u{1FCE}Αρτεμι ββ");
+        assert_eq!(a, "Ε\u{0313}\u{0301}ρωςΑ\u{0313}\u{0301}ρτεμι ββ");
+    }
 }
-
-#[test]
-fn test_sanitize_greek() {
-    let a = sanitize_greek("\u{1FBF}Αφροδίτ\u{1FBF}Αα ββ");
-    assert_eq!(a, "Α\u{0313}φροδίτΑ\u{0313}α ββ");
-
-    let a = sanitize_greek("\u{1FFE}Εκάτα\u{1FFE}Εκάτα ββ");
-    assert_eq!(a, "Ε\u{0314}κάταΕ\u{0314}κάτα ββ");
-
-    let a = sanitize_greek("\u{1FDE}Αιδα\u{1FDE}Αιδα ββ");
-    assert_eq!(a, "Α\u{0314}\u{0301}ιδαΑ\u{0314}\u{0301}ιδα ββ");
-
-    let a = sanitize_greek("\u{1FCE}Ερως\u{1FCE}Αρτεμι ββ");
-    assert_eq!(a, "Ε\u{0313}\u{0301}ρωςΑ\u{0313}\u{0301}ρτεμι ββ");
-}
-
