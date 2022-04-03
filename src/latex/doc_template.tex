@@ -1,0 +1,47 @@
+\documentclass[twoside,openright,12pt,letterpaper]{book}
+%\usepackage[margin=1.0in]{geometry}
+\usepackage[twoside, margin=1.0in]{geometry} %bindingoffset=0.5in,
+\usepackage[utf8]{inputenc}
+\usepackage{fontspec}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{ragged2e}
+\usepackage{setspace}
+\usepackage{navigator}
+
+\newcommand{\GlossLineSpacing}{1.5}
+
+
+\setmainfont[Scale=MatchUppercase,Ligatures=TeX, BoldFont={*BOLD}, ItalicFont={IFAOGrec.ttf}, ItalicFeatures={FakeSlant=0.2}]{IFAOGrec.ttf}
+%\setmainlanguage[variant=polytonic]{greek}
+\tolerance=10000 % https://www.texfaq.org/FAQ-overfull
+\setlength{\extrarowheight}{8pt}
+\newcolumntype{L}{>{\setlength{\RaggedRight\parindent}{-2em}\leftskip 2em%BOLDLEMMATA%}p}
+\newcolumntype{D}{>{\setlength{\RaggedRight}}p}
+
+\usepackage{fancyhdr} % http://tug.ctan.org/tex-archive/macros/latex/contrib/fancyhdr/fancyhdr.pdf
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.0pt}
+  \fancyhead[OL]{LGI - UPPER LEVEL GREEK}% Author on Odd page, Centred
+  \fancyhead[ER]{ΑΠΟΛΟΓΙΑ ΣΩΚΡΑΤΟΥΣ (1)}% Title on Even page, Centred
+\setlength{\headheight}{14.49998pt}
+\cfoot{\thepage}
+
+%\usepackage{enumitem}
+%\SetLabelAlign{margin}{\llap{#1~~}}
+%\usepackage{showframe} % just to show the margins
+%https://tex.stackexchange.com/questions/223701/labels-in-the-left-margin
+
+%https://tex.stackexchange.com/questions/40748/use-sections-inline
+\newcommand{\marginsec}[1]{\vadjust{\vbox to 0pt{\sbox0{\bfseries#1\quad}\kern-0.89em\llap{\box0}}}}
+\newcommand{\marginseclight}[1]{\vadjust{\vbox to 0pt{\sbox0{\footnotesize#1\hspace{0.25em}\quad}\kern-0.85em\llap{\box0}}}}
+\usepackage[none]{hyphenat}
+\usepackage[polutonikogreek,english]{babel} %https://tex.stackexchange.com/questions/13067/utf8x-vs-utf8-inputenc
+\usepackage{microtype}
+\begin{document}
+\clearpage
+\setcounter{page}{1}
+\newpage
+\mbox{}

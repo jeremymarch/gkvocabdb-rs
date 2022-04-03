@@ -164,7 +164,7 @@ function wordtree(idPrefix, width, height)
 	var input = document.createElement("input");
 	input.style.width = this.width - 76 + "px";
     input.style.position = "absolute";
-    input.style.top = "42px";
+    input.style.top = "50px";
     input.style.left = "12px";
 	input.setAttribute("autocomplete", "off");
 	input.setAttribute("autocorrect", "off");

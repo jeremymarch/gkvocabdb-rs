@@ -275,6 +275,12 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 else if b"speaker" == e.name() { in_speaker = true }
                 else if b"head" == e.name() { in_head = true }
                 else if b"TEI.2" == e.name() { found_tei = true }
+                else if b"desc" == e.name() {
+                    words.push( TextWord{ word: String::from(""), word_type: WordType::ParaWithIndent as u32,gloss_id:None }); 
+                }
+                else if b"p" == e.name() {
+                    words.push( TextWord{ word: String::from(""), word_type: WordType::ParaWithIndent as u32,gloss_id:None }); 
+                }
                 else if b"l" == e.name() { 
                     let mut line_num = "".to_string();
                     
@@ -302,7 +308,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 }
             },
             Ok(Event::Empty(ref e)) => {
-                if b"lb" == e.name() { 
+                if b"lb" == e.name() { //line beginning
                     let mut line_num = "".to_string();
                     
                     for a in e.attributes() { //.next().unwrap().unwrap();
@@ -312,7 +318,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                     }
                     words.push( TextWord{ word: format!("[line]{}", line_num), word_type: WordType::VerseLine as u32,gloss_id:None }); 
                 }
-                else if b"gkvocab_page_break" == e.name() { 
+                else if b"pb" == e.name() { //page beginning
                     words.push( TextWord{ word: "".to_string(), word_type: WordType::PageBreak as u32,gloss_id:None }); 
                 }
             },
@@ -490,7 +496,7 @@ mod tests {
                 <head>Θύρσις ἢ ᾠδή</head>
                 <speaker>Θύρσις</speaker>
                 <lb rend="displayNum" n="5" />αἴκα δ᾽ αἶγα λάβῃ τῆνος γέρας, ἐς τὲ καταρρεῖ
-                <gkvocab_page_break/>
+                <pb/>
                 <l n="10">ὁσίου γὰρ ἀνδρὸς ὅσιος ὢν ἐτύγχανον</l>
             </text>
         </TEI.2>"#;
