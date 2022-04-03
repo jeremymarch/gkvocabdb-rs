@@ -22,10 +22,24 @@ use super::*;
 pub async fn export_text((info, session, req): (web::Query<ExportRequest>, Session, HttpRequest)) -> Result<HttpResponse> {
     let _db = req.app_data::<SqlitePool>().unwrap();
     let bold_glosses = false;
-    let template = include_str!("latex/doc_template.tex");
-    let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-    Ok(HttpResponse::Ok()
-        .content_type("application/x-latex")
-        .body(res))
+    if let Some(user_id) = login::get_user_id(session) {
+
+        let template = include_str!("latex/doc_template.tex");
+        let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
+
+        
+
+        Ok(HttpResponse::Ok()
+            .content_type("application/x-latex")
+            .body(res))
+        }
+    else {
+        let res = ImportResponse {
+            success: false,
+            words_inserted: 0,
+            error: "Export failed: not logged in".to_string(),
+        };
+        Ok(HttpResponse::Ok().json(res))
+    }
 }

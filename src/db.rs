@@ -158,6 +158,7 @@ pub enum UpdateType {
   EditGloss,
   SetGlossId,
   ImportText,
+  DeleteGloss,
 }
 
 impl UpdateType {
@@ -169,6 +170,7 @@ impl UpdateType {
           UpdateType::EditGloss => 4,
           UpdateType::SetGlossId => 5,
           UpdateType::ImportText => 6,
+          UpdateType::DeleteGloss => 7,
       }
   }
 }
@@ -464,6 +466,33 @@ pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlit
     .execute(&mut *tx).await?;
 
     Ok(())
+}
+
+pub async fn delete_gloss(pool: &SqlitePool, gloss_id: u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+
+  let mut tx = pool.begin().await?;
+
+  let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = ?;";
+  let count:(u32,) = sqlx::query_as(query)
+  .bind(gloss_id)  
+  .fetch_one(&mut *tx)
+  .await?;
+
+  if count.0 == 0 {
+    let _ = update_log_trx(&mut tx, UpdateType::DeleteGloss, Some(gloss_id.into()), Some(gloss_id.into()), None, format!("Deleted gloss ({})", gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+
+    let query = "UPDATE glosses SET status = 0 WHERE gloss_id = ?;";
+    let res = sqlx::query(query)
+      .bind(gloss_id)
+      .execute(&mut tx).await?;
+
+    tx.commit().await?;
+
+    Ok(res.rows_affected())
+  }
+  else {
+    Err(sqlx::Error::RowNotFound) //for now
+  }
 }
 
 pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {

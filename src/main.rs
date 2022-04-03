@@ -284,6 +284,18 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
                     return Ok(HttpResponse::Ok().json(res));               
                 }
             },
+            "deletegloss" => {
+                if post.hqid.is_some() {
+                    let rows_affected = delete_gloss(db, post.hqid.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
+        
+                    let res = UpdateLemmaResponse {
+                        qtype: post.qtype.to_string(),
+                        success: true,
+                        affectedrows: rows_affected,
+                    };
+                    return Ok(HttpResponse::Ok().json(res));               
+                }
+            },
             _ => (),
         }
         let res = UpdateLemmaResponse {

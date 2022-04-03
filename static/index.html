@@ -315,7 +315,7 @@ function handleKey(evt) {
         lemmaListWordTree = w;
         w.hideFunction = hideGlossList;
 
-	    var title = "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistDeleteButton' onclick='deleteGlossListClicked()'>Delete</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>X</button></div>";
         w.title.innerHTML = title;
         w.onEnterActivate = setGlossForWord;
         //w.onEnterActivate = removeDuplicate;
@@ -378,6 +378,41 @@ function handleKey(evt) {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
             showGlossUsesList(getColumnValues(row)[1]);
+        }
+    }
+    function deleteGlossListClicked() {
+        let row = document.querySelector("#test1 .selectedRowClass");
+        if (row) {
+            var delete_id = getColumnValues(row)[1];
+            $.ajax({
+                url: "updategloss",
+                type: "POST",
+                data: {qtype:"deletegloss",hqid: delete_id, lemma:"", strippedLemma:"", pos:"", def:"", note:""},
+                dataType: "text",//JSON automatically deserializes json
+                success: function (data, textStatus, jqXHR){ 
+                    showToast("success: " + data);
+
+                    var returnObj;
+                    try {
+                        if (typeof JSON != "undefined") {
+                            returnObj = JSON.parse(data);
+                        }
+                        else {
+                            return;
+                        }
+                    }
+                    catch(e) { alert("Error: " + e.message + "\n" + data); return};
+                    
+                    if (!returnObj || returnObj.affectedrows < 1) {
+                        return;
+                    }
+
+                    $("#" + delete_id + "test1").remove();
+                },
+                error: function(response) {
+                    showToast("You can't delete a gloss which is referenced in a text.");
+                }
+            });
         }
     }
     function editGlossListClicked() {
@@ -2096,7 +2131,7 @@ BUTTON { color:black;text-align:center;}
 .dark #words {background-color:#202124;color:white;}
 .dark .nodestyle {background-color:#202124;color:white;}
 .dark .wordtree {background-color:#202124;color:white;}
-.dark .wordtreeEntry {background-color:#202124;color:white;}
+.dark .wordtreeEntry {background-color:#202124;color:white;border:2px solid white;}
 .dark .selectedRowClass { background-color: #8899EE; color: white; }
 .dark #editformcontainer, .dark #uploadform {background-color:black;color:white;border:2px solid white;}
 .dark .inputText {background-color:black;color:white;border:2px solid white;}
