@@ -23,7 +23,6 @@ use actix_web::{ ResponseError, http::StatusCode};
 
 /*
 To do:
-Delete gloss button (if count is 0 in all courses)
 Show Update Log button
 Flag/Unflag button
 Edit Word button
@@ -33,7 +32,6 @@ Word counts for each text in test list
 
 Lock H&Q arrows from being deleted?
 Lock H&Q glosses from being edited?
-
 */
 
 use std::io;
@@ -112,7 +110,7 @@ struct UpdateGlossIdResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct UpdateLemmaResponse {
+struct UpdateGlossResponse {
     qtype: String,
     success: bool,
     affectedrows: u64,
@@ -185,7 +183,7 @@ pub struct UpdateRequest {
 }
 
 #[derive(Deserialize)]
-pub struct UpdateLemmaRequest {
+pub struct UpdateGlossRequest {
     pub qtype: String,
     pub hqid:Option<u32>, 
     pub lemma:String, 
@@ -251,7 +249,7 @@ pub struct GetGlossResponse {
 }
 
 #[allow(clippy::eval_order_dependence)]
-async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLemmaRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateGlossRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
@@ -265,7 +263,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
                 
                 let rows_affected = insert_gloss(db, post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
 
-                let res = UpdateLemmaResponse {
+                let res = UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
@@ -276,7 +274,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
                 if post.hqid.is_some() {
                     let rows_affected = update_gloss(db, post.hqid.unwrap(), post.lemma.as_str(), post.pos.as_str(), post.def.as_str(), post.stripped_lemma.as_str(), post.note.as_str(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
         
-                    let res = UpdateLemmaResponse {
+                    let res = UpdateGlossResponse {
                         qtype: post.qtype.to_string(),
                         success: true,
                         affectedrows: rows_affected,
@@ -288,7 +286,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
                 if post.hqid.is_some() {
                     let rows_affected = delete_gloss(db, post.hqid.unwrap(), user_id, timestamp, &updated_ip, user_agent).await.map_err(map_sqlx_error)?;
         
-                    let res = UpdateLemmaResponse {
+                    let res = UpdateGlossResponse {
                         qtype: post.qtype.to_string(),
                         success: true,
                         affectedrows: rows_affected,
@@ -298,7 +296,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
             },
             _ => (),
         }
-        let res = UpdateLemmaResponse {
+        let res = UpdateGlossResponse {
             qtype: post.qtype.to_string(),
             success: false,
             affectedrows: 0,
@@ -308,7 +306,7 @@ async fn update_or_add_gloss((session, post, req): (Session, web::Form<UpdateLem
     }
     else {
         //not logged in
-        let res = UpdateLemmaResponse {
+        let res = UpdateGlossResponse {
             qtype: post.qtype.to_string(),
             success: false,
             affectedrows: 0,

@@ -495,7 +495,7 @@ pub async fn delete_gloss(pool: &SqlitePool, gloss_id: u32, user_id: u32, timest
   }
 }
 
-pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_gloss: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
 
   let mut tx = pool.begin().await?;
 
@@ -513,7 +513,7 @@ pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &s
     //CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
 
     //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
-    let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
+    let sl = stripped_gloss.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
 
   let query = "UPDATE glosses SET \
     lemma = ?, \
