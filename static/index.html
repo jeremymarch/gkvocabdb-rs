@@ -872,6 +872,10 @@ const TYPE_SECTION_TITLE = 8;
 const TYPE_INLINE_SPEAKER = 9;
 const TYPE_PARA_NO_INDENT = 10;
 */
+
+        if (returnObj.text_name) {
+            document.getElementById("text_title").innerHTML = returnObj.text_name;
+        }
         
         var t = "";
         var a = document.getElementById("wordscontents"); 
@@ -1635,6 +1639,11 @@ window.onresize = onResize;
 
 </script>
 <style>
+    #text_title {
+        display: inline-block;
+        top: 1px;
+        position: relative;
+    }
     .titletitle {
         font-family:helvetica;
         position:absolute;
@@ -2151,7 +2160,7 @@ BUTTON { color:black;text-align:center;}
 <div style="padding-left:10px;padding-top:2px;font-family:helvetica,arial;">
 
     <button id="getTexts" onclick="selectTextFormToggleClicked()">Select Text</button>
-
+    <div id="text_title"></div>
     <div style="position:absolute;top:0px;left:50%;width:50%;padding-top:2px;">
     <button id="selectLemmaButton" onclick="toggleGlossListClicked()" >Select Gloss</button>
     <button id="newLemmaButton" onclick="toggleNewGlossFormClicked()">New Gloss</button> 

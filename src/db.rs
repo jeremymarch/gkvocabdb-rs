@@ -999,7 +999,23 @@ pub async fn get_words(
 //change get_words to use subtext id
 //order of assignments will be by id?  or word_seq?
 
-pub async fn get_assignment_rows(
+pub async fn get_text_name(
+  pool: &SqlitePool,
+  text_id: u32,
+) -> Result<String, sqlx::Error> {
+  //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+  let query = "SELECT name \
+  FROM texts \
+  WHERE text_id = ?";
+  let res:(String,) = sqlx::query_as(query)
+      .bind(text_id)
+      .fetch_one(pool)
+      .await?;
+
+  Ok(res.0)
+}
+
+pub async fn get_texts_db(
     pool: &SqlitePool,
     course_id: u32,
 ) -> Result<Vec<AssignmentRow>, sqlx::Error> {

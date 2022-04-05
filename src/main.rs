@@ -87,6 +87,7 @@ struct TreeRow {
 pub struct QueryResponse {
     #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
     pub this_text: u32,
+    pub text_name: String,
     pub words: Vec<WordRow>,
     #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
     pub selected_id: Option<u32>,
@@ -460,6 +461,7 @@ async fn update_words(
 
         let res = QueryResponse {
             this_text: 1,
+            text_name:"".to_string(),
             words: [].to_vec(),
             selected_id: None,
             error: "fall through error (update_words)".to_string(),
@@ -469,6 +471,7 @@ async fn update_words(
     } else {
         let res = QueryResponse {
             this_text: 1,
+            text_name:"".to_string(),
             words: [].to_vec(),
             selected_id: None,
             error: "Not logged in (update_words)".to_string(),
@@ -688,7 +691,7 @@ async fn get_texts(
     //let re = Regex::new(r"[0-9]").unwrap();
     //let result_rows_stripped:Vec<TreeRow> = vec![TreeRow{v:"abc".to_string(), i:1, c:None}, TreeRow{v:"def".to_string(), i:2, c:Some(vec![TreeRow{v:"def2".to_string(), i:1, c:None}, TreeRow{v:"def3".to_string(), i:3, c:None}])}];
 
-    let w = get_assignment_rows(db, course_id)
+    let w = get_texts_db(db, course_id)
         .await
         .map_err(map_sqlx_error)?;
     let mut assignment_rows: Vec<AssignmentTree> = vec![];
@@ -771,6 +774,10 @@ async fn get_text_words(
             .await
             .map_err(map_sqlx_error)?;
 
+        let text_name = get_text_name(db, text_id)
+            .await
+            .map_err(map_sqlx_error)?;
+
         /*
             $j = new \stdClass();
             if ($words == "WordAssignmentError" ) {
@@ -786,6 +793,7 @@ async fn get_text_words(
 
         let res = QueryResponse {
             this_text: text_id,
+            text_name,
             words: w,
             selected_id: selected_word_id,
             error: "".to_string(),
@@ -795,6 +803,7 @@ async fn get_text_words(
     } else {
         let res = QueryResponse {
             this_text: 1,
+            text_name: "".to_string(),
             words: vec![],
             selected_id: selected_word_id,
             error: "Not logged in".to_string(),
