@@ -25,9 +25,12 @@ pub async fn export_text(
     let _db = req.app_data::<SqlitePool>().unwrap();
     let bold_glosses = false;
 
-    if let Some(user_id) = login::get_user_id(session) {
+    if let Some(_user_id) = login::get_user_id(session) {
         let template = include_str!("latex/doc_template.tex");
         let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
+
+        let text_id = info.textid;
+        res.push_str(" ");
 
         Ok(HttpResponse::Ok()
             .content_type("application/x-latex")

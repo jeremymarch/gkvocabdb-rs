@@ -184,7 +184,7 @@ fn sanitize_greek(s: &str) -> String {
         .replace("\u{0387}", "\u{00B7}") //middle dot
         .replace("\u{0344}", "\u{0308}\u{0301}"); //combining diaeresis with acute
 
-    r.to_string()
+    r
 }
 
 fn split_words(text: &str, in_speaker: bool, in_head: bool) -> Vec<TextWord> {
@@ -285,7 +285,7 @@ pub async fn get_xml_string(
 pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, quick_xml::Error> {
     let mut words: Vec<TextWord> = Vec::new();
 
-    let mut reader = Reader::from_str(&xml_string);
+    let mut reader = Reader::from_str(xml_string);
     reader.trim_text(true);
     let mut buf = Vec::new();
 
