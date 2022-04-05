@@ -41,6 +41,8 @@ use actix_web::http::header::LOCATION;
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
+use actix_web::dev::Server;
+
 use std::io;
 
 //use mime;
@@ -63,6 +65,19 @@ use chrono::prelude::*;
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
 #[derive(Clone)]
 struct SqliteUpdatePool(SqlitePool);
+
+#[derive(Debug, Serialize)]
+struct LoginCheckResponse {
+    is_logged_in: bool,
+    user_id: u32,
+}
+
+#[derive(Debug, Serialize)]
+struct ImportResponse {
+    success: bool,
+    words_inserted: u64,
+    error: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginRequest {
@@ -831,21 +846,7 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
-#[derive(Debug, Serialize)]
-struct LoginCheckResponse {
-    is_logged_in: bool,
-    user_id: u32,
-}
-
-#[derive(Debug, Serialize)]
-struct ImportResponse {
-    success: bool,
-    words_inserted: u64,
-    error: String,
-}
-
-#[actix_web::main]
-async fn main() -> io::Result<()> {
+async fn app() -> Result<Server, std::io::Error> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
@@ -882,7 +883,7 @@ async fn main() -> io::Result<()> {
       }
       */
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         /*
         // custom `Json` extractor configuration: https://docs.rs/actix-web/4.0.0-beta.20/actix_web/web/struct.JsonConfig.html
         let json_cfg = web::JsonConfig::default()
@@ -965,8 +966,15 @@ async fn main() -> io::Result<()> {
             )
     })
     .bind("0.0.0.0:8088")?
-    .run()
-    .await
+    .run();
+    Ok(server)
+}
+
+#[actix_web::main]
+async fn main() -> io::Result<()> {
+    app()
+    .await?.await?;
+    Ok(())
 }
 
 #[derive(Error, Debug)]
