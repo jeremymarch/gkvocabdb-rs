@@ -752,7 +752,6 @@ async fn main() -> io::Result<()> {
             //    err, HttpResponse::Conflict().finish()).into()))
             //.wrap(json_cfg)
             .app_data(db_pool.clone())
-            
             .wrap(middleware::Logger::default())
             //.wrap(auth_basic) //this blocks healthcheck
             .wrap(CookieSession::signed(&[0; 32])
@@ -760,19 +759,18 @@ async fn main() -> io::Result<()> {
                 //.expires_in(2147483647) //deprecated
                 .max_age(2147483647))
             .wrap(middleware::Compress::default())
-            //.wrap(error_handlers)
-            .route("/login", web::get().to(login::login_get))
-            .route("/login", web::post().to(login::login_post))
-            /* 
-            .service(
-                web::resource("/checklogin")
-                    .route(web::get().to(check_login)),
-            )*/
-            /* .service(
-                web::resource("/fixassignmentstemp")
-                    .route(web::get().to(fix_assignments_web)),
-            )*/
-            .service(
+            //.wrap(error_handlers)           
+            .configure(config)
+    })
+    .bind("0.0.0.0:8088")?
+    .run()
+    .await
+}
+
+fn config(cfg: &mut web::ServiceConfig) {
+    cfg.route("/login", web::get().to(login::login_get))
+    .route("/login", web::post().to(login::login_post))
+    .service(
                 web::resource("/query")
                     .route(web::get().to(get_text_words)),
             )
@@ -816,11 +814,7 @@ async fn main() -> io::Result<()> {
                 web::resource("/healthzzz")
                     .route(web::get().to(health_check)),
             )
-            .service(fs::Files::new("/", "./static").prefer_utf8(true).index_file("index.html"))
-    })
-    .bind("0.0.0.0:8088")?
-    .run()
-    .await
+            .service(fs::Files::new("/", "./static").prefer_utf8(true).index_file("index.html"));
 }
 
 #[derive(Error, Debug)]
@@ -891,15 +885,51 @@ mod tests {
         let resp = test::call_service(&mut app, req).await;
         assert!(resp.status().is_success());
     }
-
+*/
     #[actix_rt::test]
     async fn test_index_post() {
-        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
-        let req = test::TestRequest::post().uri("/").to_request();
+        let db_path = std::env::var("GKVOCABDB_DB_PATH")
+        .unwrap_or_else(|_| panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH."));
+
+        let options = SqliteConnectOptions::from_str(&db_path)
+        .expect("Could not connect to db.")
+        .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .read_only(false)
+        .collation("PolytonicGreek", |l, r| l.to_lowercase().cmp( &r.to_lowercase() ) );
+
+        let db_pool = SqlitePool::connect_with(options).await.expect("Could not connect to db.");
+
+        let mut app = test::init_service(App::new()
+            //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
+            //    err, HttpResponse::Conflict().finish()).into()))
+            //.wrap(json_cfg)
+            .app_data(db_pool.clone())
+            .wrap(middleware::Logger::default())
+            //.wrap(auth_basic) //this blocks healthcheck
+            .wrap(CookieSession::signed(&[0; 32])
+                .secure(false)
+                //.expires_in(2147483647) //deprecated
+                .max_age(2147483647))
+            .wrap(middleware::Compress::default())
+            //.wrap(error_handlers)           
+            .configure(config)
+        ).await;
+
+        let req = test::TestRequest::get().uri("/index.html").to_request();
         let resp = test::call_service(&mut app, req).await;
-        assert!(resp.status().is_client_error());
+        assert!(resp.status().is_success());
+
+        let resp = test::TestRequest::get()
+        .uri(r#"/query?text=100&wordid=0"#)
+        .send_request(&mut app).await;
+
+        assert!(&resp.status().is_success());
+        //println!("resp: {:?}", resp);
+        let result: QueryResponse = test::read_body_json(resp).await;
+        //println!("res: {:?}", result);
+        assert_eq!(result.error, "Not logged in".to_string());
     }
-*/
 
     //cargo test -- --nocapture
 
