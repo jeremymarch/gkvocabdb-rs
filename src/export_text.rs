@@ -14,27 +14,25 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use super::*;
 
-pub async fn export_text((info, session, req): (web::Query<ExportRequest>, Session, HttpRequest)) -> Result<HttpResponse> {
+pub async fn export_text(
+    (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
+) -> Result<HttpResponse> {
     let _db = req.app_data::<SqlitePool>().unwrap();
     let bold_glosses = false;
 
     if let Some(user_id) = login::get_user_id(session) {
-
         let template = include_str!("latex/doc_template.tex");
         let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
-
-        
 
         Ok(HttpResponse::Ok()
             .content_type("application/x-latex")
             .body(res))
-        }
-    else {
+    } else {
         let res = ImportResponse {
             success: false,
             words_inserted: 0,

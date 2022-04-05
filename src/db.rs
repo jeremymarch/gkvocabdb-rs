@@ -14,12 +14,12 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use sqlx::sqlite::SqliteRow;
-use sqlx::{FromRow, Row, SqlitePool };
 use serde::{Deserialize, Serialize};
+use sqlx::sqlite::SqliteRow;
+use sqlx::{FromRow, Row, SqlitePool};
 
 use unicode_normalization::UnicodeNormalization;
 /*
@@ -40,28 +40,28 @@ pub struct DefRow {
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct WordRow {
     #[serde(rename(serialize = "i"), rename(deserialize = "i"))]
-    pub wordid:u32,
+    pub wordid: u32,
     #[serde(rename(serialize = "w"), rename(deserialize = "w"))]
-    pub word:String,
+    pub word: String,
     #[serde(rename(serialize = "t"), rename(deserialize = "t"))]
-    pub word_type:u8,
+    pub word_type: u8,
     #[serde(rename(serialize = "l"), rename(deserialize = "l"))]
-    pub lemma:String,
+    pub lemma: String,
     #[serde(rename(serialize = "l1"), rename(deserialize = "l1"))]
-    pub lemma1:String,
-    pub def:String,
+    pub lemma1: String,
+    pub def: String,
     #[serde(rename(serialize = "u"), rename(deserialize = "u"))]
-    pub unit:u8,
-    pub pos:String,
+    pub unit: u8,
+    pub pos: String,
     #[serde(rename(serialize = "a"), rename(deserialize = "a"))]
     pub arrowed_id: Option<u32>,
-    pub hqid:u32,
+    pub hqid: u32,
     #[serde(rename(serialize = "s"), rename(deserialize = "s"))]
-    pub seq:u32,
+    pub seq: u32,
     #[serde(rename(serialize = "s2"), rename(deserialize = "s2"))]
     pub arrowed_seq: Option<u32>,
     #[serde(rename(serialize = "c"), rename(deserialize = "c"))]
-    pub freq: u32, 
+    pub freq: u32,
     #[serde(rename(serialize = "rc"), rename(deserialize = "rc"))]
     pub runningcount: u32,
     #[serde(rename(serialize = "if"), rename(deserialize = "if"))]
@@ -73,13 +73,13 @@ pub struct WordRow {
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct SmallWord {
     #[serde(rename(serialize = "i"))]
-    pub wordid:u32,
-    pub hqid:u32,
+    pub wordid: u32,
+    pub hqid: u32,
     #[serde(rename(serialize = "l"))]
-    pub lemma:String,
-    pub pos:String,
+    pub lemma: String,
+    pub pos: String,
     #[serde(rename(serialize = "g"))]
-    pub def:String,
+    pub def: String,
     #[serde(rename(serialize = "rc"))]
     pub runningcount: Option<u32>,
     #[serde(rename(serialize = "ls"))]
@@ -87,7 +87,7 @@ pub struct SmallWord {
     #[serde(rename(serialize = "fr"))]
     pub total: Option<u32>,
     #[serde(rename(serialize = "ws"))]
-    pub seq:u32,
+    pub seq: u32,
     #[serde(rename(serialize = "if"))]
     pub is_flagged: bool,
     #[serde(rename(serialize = "wtseq"))]
@@ -98,10 +98,10 @@ pub struct SmallWord {
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct AssignmentRow {
-  pub id:u32,
-  pub assignment:String,
-  pub parent_id:Option<u32>,
-  pub course_id:Option<u32>
+    pub id: u32,
+    pub assignment: String,
+    pub parent_id: Option<u32>,
+    pub course_id: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -109,7 +109,7 @@ pub struct DefRow {
     pub word: String,
     pub sortword: String,
     pub def: String,
-    pub seq: u32
+    pub seq: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -121,7 +121,7 @@ pub struct TextWord {
 /*
 pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
   let query = format!("SELECT seq FROM {} WHERE sortalpha >= '{}' ORDER BY sortalpha LIMIT 1;", table, prefix);
-  
+
   let rec:Result<(u32,), sqlx::Error> = sqlx::query_as(&query)
   .fetch_one(pool)
   .await;
@@ -133,7 +133,7 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
           let max_rec:(u32,) = sqlx::query_as(&max_query)  //fake it by loading it into DefRow for now
           .fetch_one(pool)
           .await?;
-      
+
           Ok(max_rec.0)
       },
       Err(r) => Err(r)
@@ -144,174 +144,243 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 */
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlossEntry {
-  pub hqid:u32,
-  pub l:String,
-  pub pos:String,
-  pub g:String,
-  pub n:String,
+    pub hqid: u32,
+    pub l: String,
+    pub pos: String,
+    pub g: String,
+    pub n: String,
 }
 
 pub enum UpdateType {
-  ArrowWord,
-  UnarrowWord,
-  NewGloss,
-  EditGloss,
-  SetGlossId,
-  ImportText,
-  DeleteGloss,
+    ArrowWord,
+    UnarrowWord,
+    NewGloss,
+    EditGloss,
+    SetGlossId,
+    ImportText,
+    DeleteGloss,
 }
 
 impl UpdateType {
-  fn value(&self) -> u32 {
-      match *self {
-          UpdateType::ArrowWord => 1,
-          UpdateType::UnarrowWord => 2,
-          UpdateType::NewGloss => 3,
-          UpdateType::EditGloss => 4,
-          UpdateType::SetGlossId => 5,
-          UpdateType::ImportText => 6,
-          UpdateType::DeleteGloss => 7,
-      }
-  }
+    fn value(&self) -> u32 {
+        match *self {
+            UpdateType::ArrowWord => 1,
+            UpdateType::UnarrowWord => 2,
+            UpdateType::NewGloss => 3,
+            UpdateType::EditGloss => 4,
+            UpdateType::SetGlossId => 5,
+            UpdateType::ImportText => 6,
+            UpdateType::DeleteGloss => 7,
+        }
+    }
 }
 
-pub async fn arrow_word(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
-  
-  let mut tx = pool.begin().await?;
+pub async fn arrow_word(
+    pool: &SqlitePool,
+    course_id: u32,
+    gloss_id: u32,
+    word_id: u32,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
 
-  /*
-  if word_id < 100 {
-    Err("cannot change arrow on h&q word")
-  }
+    /*
+    if word_id < 100 {
+      Err("cannot change arrow on h&q word")
+    }
 
-  */
+    */
 
-  let _ = arrow_word_trx(&mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent).await?;
+    let _ = arrow_word_trx(
+        &mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent,
+    )
+    .await?;
 
-  tx.commit().await?;
+    tx.commit().await?;
 
-  Ok(())
+    Ok(())
 }
 
-pub async fn arrow_word_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32, word_id: u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
-  let query = "SELECT word_id \
+pub async fn arrow_word_trx<'a, 'b>(
+    tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
+    course_id: u32,
+    gloss_id: u32,
+    word_id: u32,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<(), sqlx::Error> {
+    let query = "SELECT word_id \
   FROM arrowed_words \
   WHERE course_id = ? AND gloss_id = ?;";
-  let old_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
-  .bind(course_id)
-  .bind(gloss_id)
-  .fetch_one(&mut *tx)
-  .await;
+    let old_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+        .bind(course_id)
+        .bind(gloss_id)
+        .fetch_one(&mut *tx)
+        .await;
 
-  let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
-  
-  //add previous arrow to history, if it was arrowed before
-  let query = "INSERT INTO arrowed_words_history \
+    let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
+
+    //add previous arrow to history, if it was arrowed before
+    let query = "INSERT INTO arrowed_words_history \
     SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
     FROM arrowed_words \
     WHERE course_id = ? AND gloss_id = ?;";
-  let history_id = sqlx::query(query)
-  .bind(course_id)
-  .bind(gloss_id)
-  .execute(&mut *tx).await?
-  .last_insert_rowid();
+    let history_id = sqlx::query(query)
+        .bind(course_id)
+        .bind(gloss_id)
+        .execute(&mut *tx)
+        .await?
+        .last_insert_rowid();
 
-  //println!("rows: {}",r.rows_affected());
+    //println!("rows: {}",r.rows_affected());
 
-  //if no row existed to be inserted above, then the word was not arrowed before.  Insert new row into history to reflect this.
-  //but this way we don't get to know when or by whom it was unarrowed? or do we???
+    //if no row existed to be inserted above, then the word was not arrowed before.  Insert new row into history to reflect this.
+    //but this way we don't get to know when or by whom it was unarrowed? or do we???
 
-  //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
+    //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
 
-  if word_id > 0 {
-    let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .bind(word_id)
-    .bind(timestamp)
-    .bind(user_id)
-    //.bind(comment)
-    .execute(&mut *tx).await?;
+    if word_id > 0 {
+        let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
+        sqlx::query(query)
+            .bind(course_id)
+            .bind(gloss_id)
+            .bind(word_id)
+            .bind(timestamp)
+            .bind(user_id)
+            //.bind(comment)
+            .execute(&mut *tx)
+            .await?;
 
-    let _ = update_log_trx(&mut *tx, UpdateType::ArrowWord, Some(gloss_id.into()), Some(history_id), Some(course_id.into()), format!("Arrow gloss ({}) to word ({}) from word ({}) in course ({})", gloss_id, word_id, unwrapped_old_word_id, course_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+        let _ = update_log_trx(
+            &mut *tx,
+            UpdateType::ArrowWord,
+            Some(gloss_id.into()),
+            Some(history_id),
+            Some(course_id.into()),
+            format!(
+                "Arrow gloss ({}) to word ({}) from word ({}) in course ({})",
+                gloss_id, word_id, unwrapped_old_word_id, course_id
+            )
+            .as_str(),
+            timestamp,
+            user_id,
+            updated_ip,
+            user_agent,
+        )
+        .await?;
+    } else {
+        //delete row to remove arrow
+        let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+        sqlx::query(query)
+            .bind(course_id)
+            .bind(gloss_id)
+            .execute(&mut *tx)
+            .await?;
 
-  }
-  else {
-    //delete row to remove arrow
-    let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .execute(&mut *tx).await?;
+        //add to history now, since can't later
+        let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
+        sqlx::query(query)
+            .bind(course_id)
+            .bind(gloss_id)
+            .bind(timestamp)
+            .bind(user_id)
+            //.bind(comment)
+            .execute(&mut *tx)
+            .await?;
 
-    //add to history now, since can't later
-    let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(gloss_id)
-    .bind(timestamp)
-    .bind(user_id)
-    //.bind(comment)
-    .execute(&mut *tx).await?;
-
-    let _ = update_log_trx(&mut *tx, UpdateType::UnarrowWord, Some(gloss_id.into()), Some(history_id), Some(course_id.into()), format!("Unarrow gloss ({}) from word ({}) in course ({})", gloss_id, unwrapped_old_word_id, course_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
-
-  }
-  Ok(())
+        let _ = update_log_trx(
+            &mut *tx,
+            UpdateType::UnarrowWord,
+            Some(gloss_id.into()),
+            Some(history_id),
+            Some(course_id.into()),
+            format!(
+                "Unarrow gloss ({}) from word ({}) in course ({})",
+                gloss_id, unwrapped_old_word_id, course_id
+            )
+            .as_str(),
+            timestamp,
+            user_id,
+            updated_ip,
+            user_agent,
+        )
+        .await?;
+    }
+    Ok(())
 }
 
 //word_id is unique across courses, so we do not need to use course_id except for where the word is arrowed
-pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_id:u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<Vec<SmallWord>, sqlx::Error> {
+pub async fn set_gloss_id(
+    pool: &SqlitePool,
+    course_id: u32,
+    gloss_id: u32,
+    word_id: u32,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<Vec<SmallWord>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
 
-  let mut tx = pool.begin().await?;
+    //1a check if the word whose gloss is being changed is arrowed
+    let query =
+        "SELECT gloss_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
+    let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+        .bind(course_id)
+        .bind(gloss_id)
+        .bind(word_id)
+        .fetch_one(&mut tx)
+        .await;
 
-  //1a check if the word whose gloss is being changed is arrowed
-  let query = "SELECT gloss_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
-  let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
-  .bind(course_id)
-  .bind(gloss_id)
-  .bind(word_id)
-  .fetch_one(&mut tx)
-  .await;
+    //1b. unarrow word if it is arrowed
+    if arrowed_word_id.is_ok() {
+        //r.rows_affected() < 1 {
+        let _ = arrow_word_trx(
+            &mut tx, course_id, gloss_id, 0, /*zero to unarrow*/
+            user_id, timestamp, updated_ip, user_agent,
+        )
+        .await?;
+    }
 
-  //1b. unarrow word if it is arrowed
-  if arrowed_word_id.is_ok() { //r.rows_affected() < 1 {
-    let _ = arrow_word_trx(&mut tx, course_id, gloss_id, 0 /*zero to unarrow*/, user_id, timestamp, updated_ip, user_agent).await?;
-  }
+    //2a. save word row into history before updating gloss_id
+    //or could have separate history table just for gloss_id changes
+    let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
+    let history_id = sqlx::query(query)
+        .bind(word_id)
+        .execute(&mut tx)
+        .await?
+        .last_insert_rowid();
 
-  //2a. save word row into history before updating gloss_id
-  //or could have separate history table just for gloss_id changes
-  let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
-  let history_id = sqlx::query(query)
-  .bind(word_id)
-  .execute(&mut tx).await?
-  .last_insert_rowid();
+    //0. get old gloss_id before changing it so we can update its counts in step 3b
+    let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
+    let old_gloss_id: (Option<u32>,) = sqlx::query_as(query)
+        .bind(word_id)
+        .fetch_one(&mut tx)
+        .await?;
 
-  //0. get old gloss_id before changing it so we can update its counts in step 3b
-  let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
-  let old_gloss_id:(Option<u32>,) = sqlx::query_as(query)
-  .bind(word_id)
-  .fetch_one(&mut tx)
-  .await?;
+    //2b. update gloss_id
+    let query = "UPDATE words SET gloss_id = ? WHERE word_id = ?;";
+    sqlx::query(query)
+        .bind(gloss_id)
+        .bind(word_id)
+        .execute(&mut tx)
+        .await?;
 
-  //2b. update gloss_id
-  let query = "UPDATE words SET gloss_id = ? WHERE word_id = ?;";
-  sqlx::query(query)
-  .bind(gloss_id)
-  .bind(word_id)
-  .execute(&mut tx).await?;
+    //3. update counts
+    update_counts_for_gloss_id(&mut tx, course_id, gloss_id).await?;
+    if old_gloss_id.0.is_some() {
+        update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap()).await?;
+    }
 
-  //3. update counts
-  update_counts_for_gloss_id(&mut tx, course_id, gloss_id).await?;
-  if old_gloss_id.0.is_some() {
-    update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap() ).await?;
-  }
-
-  //this requests all the places this word shows up, so we can update them in the displayed page.
-  //fix me: need to limit this by course_id
-  //fix me: need to limit this to the assignment displayed on the page, else this could return huge number of rows for e.g. article/kai/etc
-  let query = format!("SELECT B.gloss_id, B.lemma, B.pos, B.def, I.total_count, A.seq, H.running_count, A.word_id, \
+    //this requests all the places this word shows up, so we can update them in the displayed page.
+    //fix me: need to limit this by course_id
+    //fix me: need to limit this to the assignment displayed on the page, else this could return huge number of rows for e.g. article/kai/etc
+    let query = format!("SELECT B.gloss_id, B.lemma, B.pos, B.def, I.total_count, A.seq, H.running_count, A.word_id, \
   D.word_id as arrowedID, E.seq AS arrowedSeq, A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
   FROM words A \
   LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
@@ -325,197 +394,319 @@ pub async fn set_gloss_id(pool: &SqlitePool, course_id:u32, gloss_id:u32, word_i
   ORDER BY A.seq \
   LIMIT 55000;", gloss_id=gloss_id, course_id = course_id);
 
-  let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| 
-      SmallWord {
-          wordid: rec.get("word_id"),
-          hqid: rec.get("gloss_id"),
-          lemma: rec.get("lemma"),
-          pos: rec.get("pos"),
-          def: rec.get("def"),
-          runningcount: rec.get("running_count"),
-          arrowed_seq: rec.get("arrowedSeq"),
-          total: rec.get("total_count"), 
-          seq: rec.get("seq"),
-          is_flagged: rec.get("isFlagged"),
-          word_text_seq: rec.get("text_order"),
-          arrowed_text_seq: rec.get("arrowed_text_order"),
-      }    
-  )
-  .fetch_all(&mut tx)
-  .await;
+    let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)
+        .map(|rec: SqliteRow| SmallWord {
+            wordid: rec.get("word_id"),
+            hqid: rec.get("gloss_id"),
+            lemma: rec.get("lemma"),
+            pos: rec.get("pos"),
+            def: rec.get("def"),
+            runningcount: rec.get("running_count"),
+            arrowed_seq: rec.get("arrowedSeq"),
+            total: rec.get("total_count"),
+            seq: rec.get("seq"),
+            is_flagged: rec.get("isFlagged"),
+            word_text_seq: rec.get("text_order"),
+            arrowed_text_seq: rec.get("arrowed_text_order"),
+        })
+        .fetch_all(&mut tx)
+        .await;
 
-  let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, Some(word_id.into()), Some(history_id), Some(course_id.into()), format!("Set gloss for word ({}) from ({}) to ({}) in course ({})", word_id, old_gloss_id.0.unwrap_or(0), gloss_id, course_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+    let _ = update_log_trx(
+        &mut tx,
+        UpdateType::SetGlossId,
+        Some(word_id.into()),
+        Some(history_id),
+        Some(course_id.into()),
+        format!(
+            "Set gloss for word ({}) from ({}) to ({}) in course ({})",
+            word_id,
+            old_gloss_id.0.unwrap_or(0),
+            gloss_id,
+            course_id
+        )
+        .as_str(),
+        timestamp,
+        user_id,
+        updated_ip,
+        user_agent,
+    )
+    .await?;
 
-  tx.commit().await?;
-  
-  res
+    tx.commit().await?;
+
+    res
 }
 
-pub async fn add_text(pool: &SqlitePool, course_id: u32, text_name:&str, words:Vec<TextWord>, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
-  let mut tx = pool.begin().await?;
+pub async fn add_text(
+    pool: &SqlitePool,
+    course_id: u32,
+    text_name: &str,
+    words: Vec<TextWord>,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<u64, sqlx::Error> {
+    let mut tx = pool.begin().await?;
 
-  let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
-  let text_id = sqlx::query(query)
-      .bind(text_name)
-      .execute(&mut tx).await?
-      .last_insert_rowid();
+    let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
+    let text_id = sqlx::query(query)
+        .bind(text_name)
+        .execute(&mut tx)
+        .await?
+        .last_insert_rowid();
 
-  //(word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, 
-  //arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-  //updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '')
+    //(word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL,
+    //arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    //updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '')
 
-  let mut seq:u32 = 1;
+    let mut seq: u32 = 1;
 
-  let query = "INSERT INTO words (word_id, seq, text, section, line, word, gloss_id, \
+    let query = "INSERT INTO words (word_id, seq, text, section, line, word, gloss_id, \
     lemma1, lemma2, o, runningcount, type, arrow, flagged, updated, \
     updatedUserAgent, updatedIP, updatedUser, isFlagged, note) \
     VALUES (NULL, ?, ?, '', '', ?, ?, '', '', '', 0, ?, 0, 0, ?, ?, ?, ?, 0, '');";
-  let mut count = 0;
-  for w in words {
-    let res = sqlx::query(query)
-      .bind(seq)
-      .bind(text_id)
-      .bind(w.word)
-      .bind(w.gloss_id)
-      .bind(w.word_type)
-      .bind(timestamp)
-      .bind(user_agent)
-      .bind(updated_ip)
-      .bind(user_id)
-      .execute(&mut tx).await?;
+    let mut count = 0;
+    for w in words {
+        let res = sqlx::query(query)
+            .bind(seq)
+            .bind(text_id)
+            .bind(w.word)
+            .bind(w.gloss_id)
+            .bind(w.word_type)
+            .bind(timestamp)
+            .bind(user_agent)
+            .bind(updated_ip)
+            .bind(user_id)
+            .execute(&mut tx)
+            .await?;
 
-      seq += 1;
+        seq += 1;
 
-    let affected_rows = res.rows_affected();
-    if affected_rows != 1 {
-      tx.rollback().await?;
-      return Ok(0); //or panic?
+        let affected_rows = res.rows_affected();
+        if affected_rows != 1 {
+            tx.rollback().await?;
+            return Ok(0); //or panic?
+        }
+        count += affected_rows;
     }
-    count += affected_rows;
-  }
 
-  let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = ?;";
-  let max_text_order: (u32,) = sqlx::query_as(query)
-      .bind(course_id)
-      .fetch_one(&mut tx).await?;
+    let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = ?;";
+    let max_text_order: (u32,) = sqlx::query_as(query)
+        .bind(course_id)
+        .fetch_one(&mut tx)
+        .await?;
 
-  let query = "INSERT INTO course_x_text VALUES (?, ?, ?);";
-  sqlx::query(query)
-      .bind(course_id)
-      .bind(text_id)
-      .bind(max_text_order.0 + 1)
-      .execute(&mut tx).await?;
+    let query = "INSERT INTO course_x_text VALUES (?, ?, ?);";
+    sqlx::query(query)
+        .bind(course_id)
+        .bind(text_id)
+        .bind(max_text_order.0 + 1)
+        .execute(&mut tx)
+        .await?;
 
-  let _ = update_log_trx(&mut tx, UpdateType::ImportText, Some(text_id), None, None, format!("Imported {} words into text ({})", count, text_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
+    let _ = update_log_trx(
+        &mut tx,
+        UpdateType::ImportText,
+        Some(text_id),
+        None,
+        None,
+        format!("Imported {} words into text ({})", count, text_id).as_str(),
+        timestamp,
+        user_id,
+        updated_ip,
+        user_agent,
+    )
+    .await?;
 
+    //println!("id: {}, count: {}", text_id, count);
 
-  //println!("id: {}, count: {}", text_id, count);
-  
-  tx.commit().await?;
+    tx.commit().await?;
 
-  Ok(count)
+    Ok(count)
 }
 
+pub async fn insert_gloss(
+    pool: &SqlitePool,
+    gloss: &str,
+    pos: &str,
+    def: &str,
+    stripped_lemma: &str,
+    note: &str,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<u64, sqlx::Error> {
+    let mut tx = pool.begin().await?;
 
-pub async fn insert_gloss(pool: &SqlitePool, gloss: &str, pos: &str, def: &str, stripped_lemma: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
-
-  let mut tx = pool.begin().await?;
-
-  let query = "INSERT INTO glosses (gloss_id, seqold, seq, unit, lemma, lemma2, sortalpha, sortkey, \
+    let query = "INSERT INTO glosses (gloss_id, seqold, seq, unit, lemma, lemma2, sortalpha, sortkey, \
     present, future, aorist, perfect, perfectmid, aoristpass, def, pos, link, freq, note, verbClass, \
     updated, arrowedDay, arrowedID, pageLine, parentid, status, updatedUserAgent, updatedIP, updatedUser) \
     VALUES (NULL, 0, 0, 0, ?, '', ?, '', '', '', '', '', '', '', ?, ?, '', 0, ?, 0, ?, 0, NULL, '', NULL, 1, ?, ?, ?);";
 
     //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
-    let sl = stripped_lemma.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
+    let sl = stripped_lemma
+        .nfd()
+        .filter(|x| !unicode_normalization::char::is_combining_mark(*x))
+        .collect::<String>()
+        .to_lowercase();
 
     let res = sqlx::query(query)
-    .bind(gloss)
-    .bind(sl)
-    .bind(def)
-    .bind(pos)
-    .bind(note)
-    .bind(timestamp)
-    .bind(user_agent)
-    .bind(updated_ip)
-    .bind(user_id)
-    .execute(&mut tx).await?;
+        .bind(gloss)
+        .bind(sl)
+        .bind(def)
+        .bind(pos)
+        .bind(note)
+        .bind(timestamp)
+        .bind(user_agent)
+        .bind(updated_ip)
+        .bind(user_id)
+        .execute(&mut tx)
+        .await?;
 
     let new_gloss_id = res.last_insert_rowid();
 
-    let _ = update_log_trx(&mut tx, UpdateType::NewGloss, Some(new_gloss_id), None, None, format!("Added gloss ({})", new_gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
-
-  tx.commit().await?;
-    
-  Ok(res.rows_affected())
-}
-
-pub async fn update_log_trx<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, update_type:UpdateType, object_id:Option<i64>, history_id:Option<i64>,course_id:Option<i64>,update_desc: &str, timestamp: i64, user_id:u32, updated_ip: &str, user_agent: &str) -> Result<(), sqlx::Error> {
-  let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
-  sqlx::query(query)
-    .bind(update_type.value())
-    .bind(object_id)
-    .bind(history_id)
-    .bind(course_id)
-    .bind(update_desc)
-    .bind(timestamp)
-    .bind(user_id)
-    .bind(updated_ip)
-    .bind(user_agent)
-    .execute(&mut *tx).await?;
-
-    Ok(())
-}
-
-pub async fn delete_gloss(pool: &SqlitePool, gloss_id: u32, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
-
-  let mut tx = pool.begin().await?;
-
-  let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = ?;";
-  let count:(u32,) = sqlx::query_as(query)
-  .bind(gloss_id)  
-  .fetch_one(&mut *tx)
-  .await?;
-
-  if count.0 == 0 {
-    let _ = update_log_trx(&mut tx, UpdateType::DeleteGloss, Some(gloss_id.into()), Some(gloss_id.into()), None, format!("Deleted gloss ({})", gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
-
-    let query = "UPDATE glosses SET status = 0 WHERE gloss_id = ?;";
-    let res = sqlx::query(query)
-      .bind(gloss_id)
-      .execute(&mut tx).await?;
+    let _ = update_log_trx(
+        &mut tx,
+        UpdateType::NewGloss,
+        Some(new_gloss_id),
+        None,
+        None,
+        format!("Added gloss ({})", new_gloss_id).as_str(),
+        timestamp,
+        user_id,
+        updated_ip,
+        user_agent,
+    )
+    .await?;
 
     tx.commit().await?;
 
     Ok(res.rows_affected())
-  }
-  else {
-    Err(sqlx::Error::RowNotFound) //for now
-  }
 }
 
-pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &str, def: &str, stripped_gloss: &str, note: &str, user_id: u32, timestamp: i64, updated_ip: &str, user_agent: &str) -> Result<u64, sqlx::Error> {
+pub async fn update_log_trx<'a, 'b>(
+    tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
+    update_type: UpdateType,
+    object_id: Option<i64>,
+    history_id: Option<i64>,
+    course_id: Option<i64>,
+    update_desc: &str,
+    timestamp: i64,
+    user_id: u32,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<(), sqlx::Error> {
+    let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    sqlx::query(query)
+        .bind(update_type.value())
+        .bind(object_id)
+        .bind(history_id)
+        .bind(course_id)
+        .bind(update_desc)
+        .bind(timestamp)
+        .bind(user_id)
+        .bind(updated_ip)
+        .bind(user_agent)
+        .execute(&mut *tx)
+        .await?;
 
-  let mut tx = pool.begin().await?;
+    Ok(())
+}
 
-  let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
-  let history_id = sqlx::query(query)
-    .bind(gloss_id)
-    .execute(&mut tx).await?
-    .last_insert_rowid();
+pub async fn delete_gloss(
+    pool: &SqlitePool,
+    gloss_id: u32,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<u64, sqlx::Error> {
+    let mut tx = pool.begin().await?;
 
-  //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
-  //let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, "Change gloss for x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
-  let _ = update_log_trx(&mut tx, UpdateType::EditGloss, Some(gloss_id.into()), Some(history_id), None, format!("Edited gloss ({})", gloss_id).as_str(), timestamp, user_id, updated_ip, user_agent).await?;
-  //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
+    let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = ?;";
+    let count: (u32,) = sqlx::query_as(query)
+        .bind(gloss_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    if count.0 == 0 {
+        let _ = update_log_trx(
+            &mut tx,
+            UpdateType::DeleteGloss,
+            Some(gloss_id.into()),
+            Some(gloss_id.into()),
+            None,
+            format!("Deleted gloss ({})", gloss_id).as_str(),
+            timestamp,
+            user_id,
+            updated_ip,
+            user_agent,
+        )
+        .await?;
+
+        let query = "UPDATE glosses SET status = 0 WHERE gloss_id = ?;";
+        let res = sqlx::query(query).bind(gloss_id).execute(&mut tx).await?;
+
+        tx.commit().await?;
+
+        Ok(res.rows_affected())
+    } else {
+        Err(sqlx::Error::RowNotFound) //for now
+    }
+}
+
+pub async fn update_gloss(
+    pool: &SqlitePool,
+    gloss_id: u32,
+    gloss: &str,
+    pos: &str,
+    def: &str,
+    stripped_gloss: &str,
+    note: &str,
+    user_id: u32,
+    timestamp: i64,
+    updated_ip: &str,
+    user_agent: &str,
+) -> Result<u64, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
+    let history_id = sqlx::query(query)
+        .bind(gloss_id)
+        .execute(&mut tx)
+        .await?
+        .last_insert_rowid();
+
+    //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
+    //let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, "Change gloss for x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
+    let _ = update_log_trx(
+        &mut tx,
+        UpdateType::EditGloss,
+        Some(gloss_id.into()),
+        Some(history_id),
+        None,
+        format!("Edited gloss ({})", gloss_id).as_str(),
+        timestamp,
+        user_id,
+        updated_ip,
+        user_agent,
+    )
+    .await?;
+    //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
 
     //CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
 
     //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
-    let sl = stripped_gloss.nfd().filter(|x| !unicode_normalization::char::is_combining_mark(*x) ).collect::<String>().to_lowercase();
+    let sl = stripped_gloss
+        .nfd()
+        .filter(|x| !unicode_normalization::char::is_combining_mark(*x))
+        .collect::<String>()
+        .to_lowercase();
 
-  let query = "UPDATE glosses SET \
+    let query = "UPDATE glosses SET \
     lemma = ?, \
     sortalpha = ?, \
     def = ?, \
@@ -528,21 +719,22 @@ pub async fn update_gloss(pool: &SqlitePool, gloss_id: u32, gloss: &str, pos: &s
     WHERE gloss_id = ?;";
 
     let res = sqlx::query(query)
-    .bind(gloss)
-    .bind(sl)
-    .bind(def)
-    .bind(pos)
-    .bind(note)
-    .bind(timestamp)
-    .bind(user_agent)
-    .bind(updated_ip)
-    .bind(user_id)
-    .bind(gloss_id)
-    .execute(&mut tx).await?;
+        .bind(gloss)
+        .bind(sl)
+        .bind(def)
+        .bind(pos)
+        .bind(note)
+        .bind(timestamp)
+        .bind(user_agent)
+        .bind(updated_ip)
+        .bind(user_id)
+        .bind(gloss_id)
+        .execute(&mut tx)
+        .await?;
 
-  tx.commit().await?;
-    
-  Ok(res.rows_affected())
+    tx.commit().await?;
+
+    Ok(res.rows_affected())
 }
 
 /*
@@ -578,86 +770,92 @@ pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlit
 }
 */
 
-pub async fn update_counts_for_gloss_id<'a,'b>(tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>, course_id:u32, gloss_id:u32) -> Result<(), sqlx::Error> {
-  
-  // to update total counts for gloss in course
-  let query = "SELECT COUNT(*) \
+pub async fn update_counts_for_gloss_id<'a, 'b>(
+    tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
+    course_id: u32,
+    gloss_id: u32,
+) -> Result<(), sqlx::Error> {
+    // to update total counts for gloss in course
+    let query = "SELECT COUNT(*) \
   FROM words a \
   INNER JOIN course_x_text b ON a.text = b.text_id \
   WHERE a.gloss_id = ? AND b.course_id = ? \
   GROUP BY a.gloss_id;";
-  let count:Result<(u32,), sqlx::Error> = sqlx::query_as(query)
-  .bind(gloss_id)  
-  .bind(course_id)
-  .fetch_one(&mut *tx)
-  .await;
+    let count: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+        .bind(gloss_id)
+        .bind(course_id)
+        .fetch_one(&mut *tx)
+        .await;
 
-  let c = if count.is_ok() { count.unwrap().0 } else { 0 };
-  let query = "REPLACE INTO total_counts_by_course VALUES (?,?,?)";
-  sqlx::query(query)
-  .bind(course_id)
-  .bind(gloss_id)
-  .bind(c)
-  .execute(&mut *tx).await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
+    let c = if count.is_ok() { count.unwrap().0 } else { 0 };
+    let query = "REPLACE INTO total_counts_by_course VALUES (?,?,?)";
+    sqlx::query(query)
+        .bind(course_id)
+        .bind(gloss_id)
+        .bind(c)
+        .execute(&mut *tx)
+        .await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
 
-  //to update running counts for gloss in course
-  /* 
-  //this did not work:
-  let query = "REPLACE INTO running_counts_by_course \
-    SELECT c.course_id,a.word_id,COUNT(*) AS running_count \
-    FROM words a \
-    INNER JOIN words b ON a.gloss_id=b.gloss_id \
-    INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
-    INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id = ?) \
-    WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = ? \
-    GROUP BY a.word_id;";
+    //to update running counts for gloss in course
+    /*
+      //this did not work:
+      let query = "REPLACE INTO running_counts_by_course \
+        SELECT c.course_id,a.word_id,COUNT(*) AS running_count \
+        FROM words a \
+        INNER JOIN words b ON a.gloss_id=b.gloss_id \
+        INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
+        INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id = ?) \
+        WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = ? \
+        GROUP BY a.word_id;";
 
-  /to select running counts
-  //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
+      /to select running counts
+      //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
 
 
 
-    //???this works
-    //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and d.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;    
-    //???but not this
-    //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and c.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=1422 group by a.word_id order by a.gloss_id, num;
+        //???this works
+        //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and d.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
+        //???but not this
+        //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and c.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=1422 group by a.word_id order by a.gloss_id, num;
 
-    
 
-  //when updating running count of just one we only need to update the words equal and after this one?
-*/
-  let query = "SELECT a.word_id FROM words a \
+
+      //when updating running count of just one we only need to update the words equal and after this one?
+    */
+    let query = "SELECT a.word_id FROM words a \
   INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
   WHERE a.gloss_id = ? \
   ORDER BY c.text_order, a.seq;";
-  let words:Vec<(u32,)> = sqlx::query_as(query)
-  .bind(course_id)
-  .bind(gloss_id)
-  .fetch_all(&mut *tx).await?;
+    let words: Vec<(u32,)> = sqlx::query_as(query)
+        .bind(course_id)
+        .bind(gloss_id)
+        .fetch_all(&mut *tx)
+        .await?;
 
-  let mut running_count = 1;
-  for word_id in words {
-    let query = "REPLACE INTO running_counts_by_course VALUES (?,?,?)";
-    sqlx::query(query)
-    .bind(course_id)
-    .bind(word_id.0)
-    .bind(running_count)
-    .execute(&mut *tx).await?;
+    let mut running_count = 1;
+    for word_id in words {
+        let query = "REPLACE INTO running_counts_by_course VALUES (?,?,?)";
+        sqlx::query(query)
+            .bind(course_id)
+            .bind(word_id.0)
+            .bind(running_count)
+            .execute(&mut *tx)
+            .await?;
 
-    running_count += 1;
-  }
+        running_count += 1;
+    }
 
-  Ok(())
+    Ok(())
 }
 
-/* 
+/*
 pub async fn fix_assignments(pool: &SqlitePool) -> Result<(), sqlx::Error> {
   let mut tx = pool.begin().await?;
 /*
-INSERT INTO texts (SELECT NULL,title,6,1 from assignments where id=28; 
+INSERT INTO texts (SELECT NULL,title,6,1 from assignments where id=28;
 
 update words set text=129
-where seq >= (select seq from words where word_id=22463) 
+where seq >= (select seq from words where word_id=22463)
 and seq <= (select seq from words where word_id =23069);
 */
 let mut text_order:u32 = 35;
@@ -705,34 +903,31 @@ let mut text_order:u32 = 35;
   }
 
   tx.commit().await?;
-    
+
   Ok(())
 }
 */
-/* 
+/*
 pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option<u32>, sqlx::Error> {
   let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
   let rec: (Option<u32>,) = sqlx::query_as(query)
   .bind(text_id)
   .fetch_one(pool)
   .await?;
-  
+
     Ok(rec.0)
 }
 */
-pub async fn num_child_texts(pool: &SqlitePool, text_id:u32) -> Result<u32, sqlx::Error> {
-  let query = "SELECT COUNT(*) FROM texts WHERE parent_id = ?;";
-  let rec: (u32,) = sqlx::query_as(query)
-  .bind(text_id)
-  .fetch_one(pool)
-  .await?;
-  
+pub async fn num_child_texts(pool: &SqlitePool, text_id: u32) -> Result<u32, sqlx::Error> {
+    let query = "SELECT COUNT(*) FROM texts WHERE parent_id = ?;";
+    let rec: (u32,) = sqlx::query_as(query).bind(text_id).fetch_one(pool).await?;
+
     Ok(rec.0)
 }
 
-/* 
+/*
 *update get_words to not look for parent_id (just use text_id)
-update db: 
+update db:
     add each text/assignment to course_x_text table with a text_order
     add rest of ULG to text table select by seq between update text_id
 
@@ -743,12 +938,15 @@ add basic lemmatising to import for non-declined words
 add arrows to change order
 */
 
-pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<Vec<WordRow>, sqlx::Error> {
-
+pub async fn get_words(
+    pool: &SqlitePool,
+    text_id: u32,
+    course_id: u32,
+) -> Result<Vec<WordRow>, sqlx::Error> {
     //do not get words of whole text, if text is split into assignments
     let children = num_child_texts(pool, text_id).await?;
     if children > 0 {
-      return Ok(vec![]);
+        return Ok(vec![]);
     }
 
     let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
@@ -770,8 +968,7 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
     //println!("{}", query);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
-    .map(|rec: SqliteRow| 
-        WordRow {
+        .map(|rec: SqliteRow| WordRow {
             wordid: rec.get("word_id"),
             word: rec.get("word"),
             word_type: rec.get("type"),
@@ -784,15 +981,14 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
             hqid: rec.get("gloss_id"),
             seq: rec.get("seq"),
             arrowed_seq: rec.get("arrowedSeq"),
-            freq: rec.get("total_count"), 
+            freq: rec.get("total_count"),
             runningcount: rec.get("running_count"),
             is_flagged: rec.get("isFlagged"),
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
-        }    
-    )
-    .fetch_all(pool)
-    .await;
+        })
+        .fetch_all(pool)
+        .await;
 
     res
 }
@@ -803,21 +999,29 @@ pub async fn get_words(pool: &SqlitePool, text_id:u32, course_id:u32) -> Result<
 //change get_words to use subtext id
 //order of assignments will be by id?  or word_seq?
 
-pub async fn get_assignment_rows(pool: &SqlitePool, course_id:u32) -> Result<Vec<AssignmentRow>, sqlx::Error> {
-  //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
-  let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id \
+pub async fn get_assignment_rows(
+    pool: &SqlitePool,
+    course_id: u32,
+) -> Result<Vec<AssignmentRow>, sqlx::Error> {
+    //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+    let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id \
     FROM texts A \
     INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = ?) \
     ORDER BY B.text_order, A.text_id;";
-  let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
-  .bind(course_id)
-  .map(|rec: SqliteRow| AssignmentRow {id: rec.get("text_id"), assignment: rec.get("name"), parent_id:rec.get("parent_id") , course_id:rec.get("course_id")} )
-  .fetch_all(pool)
-  .await;
+    let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
+        .bind(course_id)
+        .map(|rec: SqliteRow| AssignmentRow {
+            id: rec.get("text_id"),
+            assignment: rec.get("name"),
+            parent_id: rec.get("parent_id"),
+            course_id: rec.get("course_id"),
+        })
+        .fetch_all(pool)
+        .await;
 
-  res
+    res
 }
-/* 
+/*
 pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Error> {
     let query = "SELECT id,title FROM titles ORDER BY title;";
     let res: Result<Vec<(String,u32)>, sqlx::Error> = sqlx::query(query)
@@ -828,26 +1032,23 @@ pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::E
     res
 }
 */
-pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
-  let query = "SELECT text FROM words WHERE word_id = ?;";
-  
-  let rec: (u32,) = sqlx::query_as(query)
-  .bind(word_id)
-  .fetch_one(pool)
-  .await?;
-  
-  Ok(rec.0)
+pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id: u32) -> Result<u32, sqlx::Error> {
+    let query = "SELECT text FROM words WHERE word_id = ?;";
+
+    let rec: (u32,) = sqlx::query_as(query).bind(word_id).fetch_one(pool).await?;
+
+    Ok(rec.0)
 }
-/* 
+/*
 pub async fn old_get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
   let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = ?) AND C.seq >= (SELECT seq FROM words WHERE word_id = ?) LIMIT 1;";
-  
+
   let rec: (u32,) = sqlx::query_as(query)
   .bind(word_id)
   .bind(word_id)
   .fetch_one(pool)
   .await?;
-  
+
   Ok(rec.0)
 }
 */
@@ -855,7 +1056,7 @@ pub async fn old_get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Resu
 /*
 pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), sqlx::Error> {
   let query = "SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = ?;";
-  
+
   let rec: (u32,u32) = sqlx::query_as(query)
   .bind(text_id)
   .fetch_one(pool)
@@ -866,84 +1067,133 @@ pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), 
 */
 
 pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
-  let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
+    let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
 
-  let res = sqlx::query(query)
-  .bind(gloss_id)
-  .map(|rec: SqliteRow| {
-    GlossEntry {
-        hqid: rec.get("gloss_id"),
-        l: rec.get("lemma"),
-        pos: rec.get("pos"),
-        g: rec.get("def"),
-        n: rec.get("note") 
-      } }
-    ) 
-  .fetch_one(pool)
-  .await;
+    let res = sqlx::query(query)
+        .bind(gloss_id)
+        .map(|rec: SqliteRow| GlossEntry {
+            hqid: rec.get("gloss_id"),
+            l: rec.get("lemma"),
+            pos: rec.get("pos"),
+            g: rec.get("def"),
+            n: rec.get("note"),
+        })
+        .fetch_one(pool)
+        .await;
 
-  res
+    res
 }
 
 //SELECT c.name, a.word_id, a.word, d.word_id as arrowed FROM words a INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = 1) INNER JOIN texts c ON a.text = c.text_id LEFT JOIN arrowed_words d ON (d.course_id=1 AND d.gloss_id=564 AND d.word_id = a.word_id) WHERE a.gloss_id = 564 ORDER BY b.text_order, a.seq LIMIT 20000;
 
-pub async fn get_gloss_uses(pool: &SqlitePool, course_id:u32, gloss_id: u32) -> Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> {
-  let query = format!("SELECT c.name, a.word_id, a.word, d.word_id as arrowed \
+pub async fn get_gloss_uses(
+    pool: &SqlitePool,
+    course_id: u32,
+    gloss_id: u32,
+) -> Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> {
+    let query = format!(
+        "SELECT c.name, a.word_id, a.word, d.word_id as arrowed \
     FROM words a \
     INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = ?) \
     INNER JOIN texts c ON a.text = c.text_id \
     LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
     WHERE a.gloss_id = ?
     ORDER BY b.text_order, a.seq \
-    LIMIT 2000;");
-  let res: Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> = sqlx::query(&query)
-  .bind(course_id)
-  .bind(course_id)
-  .bind(gloss_id)
-  .bind(gloss_id)
-  .map(|rec: SqliteRow| (rec.get("name"), rec.get("word_id"), rec.get("word"), rec.get("arrowed")) )
-  .fetch_all(pool)
-  .await;
+    LIMIT 2000;"
+    );
+    let res: Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> = sqlx::query(&query)
+        .bind(course_id)
+        .bind(course_id)
+        .bind(gloss_id)
+        .bind(gloss_id)
+        .map(|rec: SqliteRow| {
+            (
+                rec.get("name"),
+                rec.get("word_id"),
+                rec.get("word"),
+                rec.get("arrowed"),
+            )
+        })
+        .fetch_all(pool)
+        .await;
 
-  res
+    res
 }
 
-pub async fn get_update_log(pool: &SqlitePool, _searchprefix: &str, _page: u32, _limit: u32) -> Result<Vec<(String, String, String, String)>, sqlx::Error> {
-  let query = format!("SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, \
+pub async fn get_update_log(
+    pool: &SqlitePool,
+    _searchprefix: &str,
+    _page: u32,
+    _limit: u32,
+) -> Result<Vec<(String, String, String, String)>, sqlx::Error> {
+    let query = format!(
+        "SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, \
     b.update_type, c.initials, update_desc \
     FROM update_log a \
     INNER JOIN update_types b ON a.update_type = b.update_type_id \
     INNER JOIN users c ON a.user_id = c.user_id \
     ORDER BY updated DESC \
-    LIMIT 20000;");
-  let res: Result<Vec<(String, String, String, String)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("timestamp"),rec.get("update_type"),rec.get("initials"),rec.get("update_desc") ) )
-  .fetch_all(pool)
-  .await;
+    LIMIT 20000;"
+    );
+    let res: Result<Vec<(String, String, String, String)>, sqlx::Error> = sqlx::query(&query)
+        .map(|rec: SqliteRow| {
+            (
+                rec.get("timestamp"),
+                rec.get("update_type"),
+                rec.get("initials"),
+                rec.get("update_desc"),
+            )
+        })
+        .fetch_all(pool)
+        .await;
 
-  res
+    res
 }
 
-pub async fn get_before(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
-  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
-  .fetch_all(pool)
-  .await;
+pub async fn get_before(
+    pool: &SqlitePool,
+    searchprefix: &str,
+    page: i32,
+    limit: u32,
+) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
+    let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
+    let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+        .map(|rec: SqliteRow| {
+            (
+                rec.get("lemma"),
+                rec.get("gloss_id"),
+                rec.get("def"),
+                rec.get("total_count"),
+            )
+        })
+        .fetch_all(pool)
+        .await;
 
-  res
+    res
 }
 
-pub async fn get_equal_and_after(pool: &SqlitePool, searchprefix: &str, page: i32, limit: u32) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-  let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
-  let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
-  .map(|rec: SqliteRow| (rec.get("lemma"),rec.get("gloss_id"),rec.get("def"),rec.get("total_count") ) )
-  .fetch_all(pool)
-  .await;
+pub async fn get_equal_and_after(
+    pool: &SqlitePool,
+    searchprefix: &str,
+    page: i32,
+    limit: u32,
+) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
+    let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
+    let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+        .map(|rec: SqliteRow| {
+            (
+                rec.get("lemma"),
+                rec.get("gloss_id"),
+                rec.get("def"),
+                rec.get("total_count"),
+            )
+        })
+        .fetch_all(pool)
+        .await;
 
-  res
+    res
 }
-    
+
 /*
 CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type text NOT NULL);
 CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
@@ -964,7 +1214,7 @@ CREATE TABLE IF NOT EXISTS running_counts_by_course (seq_id INTEGER NOT NULL REF
 CREATE TABLE IF NOT EXISTS total_counts_by_course (course_id INTEGER NOT NULL REFERENCES text_sequences(course_id), gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id), total_count INTEGER, PRIMARY KEY (seq_id,lemma_id));
 
 to add:
-gkvocabdb text references text_id, lemma_id references hqid, seq, type references types table?, 
+gkvocabdb text references text_id, lemma_id references hqid, seq, type references types table?,
 gkvocabassignments start,end references wordid?
 
 add PolytonicGreek collation to hqvocabdb sortalpha
@@ -972,8 +1222,7 @@ add PolytonicGreek collation to hqvocabdb sortalpha
 
 CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
 */
-    
-    
+
 /*
 
 .mode ascii
@@ -1063,5 +1312,3 @@ mysqldump --skip-extended-insert --compact philolog_us gkvocabdb hqvocab gkvocab
     PRIMARY KEY (wordid)
   )
 */
-
-

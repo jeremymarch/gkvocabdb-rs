@@ -14,13 +14,13 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use super::*;
 
-use secrecy::Secret;
 use secrecy::ExposeSecret;
+use secrecy::Secret;
 #[derive(serde::Deserialize)]
 pub struct FormData {
     username: String,
@@ -32,13 +32,12 @@ pub struct Credentials {
     pub password: Secret<String>,
 }
 
-pub fn get_user_id(session:Session) -> Option<u32> {
+pub fn get_user_id(session: Session) -> Option<u32> {
     session.get::<u32>("user_id").unwrap_or(None)
 }
 
 #[allow(clippy::eval_order_dependence)]
 pub async fn login_get() -> Result<HttpResponse, AWError> {
-
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
         //.insert_header(("X-Hdr", "sample"))
@@ -102,40 +101,46 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 </html>"#))
 }
 
-fn validate_login(credentials:Credentials) -> Option<u32> {
-    if credentials.username.to_lowercase() == "jm" && credentials.password.expose_secret() == "clam1234" {
+fn validate_login(credentials: Credentials) -> Option<u32> {
+    if credentials.username.to_lowercase() == "jm"
+        && credentials.password.expose_secret() == "clam1234"
+    {
         Some(3)
-    }
-    else if credentials.username.to_lowercase() == "ykk" && credentials.password.expose_secret() == "greekdb555" {
+    } else if credentials.username.to_lowercase() == "ykk"
+        && credentials.password.expose_secret() == "greekdb555"
+    {
         Some(4)
-    }
-    else if credentials.username.to_lowercase() == "hh" && credentials.password.expose_secret() == "greekdb555" {
+    } else if credentials.username.to_lowercase() == "hh"
+        && credentials.password.expose_secret() == "greekdb555"
+    {
         Some(5)
-    }
-    else if credentials.username.to_lowercase() == "cd" && credentials.password.expose_secret() == "greekdb555" {
+    } else if credentials.username.to_lowercase() == "cd"
+        && credentials.password.expose_secret() == "greekdb555"
+    {
         Some(6)
-    }
-    else if credentials.username.to_lowercase() == "rr" && credentials.password.expose_secret() == "greekdb555" {
+    } else if credentials.username.to_lowercase() == "rr"
+        && credentials.password.expose_secret() == "greekdb555"
+    {
         Some(7)
-    }
-    else {
+    } else {
         None
     }
 }
 
 #[allow(clippy::eval_order_dependence)]
-pub async fn login_post((session, form, req): (Session, web::Form<FormData>, HttpRequest)) -> Result<HttpResponse, AWError> {
-    let _db = req.app_data::<SqlitePool>().unwrap(); 
+pub async fn login_post(
+    (session, form, req): (Session, web::Form<FormData>, HttpRequest),
+) -> Result<HttpResponse, AWError> {
+    let _db = req.app_data::<SqlitePool>().unwrap();
 
     let credentials = Credentials {
         username: form.0.username,
         password: form.0.password,
     };
-    
+
     if let Some(user_id) = validate_login(credentials) {
         session.renew(); //https://www.lpalmieri.com/posts/session-based-authentication-in-rust/#4-5-2-session
         if session.insert("user_id", user_id).is_ok() {
-
             return Ok(HttpResponse::SeeOther()
                 .insert_header((LOCATION, "/"))
                 .finish());
@@ -144,8 +149,8 @@ pub async fn login_post((session, form, req): (Session, web::Form<FormData>, Htt
 
     session.purge();
     Ok(HttpResponse::SeeOther()
-                .insert_header((LOCATION, "/login"))
-                .finish())
+        .insert_header((LOCATION, "/login"))
+        .finish())
 }
 
 /*
@@ -160,7 +165,7 @@ async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResp
 }
 */
 
-/* For Basic Authentication 
+/* For Basic Authentication
 use actix_web_httpauth::middleware::HttpAuthentication;
 use actix_web_httpauth::extractors::basic::BasicAuth;
 use actix_web_httpauth::extractors::basic::Config;
