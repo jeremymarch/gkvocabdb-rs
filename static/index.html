@@ -670,21 +670,23 @@ function handleKey(evt) {
 
     function showGlossOccurrencesList(gloss_id)
     {
-        hideTextList();
-        hideGlossList();
-        //$("#test1Entry")[0].value = "";
-        glossUsesWordTree.url = "glossuses";
-        glossUsesWordTree.params.tag_id = parseInt(gloss_id);
-        glossUsesWordTree.refresh();
+        if (parseInt(gloss_id) > 0) { //the argument is set to 0 if there are 0 occurrences
+            hideTextList();
+            hideGlossList();
+            //$("#test1Entry")[0].value = "";
+            glossUsesWordTree.url = "glossuses";
+            glossUsesWordTree.params.tag_id = parseInt(gloss_id);
+            glossUsesWordTree.refresh();
 
-        //var a = "";
-        //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
-        $("#glossuseslist").css("display", "");
-        $("#glossusesEntry").focus();
+            //var a = "";
+            //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
+            $("#glossuseslist").css("display", "");
+            $("#glossusesEntry").focus();
 
-        hideGlossList();
+            hideGlossList();
 
-        //showNoClick();
+            //showNoClick();
+        }
     }
     function hideGlossUsesList()
     {

@@ -569,7 +569,8 @@ async fn get_glosses(
     let result_rows_stripped: Vec<(String, u32)> = result_rows
         .into_iter()
         .map(|mut row| {
-            row.0 = format!("<b>{}</b> {} [count {}]", row.0, row.2, row.3);
+            row.0 = format!("<b>{}</b> {} <a class='listfrequency' href='javascript:showGlossOccurrencesList({})'>({})</a>", 
+                row.0, row.2, if row.3 > 0 { row.1 } else { 0 /* set to 0 if count is 0 */ }, row.3);
             (row.0, row.1)
         })
         .collect();
