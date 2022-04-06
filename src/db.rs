@@ -187,13 +187,6 @@ pub async fn arrow_word(
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    /*
-    if word_id < 100 {
-      Err("cannot change arrow on h&q word")
-    }
-
-    */
-
     let _ = arrow_word_trx(
         &mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent,
     )
@@ -224,6 +217,10 @@ pub async fn arrow_word_trx<'a, 'b>(
         .await;
 
     let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
+
+    if unwrapped_old_word_id == 1 { //don't allow arrow/unarrow h&q words which are set to word_id 1
+      return Err(sqlx::Error::RowNotFound); //for now
+    }
 
     //add previous arrow to history, if it was arrowed before
     let query = "INSERT INTO arrowed_words_history \

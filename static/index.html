@@ -315,7 +315,7 @@ function handleKey(evt) {
         lemmaListWordTree = w;
         w.hideFunction = hideGlossList;
 
-	    var title = "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistDeleteButton' onclick='deleteGlossListClicked()'>Delete</button><button id='showGlossUsesButton' onclick='showGlossUsesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistDeleteButton' onclick='deleteGlossListClicked()'>Delete</button><button id='showGlossUsesButton' onclick='showGlossOccurrencesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>X</button></div>";
         w.title.innerHTML = title;
         w.onEnterActivate = setGlossForWord;
         //w.onEnterActivate = removeDuplicate;
@@ -374,10 +374,10 @@ function handleKey(evt) {
             showOccurrence(getColumnValues(row)[1]);
         }
     }
-    function showGlossUsesClicked() {
+    function showGlossOccurrencesClicked() {
         let row = document.querySelector("#test1 .selectedRowClass");
         if (row) {
-            showGlossUsesList(getColumnValues(row)[1]);
+            showGlossOccurrencesList(getColumnValues(row)[1]);
         }
     }
     function deleteGlossListClicked() {
@@ -668,7 +668,7 @@ function handleKey(evt) {
         hideNoClick();
     }
 
-    function showGlossUsesList(gloss_id)
+    function showGlossOccurrencesList(gloss_id)
     {
         hideTextList();
         hideGlossList();
@@ -1285,7 +1285,7 @@ function updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid)
 }
 
 function getListWordString(wid, lemma, pos, gloss, count, total, gloss_id) {
-    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href='javascript:showGlossUsesList(" + gloss_id + ")'>(" + count + " of " + total + ")</a></div>";
+    return "<div id='arrow" + wid + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + wid + "'>" + lemma + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + wid + "'>" + pos + "</span>) </span><span class='listdef' id='listdef" + wid + "'>" + gloss + "</span> <a class='listfrequency' href='javascript:showGlossOccurrencesList(" + gloss_id + ")'>(" + count + " of " + total + ")</a></div>";
 }
 
 function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, lemmaSeq, wordSeq, flagged, arrowed_text_seq, word_text_seq)
