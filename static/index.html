@@ -27,6 +27,11 @@ setTheme();
 
 </script>
 <style>
+    #showUpdateLogButton {
+        position: absolute;
+        top: 2px;
+        right: 123px;
+    }
     #text_title {
         display: inline-block;
         top: 1px;
@@ -552,6 +557,7 @@ BUTTON {
     <button id="editLemmaButton" onclick="toggleEditGlossFormClicked()">Edit Gloss</button> 
     <button id="hideSeenGlossesButton" onclick="hideSeenGlossesClicked()" style="display:none;">Hide Seen</button> 
     <button id="showAllGlossesButton"  onclick="showAllGlossesClicked()">Show All</button>
+    <button id="showUpdateLogButton"  onclick="showUpdateLogClicked()">Update Log</button>
     <svg onclick="toggleSettingsClicked()" id="hamburger" viewBox="0 0 120 120">
         <rect x="10" y="30" width="100" height="12"></rect>
         <rect x="10" y="56" width="100" height="12"></rect>
@@ -570,7 +576,7 @@ BUTTON {
   <div id="leftlist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
   <div id="textlist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
   <div id="glossuseslist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
-  <div id="snackbar"></div>
+  <div id="updateloglist" style="display:none;position:absolute;top:30px;left:0px;height:calc(100% - 30px);width:220px;"></div>
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
         <h2>Upload TEI XML File</h2>
@@ -623,6 +629,7 @@ BUTTON {
         </table>
     </div>
 </div>
+<div id="snackbar"></div>
 <div id="noclick"></div>
 <script>
     const TYPE_WORD = 0;
@@ -897,6 +904,7 @@ function handleKey(evt) {
     var lemmaListWordTree = null;
     var textListWordTree = null;
     var glossUsesWordTree = null;
+    var updateLogWordTree = null;
     function onload()
     {
         var thisText = getCookie("selectedText");     
@@ -965,6 +973,26 @@ function handleKey(evt) {
         //w2.onClickActivate = act;
         //w2.onSelectionChanged = act;
         $("#glossusesEntry").css({"font-size":"14pt","display":"block"});
+
+
+        var w4 = new wordtree("updatelog", 480, $(document).height() - 38);
+        w4.columnOffsets = [0,0,0,0];
+        w4.params.lexicon = "hqvocab";
+        w4.url = "updatelog";
+        w4.params.mode = "normal";
+        w4.refreshOnESC = false;
+
+        w4.show(document.getElementById("updateloglist"));
+        updateLogWordTree = w4;
+        w4.hideFunction = hideUpdateLogList;
+
+	    var title = "<div class='titletitle'>Update log</div><div class='titleflex'><button id='updatelogclosebutton' class='wordtreeclosebutton' onclick='hideUpdateLogList()'>X</button></div>";
+        w4.title.innerHTML = title;
+
+        w4.onEnterActivate = null;
+        //w2.onClickActivate = act;
+        //w2.onSelectionChanged = act;
+        //$("#glossusesEntry").css({"font-size":"14pt","display":"block"});
         onResize();
     }
 
@@ -1050,7 +1078,16 @@ function handleKey(evt) {
             hideTextList();
         }
     }
-
+    function showUpdateLogClicked() {
+        if ( $("#updateloglist").is(":visible") ) {
+            hideUpdateLogList();
+        }
+        else {
+            hideTextList();
+            hideGlossUsesList();
+            showUpdateLogList();
+        }
+    }
     function toggleGlossListClicked() {
         if ( $("#leftlist").is(":visible") ) {
             hideGlossList();
@@ -1246,6 +1283,25 @@ function handleKey(evt) {
         $("#test1Entry")[0].value = "";
         $("#leftlist").css("display", "none");
         lemmaListWordTree.clearWordTree();
+        hideNoClick();
+    }
+
+    function showUpdateLogList()
+    {
+        //$("#test1Entry")[0].value = "";
+        updateLogWordTree.url = "updatelog";
+        updateLogWordTree.refresh();
+        //var a = "";
+        //var a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}'; 
+        $("#updateloglist").css("display", "");
+        $("#updatelogEntry").focus();
+        //showNoClick();
+    }
+    function hideUpdateLogList()
+    {
+        $("#updatelogEntry")[0].value = "";
+        $("#updateloglist").css("display", "none");
+        updateLogWordTree.clearWordTree();
         hideNoClick();
     }
 

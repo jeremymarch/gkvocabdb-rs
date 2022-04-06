@@ -1139,15 +1139,12 @@ pub async fn get_gloss_occurrences(
 
     Ok(res)
 }
-
+use crate::AssignmentTree;
 pub async fn get_update_log(
     pool: &SqlitePool,
-    _searchprefix: &str,
-    _page: u32,
-    _limit: u32,
-) -> Result<Vec<(String, String, String, String)>, sqlx::Error> {
-    let query = format!(
-        "SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, \
+    course_id: u32,
+) -> Result<Vec<AssignmentTree>, sqlx::Error> {
+    let query = format!("SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, a.update_id, \
     b.update_type, c.initials, update_desc \
     FROM update_log a \
     INNER JOIN update_types b ON a.update_type = b.update_type_id \
@@ -1155,19 +1152,30 @@ pub async fn get_update_log(
     ORDER BY updated DESC \
     LIMIT 20000;"
     );
-    let res: Result<Vec<(String, String, String, String)>, sqlx::Error> = sqlx::query(&query)
+    let res: Vec<(String, String, String, String,u32)> = sqlx::query(&query)
         .map(|rec: SqliteRow| {
             (
                 rec.get("timestamp"),
                 rec.get("update_type"),
                 rec.get("initials"),
                 rec.get("update_desc"),
+                rec.get("update_id"),
             )
         })
         .fetch_all(pool)
-        .await;
+        .await?;
 
-    res
+        let mut rows: Vec<AssignmentTree> = vec![];
+        for r in &res {
+          rows.push(AssignmentTree {
+              i: r.4,
+              col: vec![format!("{} {} {} {}", r.0.clone(), r.1.clone(),r.2.clone(),r.3.clone(),)],
+              h: false,
+              c: vec![],
+          });
+        }
+
+    Ok(rows)
 }
 
 pub async fn get_before(

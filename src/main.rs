@@ -670,6 +670,38 @@ async fn gloss_occurrences(
 }
 
 #[allow(clippy::eval_order_dependence)]
+async fn update_log(
+    (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
+) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+
+    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+    let course_id = 1;
+
+    let log = get_update_log(db, course_id)
+        .await
+        .map_err(map_sqlx_error)?;
+
+    let res = WordtreeQueryResponse {
+        select_id: None,
+        error: "".to_owned(),
+        wtprefix: info.idprefix.clone(),
+        nocache: 1, //prevents caching when queried by wordid in url
+        container: format!("{}Container", info.idprefix),
+        request_time: info.request_time,
+        page: info.page,
+        last_page: 1,
+        lastpage_up: 1,
+        scroll: "top".to_string(),
+        query: query_params.w.to_owned(),
+        arr_options: log,
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+
+}
+
+#[allow(clippy::eval_order_dependence)]
 async fn get_texts(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -945,6 +977,7 @@ fn config(cfg: &mut web::ServiceConfig) {
         .service(web::resource("/queryglosses").route(web::get().to(get_glosses)))
         .service(web::resource("/querytexts").route(web::get().to(get_texts)))
         .service(web::resource("/glossuses").route(web::get().to(gloss_occurrences)))
+        .service(web::resource("/updatelog").route(web::get().to(update_log)))
         /* .service(
             web::resource("/assignments")
                 .route(web::get().to(get_assignments)),
