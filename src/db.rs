@@ -1169,7 +1169,7 @@ pub async fn get_update_log(
         for r in &res {
           rows.push(AssignmentTree {
               i: r.4,
-              col: vec![format!("{} {} {} {}", r.0.clone(), r.1.clone(),r.2.clone(),r.3.clone(),)],
+              col: vec![format!("{} - {} {}", r.0.clone(), r.2.clone(), r.3.clone(),)],
               h: false,
               c: vec![],
           });

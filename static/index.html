@@ -224,7 +224,7 @@ html {
   border-radius: 2px; /* Rounded borders */
   padding: 16px; /* Padding */
   position: fixed; /* Sit on top of the screen */
-  z-index: 1; /* Add a z-index if needed */
+  z-index: 990; /* Add a z-index if needed */
   left: 50%; /* Center the snackbar */
   bottom: 30px; /* 30px from the bottom */
 }
@@ -311,6 +311,11 @@ z-index:999;
         overflow: hidden;
     }
 #test1 .nodestyle {
+    padding-left:30px;
+    text-indent:-30px;
+}
+
+#updatelog .nodestyle {
     padding-left:30px;
     text-indent:-30px;
 }
@@ -1083,6 +1088,7 @@ function handleKey(evt) {
             hideUpdateLogList();
         }
         else {
+            hideGlossList();
             hideTextList();
             hideGlossUsesList();
             showUpdateLogList();
@@ -1095,6 +1101,7 @@ function handleKey(evt) {
         else {
             hideTextList();
             hideGlossUsesList();
+            hideUpdateLogList();
             showGlossList();
         }
     }
@@ -1106,6 +1113,7 @@ function handleKey(evt) {
         else {
             hideGlossList();
             hideGlossUsesList();
+            hideUpdateLogList();
             showTextList();
         }
     }
@@ -1329,6 +1337,7 @@ function handleKey(evt) {
         if (parseInt(gloss_id) > 0) { //the argument is set to 0 if there are 0 occurrences
             hideTextList();
             hideGlossList();
+            hideUpdateLogList();
             //$("#test1Entry")[0].value = "";
             glossUsesWordTree.url = "glossuses";
             glossUsesWordTree.params.tag_id = parseInt(gloss_id);
@@ -2207,9 +2216,13 @@ function onResize() {
         const offset = 38;
         let w = lookupWT("test1");
         let w2 = lookupWT("text");
+        let w3 = lookupWT("glossuses");
+        let w4 = lookupWT("updatelog");
   
         w.setHeight( $(document).height() - offset );
         w2.setHeight( $(document).height() - offset );
+        w3.setHeight( $(document).height() - offset );
+        w4.setHeight( $(document).height() - offset );
 
         let width = ($(document).width() / 2);
 
