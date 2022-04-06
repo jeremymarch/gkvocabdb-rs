@@ -1102,22 +1102,23 @@ pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry,
 
 //SELECT c.name, a.word_id, a.word, d.word_id as arrowed FROM words a INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = 1) INNER JOIN texts c ON a.text = c.text_id LEFT JOIN arrowed_words d ON (d.course_id=1 AND d.gloss_id=564 AND d.word_id = a.word_id) WHERE a.gloss_id = 564 ORDER BY b.text_order, a.seq LIMIT 20000;
 
-pub async fn get_gloss_uses(
+pub async fn get_gloss_occurrences(
     pool: &SqlitePool,
     course_id: u32,
     gloss_id: u32,
-) -> Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> {
+) -> Result<Vec<(String, u32, String, Option<u32>, Option<u32>, String)>, sqlx::Error> {
     let query = format!(
-        "SELECT c.name, a.word_id, a.word, d.word_id as arrowed \
+        "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
     FROM words a \
     INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = ?) \
     INNER JOIN texts c ON a.text = c.text_id \
+    INNER JOIN glosses e ON e.gloss_id = a.gloss_id \
     LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
-    WHERE a.gloss_id = ?
+    WHERE a.gloss_id = ? \
     ORDER BY b.text_order, a.seq \
     LIMIT 2000;"
     );
-    let res: Result<Vec<(String, u32, String, Option<u32>)>, sqlx::Error> = sqlx::query(&query)
+    let mut res: Vec<(String, u32, String, Option<u32>, Option<u32>, String)> = sqlx::query(&query)
         .bind(course_id)
         .bind(course_id)
         .bind(gloss_id)
@@ -1128,12 +1129,18 @@ pub async fn get_gloss_uses(
                 rec.get("word_id"),
                 rec.get("word"),
                 rec.get("arrowed"),
+                rec.get("unit"),
+                rec.get("lemma"),
             )
         })
         .fetch_all(pool)
-        .await;
+        .await?;
 
-    res
+    if !res.is_empty() && res[0].4.is_some() && res[0].4.unwrap() > 0 && res[0].4.unwrap() < 21 {
+      res.insert(0, (format!("H&Q Unit {}", res[0].4.unwrap()), 1, res[0].5.to_owned(), Some(1), res[0].4, res[0].5.to_owned()) )
+    }
+
+    Ok(res)
 }
 
 pub async fn get_update_log(

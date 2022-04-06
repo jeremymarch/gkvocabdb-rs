@@ -607,7 +607,7 @@ async fn get_glosses(
 }
 
 #[allow(clippy::eval_order_dependence)]
-async fn gloss_uses(
+async fn gloss_occurrences(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
@@ -622,7 +622,7 @@ async fn gloss_uses(
     let course_id = 1;
     let gloss_id = query_params.tag_id.unwrap_or(0);
 
-    let result_rows = get_gloss_uses(db, course_id, gloss_id)
+    let result_rows = get_gloss_occurrences(db, course_id, gloss_id)
         .await
         .map_err(map_sqlx_error)?;
 
@@ -943,7 +943,7 @@ fn config(cfg: &mut web::ServiceConfig) {
         .service(web::resource("/query").route(web::get().to(get_text_words)))
         .service(web::resource("/queryglosses").route(web::get().to(get_glosses)))
         .service(web::resource("/querytexts").route(web::get().to(get_texts)))
-        .service(web::resource("/glossuses").route(web::get().to(gloss_uses)))
+        .service(web::resource("/glossuses").route(web::get().to(gloss_occurrences)))
         /* .service(
             web::resource("/assignments")
                 .route(web::get().to(get_assignments)),

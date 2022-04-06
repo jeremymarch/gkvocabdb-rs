@@ -370,7 +370,7 @@ function handleKey(evt) {
 
     function showOccurrenceClicked() {
         let row = document.querySelector("#glossuses .selectedRowClass");
-        if (row) {
+        if (row) { 
             showOccurrence(getColumnValues(row)[1]);
         }
     }
@@ -436,9 +436,11 @@ function handleKey(evt) {
     }
 
     function showOccurrence(word_id) {
-        getTextByWordId(word_id);
-        selectedWordInList = null;
-        hideGlossUsesList();
+        if (parseInt(word_id) > 1) { //word_id == 1 for H&Q: don't try to go to H&Q
+            getTextByWordId(word_id);
+            selectedWordInList = null;
+            hideGlossUsesList();
+        }
     }
 
     function queryText(lex, cols) {
