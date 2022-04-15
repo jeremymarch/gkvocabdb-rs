@@ -1142,7 +1142,7 @@ pub async fn get_gloss_occurrences(
 use crate::AssignmentTree;
 pub async fn get_update_log(
     pool: &SqlitePool,
-    course_id: u32,
+    _course_id: u32,
 ) -> Result<Vec<AssignmentTree>, sqlx::Error> {
     let query = format!("SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, a.update_id, \
     b.update_type, c.initials, update_desc \

@@ -1235,9 +1235,11 @@ function handleKey(evt) {
     {
         if ( $("#uploadform").is(":visible") ) {
             $("#uploadform").hide();
+            hideNoClick();
         }
         else {
             $("#uploadform").show();
+            showNoClick();
         }
     }
     function toggleNewGlossFormClicked()

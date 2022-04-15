@@ -63,7 +63,7 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
             TABLE { border:2px solid black;padding: 24px;border-radius: 10px; }
             BUTTON { padding: 3px 16px; }
             .dark BODY { background-color:black;color:white; }
-            .dark INPUT { background-color:black;color:white; }
+            .dark INPUT { background-color:black;color:white;border: 2px solid white;border-radius: 6px; }
             .dark TABLE { border:2px solid white; }
             .dark BUTTON { background-color:black;color:white;border:1px solid white; }
         </style>
