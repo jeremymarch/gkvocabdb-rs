@@ -40,6 +40,7 @@ enum WordType {
     InlineSpeaker = 9,
     ParaNoIndent = 10,
     PageBreak = 11,
+    Desc = 12,
     //0 word
     //1 punct
     //2 speaker
@@ -187,9 +188,10 @@ fn sanitize_greek(s: &str) -> String {
     r
 }
 
-fn split_words(text: &str, in_speaker: bool, in_head: bool) -> Vec<TextWord> {
+fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Vec<TextWord> {
     let mut words: Vec<TextWord> = vec![];
     let mut last = 0;
+    let word_type_word = if in_desc == true { WordType::Desc } else { WordType::Word } as u32;
     if in_head {
         words.push(TextWord {
             word: text.to_string(),
@@ -211,7 +213,7 @@ fn split_words(text: &str, in_speaker: bool, in_head: bool) -> Vec<TextWord> {
                 let gloss_id = lemmatize_simple(&text[last..index]);
                 words.push(TextWord {
                     word: text[last..index].to_string(),
-                    word_type: WordType::Word as u32,
+                    word_type: word_type_word,
                     gloss_id,
                 });
             }
@@ -230,7 +232,7 @@ fn split_words(text: &str, in_speaker: bool, in_head: bool) -> Vec<TextWord> {
             let gloss_id = lemmatize_simple(&text[last..]);
             words.push(TextWord {
                 word: text[last..].to_string(),
-                word_type: WordType::Word as u32,
+                word_type: word_type_word,
                 gloss_id,
             });
         }
@@ -293,6 +295,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
     let mut in_speaker = false;
     let mut in_head = false;
     let mut found_tei = false;
+    let mut in_desc = false;
     /*
     TEI: verse lines can either be empty <lb n="5"/>blah OR <l n="5">blah</l>
     see Perseus's Theocritus for <lb/> and Euripides for <l></l>
@@ -314,11 +317,12 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 } else if b"TEI.2" == e.name() {
                     found_tei = true
                 } else if b"desc" == e.name() {
-                    words.push(TextWord {
+                    in_desc = true
+                    /*words.push(TextWord {
                         word: String::from(""),
                         word_type: WordType::ParaWithIndent as u32,
                         gloss_id: None,
-                    });
+                    });*/
                 } else if b"p" == e.name() {
                     words.push(TextWord {
                         word: String::from(""),
@@ -348,7 +352,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                         //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
                         let clean_string = sanitize_greek(&s);
                         words.extend_from_slice(
-                            &split_words(&clean_string, in_speaker, in_head)[..],
+                            &split_words(&clean_string, in_speaker, in_head, in_desc)[..],
                         );
 
                         //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
@@ -389,6 +393,8 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                     in_speaker = false
                 } else if b"head" == e.name() {
                     in_head = false
+                } else if b"desc" == e.name() {
+                    in_desc = false
                 }
             }
             Ok(Event::Eof) => break, // exits the loop when reaching end of file
@@ -564,6 +570,7 @@ mod tests {
                 <lb rend="displayNum" n="5" />αἴκα δ᾽ αἶγα λάβῃ τῆνος γέρας, ἐς τὲ καταρρεῖ
                 <pb/>
                 <l n="10">ὁσίου γὰρ ἀνδρὸς ὅσιος ὢν ἐτύγχανον</l>
+                <desc>This is a test.</desc>
             </text>
         </TEI.2>"#;
         let r = process_imported_text(&xml_string).await.unwrap();
@@ -571,7 +578,7 @@ mod tests {
         for a in &r {
             println!("{:?}", a);
         }
-        assert_eq!(r.len(), 22);
+        assert_eq!(r.len(), 27);
         assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as u32);
         assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as u32);
         assert_eq!(r[2].word_type, import_text_xml::WordType::VerseLine as u32);
@@ -585,6 +592,8 @@ mod tests {
         assert_eq!(r[14].word_type, WordType::PageBreak as u32);
         assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as u32);
         assert_eq!(r[15].word, "[line]10");
+        assert_eq!(r[22].word, "This");
+        assert_eq!(r[22].word_type, import_text_xml::WordType::Desc as u32);
     }
 
     #[test]
@@ -593,11 +602,11 @@ mod tests {
         assert_eq!('\u{0313}'.is_alphanumeric(), false);
 
         // therefore: be sure combining diacritics do not divide words (this is why we use unicode_normalization::char::is_combining_mark(c))
-        let a = split_words("α\u{0313}α ββ", false, false);
+        let a = split_words("α\u{0313}α ββ", false, false, false);
         assert_eq!(a.len(), 2);
 
         // be sure ' does not divide words
-        let a = split_words("δ' ββ", false, false);
+        let a = split_words("δ' ββ", false, false, false);
         assert_eq!(a.len(), 2);
         assert_eq!(a[0].word, "δ'");
     }

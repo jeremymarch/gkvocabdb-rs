@@ -23,14 +23,10 @@ use thiserror::Error;
 
 /*
 To do:
-Show Update Log button
 Flag/Unflag button
 Edit Word button
-Export LateX button
 Update Counts button
 Word counts for each text in test list
-
-Lock H&Q arrows from being deleted?
 Lock H&Q glosses from being edited?
 */
 
