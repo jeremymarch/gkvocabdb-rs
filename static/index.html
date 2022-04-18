@@ -648,6 +648,8 @@ BUTTON {
     const TYPE_SECTION_TITLE = 8;
     const TYPE_INLINE_SPEAKER = 9;
     const TYPE_PARA_NO_INDENT = 10;
+    const TYPE_PAGE_BREAK = 11;
+    const TYPE_DESC = 12;
 
       //https://github.com/le717/microajax
       function microAjax(options) {
@@ -1539,7 +1541,7 @@ function handleKey(evt) {
                 i.w = i.w.trim(); //because there are some spaces in the punctuation of Xenophon and elsewhere.  Maybe remove them in the db?
 
                 //build gloss
-                if (i.t < TYPE_PUNCTUATION )//&& !i.l)
+                if (i.t == TYPE_WORD )//&& !i.l)
                 {
                     var b = document.createElement("div"); 
                     b.id = "word" + i.i;
@@ -1610,7 +1612,11 @@ function handleKey(evt) {
                 }
                 else if (i.t == TYPE_VERSE_LINE)
                 {
-                    t += "<br>" + i.w.replace("[line]", "") + "&nbsp;&nbsp;&nbsp;";
+                    t += "<br/>" + i.w.replace("[line]", "") + "&nbsp;&nbsp;&nbsp;";
+                }
+                else if (i.t == TYPE_PARA_NO_INDENT || i.t == TYPE_PARA_WITH_INDENT)
+                {
+                    t += "<br/><br/>";
                 }
                 else
                 {
@@ -2212,6 +2218,7 @@ async function uploadfile() {
             showToast("Error importing text (2).");
         }
         $("#uploadform").hide();
+        hideNoClick();
     }
 }
 

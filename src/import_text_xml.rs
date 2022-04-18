@@ -309,20 +309,20 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 // for namespaced:
                 // Ok((ref namespace_value, Event::Start(ref e)))
                 if b"text" == e.name() {
-                    in_text = true
+                    in_text = true;
                 } else if b"speaker" == e.name() {
-                    in_speaker = true
+                    in_speaker = true;
                 } else if b"head" == e.name() {
-                    in_head = true
+                    in_head = true;
                 } else if b"TEI.2" == e.name() {
-                    found_tei = true
+                    found_tei = true;
                 } else if b"desc" == e.name() {
-                    in_desc = true
-                    /*words.push(TextWord {
-                        word: String::from(""),
-                        word_type: WordType::ParaWithIndent as u32,
+                    in_desc = true;
+                    words.push(TextWord {
+                        word: "".to_string(),
+                        word_type: WordType::ParaNoIndent as u32,
                         gloss_id: None,
-                    });*/
+                    });
                 } else if b"p" == e.name() {
                     words.push(TextWord {
                         word: String::from(""),
@@ -388,13 +388,18 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
             }
             Ok(Event::End(ref e)) => {
                 if b"text" == e.name() {
-                    in_text = false
+                    in_text = false;
                 } else if b"speaker" == e.name() {
-                    in_speaker = false
+                    in_speaker = false;
                 } else if b"head" == e.name() {
-                    in_head = false
+                    in_head = false;
                 } else if b"desc" == e.name() {
-                    in_desc = false
+                    in_desc = false;
+                    words.push(TextWord {
+                        word: "".to_string(),
+                        word_type: WordType::ParaNoIndent as u32,
+                        gloss_id: None,
+                    });
                 }
             }
             Ok(Event::Eof) => break, // exits the loop when reaching end of file
@@ -578,7 +583,7 @@ mod tests {
         for a in &r {
             println!("{:?}", a);
         }
-        assert_eq!(r.len(), 27);
+        assert_eq!(r.len(), 29);
         assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as u32);
         assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as u32);
         assert_eq!(r[2].word_type, import_text_xml::WordType::VerseLine as u32);
@@ -592,8 +597,12 @@ mod tests {
         assert_eq!(r[14].word_type, WordType::PageBreak as u32);
         assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as u32);
         assert_eq!(r[15].word, "[line]10");
-        assert_eq!(r[22].word, "This");
-        assert_eq!(r[22].word_type, import_text_xml::WordType::Desc as u32);
+        assert_eq!(r[22].word, "");
+        assert_eq!(r[22].word_type, import_text_xml::WordType::ParaNoIndent as u32);
+        assert_eq!(r[23].word, "This");
+        assert_eq!(r[23].word_type, import_text_xml::WordType::Desc as u32);
+        assert_eq!(r[28].word, "");
+        assert_eq!(r[28].word_type, import_text_xml::WordType::ParaNoIndent as u32);
     }
 
     #[test]
