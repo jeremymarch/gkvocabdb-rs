@@ -174,6 +174,24 @@ impl UpdateType {
         }
     }
 }
+pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, unit:u32, sort:&str) -> Result<Vec<(String,u32,String)>, sqlx::Error> {
+    let s = match sort {
+        "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
+        _ => "unit,sortalpha COLLATE PolytonicGreek ASC"
+    };
+    let p = match pos {
+        "noun" => "pos == 'noun'",
+        "verb" => "pos == 'verb'",
+        "adjective" => "pos == 'adjective'",
+        _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
+    };
+    let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit > 0 AND unit <= {} ORDER BY {};", p, unit, s);
+    let words: Vec<(String,u32,String)> = sqlx::query_as(&query)
+        .fetch_all(pool)
+        .await?;
+
+    Ok(words)
+}
 
 pub async fn arrow_word(
     pool: &SqlitePool,
