@@ -874,11 +874,13 @@ async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> Resu
 
     let unit = info.unit.unwrap_or(1);
     let sort = info.sort.clone().unwrap_or("unit".to_string());
+    let u = if unit > 20 { 20 } else { unit };
     
     for p in ["noun", "verb", "adjective", "other"] {
         let mut res = String::from("");
         let mut last_unit = 0;
-        let hqv = get_hqvocab_column(db, p, unit, &sort)
+        
+        let hqv = get_hqvocab_column(db, p, u, &sort)
             .await
             .map_err(map_sqlx_error)?;
         for w in hqv {
@@ -893,7 +895,7 @@ async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> Resu
         template = template.replacen(format!("%{}%",p).as_str(), &res, 1);
     }
 
-    template = template.replacen("%%unit%%", &unit.to_string(), 1);
+    template = template.replacen("%%unit%%", &u.to_string(), 1);
     if sort != "alpha" {
         template = template.replacen("%sortalpha%", "", 1);
         template = template.replacen("%sortunit%", "checked", 1);

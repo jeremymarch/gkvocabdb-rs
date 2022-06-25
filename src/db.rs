@@ -185,7 +185,7 @@ pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, unit:u32, sort:&str
         "adjective" => "pos == 'adjective'",
         _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
     };
-    let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit > 0 AND unit <= {} ORDER BY {};", p, unit, s);
+    let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit > 0 AND unit <= {} AND status=1 ORDER BY {};", p, unit, s);
     let words: Vec<(String,u32,String)> = sqlx::query_as(&query)
         .fetch_all(pool)
         .await?;
