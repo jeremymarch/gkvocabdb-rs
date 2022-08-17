@@ -243,44 +243,48 @@ fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Ve
 pub async fn get_xml_string(
     mut payload: Multipart,
 ) -> Result<(String, String), std::str::Utf8Error> {
-    let mut xml_string = "".to_string();
-    let mut title: String = "".to_string();
+    let xml_string:String;
+    let title: String;
+    let mut ttbytes = web::BytesMut::new();
+    let mut ddbytes = web::BytesMut::new();
+
+    //cf. https://stackoverflow.com/questions/65989077/how-do-i-pass-multipart-form-data-stream-from-client-to-third-party-server-usin
 
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
-        let content_type = field.content_disposition(); //.unwrap();
-                                                        //if let Some(filename) = content_type.get_filename() {
-                                                        //    println!("file: {}", filename);
-                                                        //}
+        let content_type = field.content_disposition(); 
         let name = content_type.get_name().unwrap_or("").to_string();
-
-        //let filepath = format!(".{}", file_path);
-
-        // File::create is blocking operation, use threadpool
-        //let mut f = web::block(|| std::fs::File::create(filepath))
-        //    .await
-        //    .unwrap();
 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
-            match std::str::from_utf8(&data) {
-                Ok(xml_data) => {
-                    if name == "title" {
-                        title = xml_data.to_string();
-                    } else if name == "file" {
-                        xml_string.push_str(xml_data);
-                    }
-                }
-                Err(e) => {
-                    return Err(e); //utf8 error
-                } // filesystem operations are blocking, we have to use threadpool
-                  /*f = web::block(move || f.write_all(&data).map(|_| f))
-                  .await
-                  .unwrap();*/
+            
+            if name == "title" {
+                ttbytes.extend_from_slice(&data);
+            } else if name == "file" {
+                ddbytes.extend_from_slice(&data);
             }
         }
     }
+
+    match std::str::from_utf8(&ttbytes) {
+        Ok(xml_data) => {
+            title = xml_data.to_string();
+        }
+        Err(e) => {
+                return Err(e); //utf8 error
+        }
+    }
+
+    match std::str::from_utf8(&ddbytes) {
+        Ok(xml_data) => {
+            xml_string = xml_data.to_string();
+        }
+        Err(e) => {
+                return Err(e); //utf8 error
+        }
+    }
+
     Ok((xml_string, title))
 }
 
@@ -315,6 +319,8 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 } else if b"head" == e.name() {
                     in_head = true;
                 } else if b"TEI.2" == e.name() {
+                    found_tei = true;
+                } else if b"TEI" == e.name() {
                     found_tei = true;
                 } else if b"desc" == e.name() {
                     in_desc = true;

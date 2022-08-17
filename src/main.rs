@@ -956,7 +956,7 @@ async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc
+    //e.g. export GKVOCABDB_DB_PATH=sqlite://db.sqlite?mode=rwc
     let db_path = std::env::var("GKVOCABDB_DB_PATH").unwrap_or_else(|_| {
         panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
     });
