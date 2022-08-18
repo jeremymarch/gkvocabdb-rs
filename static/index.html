@@ -295,7 +295,7 @@ z-index:999;
 }
 
 .inputText { font-size:16pt;font-family:WebIFAO,WebNewAthenaUnicode,helvetica; }
-#noclick {z-index:990;position:absolute;top:0px;left:0px;height:100%;width:100%;background-color:#222;opacity:0.5;display:none;}
+#noclick {z-index:991;position:absolute;top:0px;left:0px;height:100%;width:100%;background-color:#222;opacity:0.5;display:none;}
 
 .openCloseBranch {
     display:inline-block;
@@ -389,6 +389,12 @@ height: 22px;
   width: 20px;
   height: 20px;
 }
+#importspinner {
+    display:none;
+    position:absolute;
+    right:58px;
+    top:-6px;
+}
 .lds-spinner div {
   transform-origin: 40px 40px;
   animation: lds-spinner 1.2s linear infinite;
@@ -403,6 +409,10 @@ height: 22px;
   height: 6px;
   /*border-radius: 20%;*/
   background: red;
+}
+
+.dark #uploadform .lds-spinner div:after {
+    background: white;
 }
 
 .lds-spinner div:nth-child(1) {
@@ -586,6 +596,7 @@ BUTTON {
   <div id="uploadcontainer">
       <div id="uploadform" style="display:none;">
         <h2>Upload TEI XML File</h2>
+        <div id="importspinner" class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
         Title: <input id="fileuploadtitle" class="inputText" type="text" name="fileuploadtitle" /><br/><br/>
         <input id="fileupload" type="file" name="fileupload" /><br/><br/>
         <button onclick="uploaddialog()">Cancel</button><button onclick="uploadfile()">Upload</button>
@@ -1235,6 +1246,11 @@ function handleKey(evt) {
 
     function uploaddialog()
     {
+        $("#importspinner").hide();
+        $("#uploadform").css("z-index", "999");
+        $("#fileuploadtitle").val("");
+        $("#fileupload").val("");
+
         if ( $("#uploadform").is(":visible") ) {
             $("#uploadform").hide();
             hideNoClick();
@@ -2194,10 +2210,13 @@ function flagToggle() {
 }
 
 async function uploadfile() {
-    let formData = new FormData();    
-    if ( $("#fileuploadtitle").val().length > 0 ) {
+    let formData = new FormData();
+    if ( $("#fileuploadtitle").val().length > 0 && $("#fileupload").val().length > 0) {
         formData.append("title", $("#fileuploadtitle").val());
         formData.append("file", fileupload.files[0]);
+
+        $("#importspinner").show();
+        $("#uploadform").css("z-index", "990"); //1 less than no click
         
         let response = await fetch('importtext', {
             method: "POST", 
