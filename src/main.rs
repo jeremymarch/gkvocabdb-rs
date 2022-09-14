@@ -31,9 +31,12 @@ Lock H&Q glosses from being edited?
 */
 
 use actix_files as fs;
-use actix_session::{CookieSession, Session};
+use actix_session::Session;
+use actix_session::SessionMiddleware;
+use actix_session::storage::CookieSessionStore;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
+use actix_web::cookie::Key;
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
@@ -1012,6 +1015,26 @@ async fn main() -> io::Result<()> {
         */
 
         //let auth_basic = HttpAuthentication::basic(validator_basic);
+        
+    //1. to make a new key:
+    // let secret_key = Key::generate(); // only for testing: should use same key from .env file/variable, else have to login again on each restart
+    // println!("key: {}{}", hex::encode( secret_key.signing() ), hex::encode( secret_key.encryption() ));
+
+    //2. a simple example testing key
+    //https://docs.rs/cookie/0.16.0/src/cookie/secure/key.rs.html#35
+    let key: &Vec<u8> = &(0..64).collect();
+    let secret_key = Key::from(key);
+
+    //3. to load from string
+    // let string_key_64_bytes = "c67ba35ad969a3f4255085c359f120bae733c5a5756187aaffab31c7c84628b6a9a02ce6a1e923a945609a884f913f83ea50675b184514b5d15c3e1a606a3fd2";
+    // let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
+    // let secret_key = Key::from(&key);
+
+    //4. or load from env
+    //e.g. export HCKEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285
+    //let string_key_64_bytes = std::env::var("HCKEY").unwrap_or_else(|_| { panic!("Key env not set.") });
+    //let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
+    //let secret_key = Key::from(&key);
 
         App::new()
             //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
@@ -1020,12 +1043,10 @@ async fn main() -> io::Result<()> {
             .app_data(db_pool.clone())
             .wrap(middleware::Logger::default())
             //.wrap(auth_basic) //this blocks healthcheck
-            .wrap(
-                CookieSession::signed(&[0; 32])
-                    .secure(false)
-                    //.expires_in(2147483647) //deprecated
-                    .max_age(2147483647),
-            )
+            .wrap(SessionMiddleware::builder(
+                CookieSessionStore::default(), secret_key.clone())
+                    .cookie_secure(false) //cookie_secure must be false if testing without https
+                    .build())
             .wrap(middleware::Compress::default())
             //.wrap(error_handlers)
             .configure(config)
