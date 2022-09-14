@@ -953,6 +953,9 @@ struct ImportResponse {
     words_inserted: u64,
     error: String,
 }
+use actix_web::cookie::time::Duration;
+use actix_session::config::PersistentSession;
+const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -1049,6 +1052,10 @@ async fn main() -> io::Result<()> {
                     .cookie_secure(true) //cookie_secure must be false if testing without https
                     .cookie_same_site(actix_web::cookie::SameSite::Strict)
                     .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
+                    .session_lifecycle(
+                        PersistentSession::default().session_ttl(Duration::seconds(SECS_IN_YEAR))
+                    )
+                    .cookie_name(String::from("gkvocabdbid"))
                     .build())
             .wrap(middleware::Logger::default())
             //.wrap(error_handlers)
