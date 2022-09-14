@@ -860,6 +860,7 @@ dependencies = [
  "chrono",
  "env_logger",
  "futures",
+ "hex",
  "percent-encoding",
  "quick-xml",
  "regex",

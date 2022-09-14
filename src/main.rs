@@ -1022,8 +1022,8 @@ async fn main() -> io::Result<()> {
 
     //2. a simple example testing key
     //https://docs.rs/cookie/0.16.0/src/cookie/secure/key.rs.html#35
-    let key: &Vec<u8> = &(0..64).collect();
-    let secret_key = Key::from(key);
+    // let key: &Vec<u8> = &(0..64).collect();
+    // let secret_key = Key::from(key);
 
     //3. to load from string
     // let string_key_64_bytes = "c67ba35ad969a3f4255085c359f120bae733c5a5756187aaffab31c7c84628b6a9a02ce6a1e923a945609a884f913f83ea50675b184514b5d15c3e1a606a3fd2";
@@ -1031,10 +1031,10 @@ async fn main() -> io::Result<()> {
     // let secret_key = Key::from(&key);
 
     //4. or load from env
-    //e.g. export HCKEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285
-    //let string_key_64_bytes = std::env::var("HCKEY").unwrap_or_else(|_| { panic!("Key env not set.") });
-    //let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
-    //let secret_key = Key::from(&key);
+    //e.g. export GKVOCABDB_KEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285
+    let string_key_64_bytes = std::env::var("GKVOCABDB_KEY").unwrap_or_else(|_| { panic!("Key env not set.") });
+    let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
+    let secret_key = Key::from(&key);
 
         App::new()
             //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
