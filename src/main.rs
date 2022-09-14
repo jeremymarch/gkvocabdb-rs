@@ -40,6 +40,10 @@ use actix_web::cookie::Key;
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
+use actix_web::cookie::time::Duration;
+use actix_session::config::PersistentSession;
+const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
+
 use std::io;
 
 //use mime;
@@ -953,9 +957,6 @@ struct ImportResponse {
     words_inserted: u64,
     error: String,
 }
-use actix_web::cookie::time::Duration;
-use actix_session::config::PersistentSession;
-const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
