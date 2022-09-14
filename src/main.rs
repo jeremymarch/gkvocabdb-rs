@@ -1041,13 +1041,16 @@ async fn main() -> io::Result<()> {
             //    err, HttpResponse::Conflict().finish()).into()))
             //.wrap(json_cfg)
             .app_data(db_pool.clone())
-            .wrap(middleware::Logger::default())
+            .wrap(middleware::Compress::default())
+            
             //.wrap(auth_basic) //this blocks healthcheck
             .wrap(SessionMiddleware::builder(
                 CookieSessionStore::default(), secret_key.clone())
-                    .cookie_secure(false) //cookie_secure must be false if testing without https
+                    .cookie_secure(true) //cookie_secure must be false if testing without https
+                    .cookie_same_site(actix_web::cookie::SameSite::Strict)
+                    .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
                     .build())
-            .wrap(middleware::Compress::default())
+            .wrap(middleware::Logger::default())
             //.wrap(error_handlers)
             .configure(config)
     })
