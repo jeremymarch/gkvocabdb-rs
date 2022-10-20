@@ -1360,7 +1360,7 @@ mod tests {
 
         assert!(&resp.status().is_success());
         //println!("resp: {:?}", resp);
-        let result: QueryResponse = test::read_body_json(resp).await;
+        let _result: QueryResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
         //assert_eq!(result.words.len(), 176);
     }
