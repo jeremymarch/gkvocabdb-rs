@@ -24,6 +24,7 @@ use quick_xml::Reader;
 
 use actix_multipart::Multipart;
 use futures::{StreamExt, TryStreamExt};
+use quick_xml::name::QName;
 
 use super::*;
 
@@ -306,41 +307,41 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
     */
 
     loop {
-        match reader.read_event(&mut buf) {
+        match reader.read_event_into(&mut buf) {
             // for triggering namespaced events, use this instead:
             // match reader.read_namespaced_event(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 // for namespaced:
                 // Ok((ref namespace_value, Event::Start(ref e)))
-                if b"text" == e.name() {
+                if b"text" == e.name().as_ref() {
                     in_text = true;
-                } else if b"speaker" == e.name() {
+                } else if b"speaker" == e.name().as_ref() {
                     in_speaker = true;
-                } else if b"head" == e.name() {
+                } else if b"head" == e.name().as_ref() {
                     in_head = true;
-                } else if b"TEI.2" == e.name() {
+                } else if b"TEI.2" == e.name().as_ref() {
                     found_tei = true;
-                } else if b"TEI" == e.name() {
+                } else if b"TEI" == e.name().as_ref() {
                     found_tei = true;
-                } else if b"desc" == e.name() {
+                } else if b"desc" == e.name().as_ref() {
                     in_desc = true;
                     words.push(TextWord {
                         word: "".to_string(),
                         word_type: WordType::ParaNoIndent as u32,
                         gloss_id: None,
                     });
-                } else if b"p" == e.name() {
+                } else if b"p" == e.name().as_ref() {
                     words.push(TextWord {
                         word: String::from(""),
                         word_type: WordType::ParaWithIndent as u32,
                         gloss_id: None,
                     });
-                } else if b"l" == e.name() {
+                } else if b"l" == e.name().as_ref() {
                     let mut line_num = "".to_string();
 
                     for a in e.attributes() {
                         //.next().unwrap().unwrap();
-                        if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {
+                        if a.as_ref().unwrap().key == QName(b"n") {
                             line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                         }
                     }
@@ -352,9 +353,9 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 }
             }
             // unescape and decode the text event using the reader encoding
-            Ok(Event::Text(e)) => {
+            Ok(Event::Text(ref e)) => {
                 if in_text {
-                    if let Ok(s) = e.unescape_and_decode(&reader) {
+                    if let Ok(s) = e.unescape() {
                         //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
                         let clean_string = sanitize_greek(&s);
                         words.extend_from_slice(
@@ -368,13 +369,13 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                if b"lb" == e.name() {
+                if b"lb" == e.name().as_ref() {
                     //line beginning
                     let mut line_num = "".to_string();
 
                     for a in e.attributes() {
                         //.next().unwrap().unwrap();
-                        if std::str::from_utf8(a.as_ref().unwrap().key).unwrap() == "n" {
+                        if a.as_ref().unwrap().key == QName(b"n") {
                             line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
                         }
                     }
@@ -383,7 +384,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                         word_type: WordType::VerseLine as u32,
                         gloss_id: None,
                     });
-                } else if b"pb" == e.name() {
+                } else if b"pb" == e.name().as_ref() {
                     //page beginning
                     words.push(TextWord {
                         word: "".to_string(),
@@ -393,13 +394,13 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                 }
             }
             Ok(Event::End(ref e)) => {
-                if b"text" == e.name() {
+                if b"text" == e.name().as_ref() {
                     in_text = false;
-                } else if b"speaker" == e.name() {
+                } else if b"speaker" == e.name().as_ref() {
                     in_speaker = false;
-                } else if b"head" == e.name() {
+                } else if b"head" == e.name().as_ref() {
                     in_head = false;
-                } else if b"desc" == e.name() {
+                } else if b"desc" == e.name().as_ref() {
                     in_desc = false;
                     words.push(TextWord {
                         word: "".to_string(),

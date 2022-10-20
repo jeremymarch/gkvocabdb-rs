@@ -880,7 +880,7 @@ async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> Resu
     // }
 
     let unit = info.unit.unwrap_or(1);
-    let sort = info.sort.clone().unwrap_or("unit".to_string());
+    let sort = info.sort.clone().unwrap_or_else(|| "unit".to_string());
     let u = if unit > 20 { 20 } else { unit };
     
     for p in ["noun", "verb", "adjective", "other"] {
