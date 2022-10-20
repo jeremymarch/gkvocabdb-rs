@@ -275,7 +275,6 @@ pub struct GetGlossResponse {
     pub words: Vec<GlossEntry>,
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn update_or_add_gloss(
     (session, post, req): (Session, web::Form<UpdateGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -378,7 +377,6 @@ async fn update_or_add_gloss(
     }
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn update_words(
     (session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -393,7 +391,7 @@ async fn update_words(
 
         match post.qtype.as_str() {
             "arrowWord" => {
-                let _ = arrow_word(
+                arrow_word(
                     db,
                     course_id,
                     post.for_lemma_id.unwrap(),
@@ -490,7 +488,6 @@ async fn update_words(
     }
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn get_gloss(
     (info, req): (web::Form<GetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -525,7 +522,6 @@ pub struct AssignmentTree {
     pub h: bool,
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn get_glosses(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -616,7 +612,6 @@ async fn get_glosses(
     Ok(HttpResponse::Ok().json(res))
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn gloss_occurrences(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -678,7 +673,6 @@ async fn gloss_occurrences(
     Ok(HttpResponse::Ok().json(res))
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn update_log(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -710,7 +704,6 @@ async fn update_log(
 
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn get_texts(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -783,7 +776,6 @@ async fn get_texts(
 }
 
 /*
-#[allow(clippy::eval_order_dependence)]
 async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     fix_assignments(db).await.map_err(map_sqlx_error)?;
@@ -792,7 +784,6 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 }
 */
 
-#[allow(clippy::eval_order_dependence)]
 async fn get_text_words(
     (session, info, req): (Session, web::Query<QueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -855,7 +846,6 @@ async fn get_text_words(
     }
 }
 
-#[allow(clippy::eval_order_dependence)]
 async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     let mut template = include_str!("hqvocab.html").to_string();
@@ -918,7 +908,6 @@ async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> Resu
 }
 
 /*
-#[allow(clippy::eval_order_dependence)]
 async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     let course_id = 1;
@@ -1051,7 +1040,7 @@ async fn main() -> io::Result<()> {
         
         //.wrap(auth_basic) //this blocks healthcheck
         .wrap(SessionMiddleware::builder(
-            CookieSessionStore::default(), secret_key.clone())
+            CookieSessionStore::default(), secret_key)
                 .cookie_secure(cookie_secure) //cookie_secure must be false if testing without https
                 .cookie_same_site(actix_web::cookie::SameSite::Strict)
                 .cookie_content_security(actix_session::config::CookieContentSecurity::Private)

@@ -29,8 +29,8 @@ pub async fn export_text(
         let template = include_str!("latex/doc_template.tex");
         let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-        let text_id = info.textid;
-        res.push_str(" ");
+        let _text_id = info.textid;
+        res.push(' ');
 
         Ok(HttpResponse::Ok()
             .content_type("application/x-latex")

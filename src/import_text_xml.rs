@@ -165,34 +165,31 @@ fn sanitize_greek(s: &str) -> String {
     let r = rough_breathing_grave_re.replace_all(&r, "$letter\u{0314}\u{0300}");
 
     //https://apagreekkeys.org/technicalDetails.html
-    let r = r
-        .replace("\u{1F71}", "\u{03AC}") //acute -> tonos, etc...
-        .replace("\u{1FBB}", "\u{0386}")
-        .replace("\u{1F73}", "\u{03AD}")
-        .replace("\u{1FC9}", "\u{0388}")
-        .replace("\u{1F75}", "\u{03AE}")
-        .replace("\u{1FCB}", "\u{0389}")
-        .replace("\u{1F77}", "\u{03AF}")
-        .replace("\u{1FDB}", "\u{038A}")
-        .replace("\u{1F79}", "\u{03CC}")
-        .replace("\u{1FF9}", "\u{038C}")
-        .replace("\u{1F7B}", "\u{03CD}")
-        .replace("\u{1FEB}", "\u{038E}")
-        .replace("\u{1F7D}", "\u{03CE}")
-        .replace("\u{1FFB}", "\u{038F}")
-        .replace("\u{1FD3}", "\u{0390}") //iota + diaeresis + acute
-        .replace("\u{1FE3}", "\u{03B0}") //upsilon + diaeresis + acute
-        .replace("\u{037E}", "\u{003B}") //semicolon
-        .replace("\u{0387}", "\u{00B7}") //middle dot
-        .replace("\u{0344}", "\u{0308}\u{0301}"); //combining diaeresis with acute
-
-    r
+    r.replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
+        .replace('\u{1FBB}', "\u{0386}")
+        .replace('\u{1F73}', "\u{03AD}")
+        .replace('\u{1FC9}', "\u{0388}")
+        .replace('\u{1F75}', "\u{03AE}")
+        .replace('\u{1FCB}', "\u{0389}")
+        .replace('\u{1F77}', "\u{03AF}")
+        .replace('\u{1FDB}', "\u{038A}")
+        .replace('\u{1F79}', "\u{03CC}")
+        .replace('\u{1FF9}', "\u{038C}")
+        .replace('\u{1F7B}', "\u{03CD}")
+        .replace('\u{1FEB}', "\u{038E}")
+        .replace('\u{1F7D}', "\u{03CE}")
+        .replace('\u{1FFB}', "\u{038F}")
+        .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
+        .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
+        .replace('\u{037E}', "\u{003B}") //semicolon
+        .replace('\u{0387}', "\u{00B7}") //middle dot
+        .replace('\u{0344}', "\u{0308}\u{0301}") //combining diaeresis with acute
 }
 
 fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Vec<TextWord> {
     let mut words: Vec<TextWord> = vec![];
     let mut last = 0;
-    let word_type_word = if in_desc == true { WordType::Desc } else { WordType::Word } as u32;
+    let word_type_word = if in_desc { WordType::Desc } else { WordType::Word } as u32;
     if in_head {
         words.push(TextWord {
             word: text.to_string(),
@@ -244,8 +241,6 @@ fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Ve
 pub async fn get_xml_string(
     mut payload: Multipart,
 ) -> Result<(String, String), std::str::Utf8Error> {
-    let xml_string:String;
-    let title: String;
     let mut ttbytes = web::BytesMut::new();
     let mut ddbytes = web::BytesMut::new();
 
@@ -268,23 +263,23 @@ pub async fn get_xml_string(
         }
     }
 
-    match std::str::from_utf8(&ttbytes) {
+    let title:String = match std::str::from_utf8(&ttbytes) {
         Ok(xml_data) => {
-            title = xml_data.to_string();
+            xml_data.to_string()
         }
         Err(e) => {
-                return Err(e); //utf8 error
+            return Err(e); //utf8 error
         }
-    }
+    };
 
-    match std::str::from_utf8(&ddbytes) {
+    let xml_string:String = match std::str::from_utf8(&ddbytes) {
         Ok(xml_data) => {
-            xml_string = xml_data.to_string();
+            xml_data.to_string()
         }
         Err(e) => {
-                return Err(e); //utf8 error
+            return Err(e); //utf8 error
         }
-    }
+    };
 
     Ok((xml_string, title))
 }
@@ -319,9 +314,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                     in_speaker = true;
                 } else if b"head" == e.name().as_ref() {
                     in_head = true;
-                } else if b"TEI.2" == e.name().as_ref() {
-                    found_tei = true;
-                } else if b"TEI" == e.name().as_ref() {
+                } else if b"TEI.2" == e.name().as_ref() || b"TEI" == e.name().as_ref() {
                     found_tei = true;
                 } else if b"desc" == e.name().as_ref() {
                     in_desc = true;

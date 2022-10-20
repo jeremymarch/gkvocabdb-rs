@@ -205,7 +205,7 @@ pub async fn arrow_word(
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    let _ = arrow_word_trx(
+    arrow_word_trx(
         &mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent,
     )
     .await?;
@@ -271,7 +271,7 @@ pub async fn arrow_word_trx<'a, 'b>(
             .execute(&mut *tx)
             .await?;
 
-        let _ = update_log_trx(
+        update_log_trx(
             &mut *tx,
             UpdateType::ArrowWord,
             Some(gloss_id.into()),
@@ -308,7 +308,7 @@ pub async fn arrow_word_trx<'a, 'b>(
             .execute(&mut *tx)
             .await?;
 
-        let _ = update_log_trx(
+        update_log_trx(
             &mut *tx,
             UpdateType::UnarrowWord,
             Some(gloss_id.into()),
@@ -355,7 +355,7 @@ pub async fn set_gloss_id(
     //1b. unarrow word if it is arrowed
     if arrowed_word_id.is_ok() {
         //r.rows_affected() < 1 {
-        let _ = arrow_word_trx(
+        arrow_word_trx(
             &mut tx, course_id, gloss_id, 0, /*zero to unarrow*/
             user_id, timestamp, updated_ip, user_agent,
         )
@@ -427,7 +427,7 @@ pub async fn set_gloss_id(
         .fetch_all(&mut tx)
         .await;
 
-    let _ = update_log_trx(
+    update_log_trx(
         &mut tx,
         UpdateType::SetGlossId,
         Some(word_id.into()),
@@ -521,7 +521,7 @@ pub async fn add_text(
         .execute(&mut tx)
         .await?;
 
-    let _ = update_log_trx(
+    update_log_trx(
         &mut tx,
         UpdateType::ImportText,
         Some(text_id),
@@ -583,7 +583,7 @@ pub async fn insert_gloss(
 
     let new_gloss_id = res.last_insert_rowid();
 
-    let _ = update_log_trx(
+    update_log_trx(
         &mut tx,
         UpdateType::NewGloss,
         Some(new_gloss_id),
@@ -648,7 +648,7 @@ pub async fn delete_gloss(
         .await?;
 
     if count.0 == 0 {
-        let _ = update_log_trx(
+        update_log_trx(
             &mut tx,
             UpdateType::DeleteGloss,
             Some(gloss_id.into()),
@@ -697,7 +697,7 @@ pub async fn update_gloss(
 
     //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
     //let _ = update_log_trx(&mut tx, UpdateType::SetGlossId, "Change gloss for x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
-    let _ = update_log_trx(
+    update_log_trx(
         &mut tx,
         UpdateType::EditGloss,
         Some(gloss_id.into()),
@@ -1100,7 +1100,7 @@ pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), 
 pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
     let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
 
-    let res = sqlx::query(query)
+    sqlx::query(query)
         .bind(gloss_id)
         .map(|rec: SqliteRow| GlossEntry {
             hqid: rec.get("gloss_id"),
@@ -1110,9 +1110,7 @@ pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry,
             n: rec.get("note"),
         })
         .fetch_one(pool)
-        .await;
-
-    res
+        .await
 }
 
 //SELECT c.name, a.word_id, a.word, d.word_id as arrowed FROM words a INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = 1) INNER JOIN texts c ON a.text = c.text_id LEFT JOIN arrowed_words d ON (d.course_id=1 AND d.gloss_id=564 AND d.word_id = a.word_id) WHERE a.gloss_id = 564 ORDER BY b.text_order, a.seq LIMIT 20000;
@@ -1122,8 +1120,7 @@ pub async fn get_gloss_occurrences(
     course_id: u32,
     gloss_id: u32,
 ) -> Result<Vec<(String, u32, String, Option<u32>, Option<u32>, String)>, sqlx::Error> {
-    let query = format!(
-        "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
+    let query = "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
     FROM words a \
     INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = ?) \
     INNER JOIN texts c ON a.text = c.text_id \
@@ -1131,8 +1128,8 @@ pub async fn get_gloss_occurrences(
     LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
     WHERE a.gloss_id = ? \
     ORDER BY b.text_order, a.seq \
-    LIMIT 2000;"
-    );
+    LIMIT 2000;".to_string();
+
     let mut res: Vec<(String, u32, String, Option<u32>, Option<u32>, String)> = sqlx::query(&query)
         .bind(course_id)
         .bind(course_id)
@@ -1162,14 +1159,14 @@ pub async fn get_update_log(
     pool: &SqlitePool,
     _course_id: u32,
 ) -> Result<Vec<AssignmentTree>, sqlx::Error> {
-    let query = format!("SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, a.update_id, \
+    let query = "SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, a.update_id, \
     b.update_type, c.initials, update_desc \
     FROM update_log a \
     INNER JOIN update_types b ON a.update_type = b.update_type_id \
     INNER JOIN users c ON a.user_id = c.user_id \
     ORDER BY updated DESC \
-    LIMIT 20000;"
-    );
+    LIMIT 20000;".to_string();
+
     let res: Vec<(String, String, String, String,u32)> = sqlx::query(&query)
         .map(|rec: SqliteRow| {
             (

@@ -36,7 +36,6 @@ pub fn get_user_id(session: Session) -> Option<u32> {
     session.get::<u32>("user_id").unwrap_or(None)
 }
 
-#[allow(clippy::eval_order_dependence)]
 pub async fn login_get() -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
@@ -127,7 +126,6 @@ fn validate_login(credentials: Credentials) -> Option<u32> {
     }
 }
 
-#[allow(clippy::eval_order_dependence)]
 pub async fn login_post(
     (session, form, req): (Session, web::Form<FormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
