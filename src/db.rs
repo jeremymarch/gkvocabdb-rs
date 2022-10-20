@@ -20,7 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool};
-
+use crate::ConnectionInfo;
 use unicode_normalization::UnicodeNormalization;
 /*
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -198,15 +198,12 @@ pub async fn arrow_word(
     course_id: u32,
     gloss_id: u32,
     word_id: u32,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
     arrow_word_trx(
-        &mut tx, course_id, gloss_id, word_id, user_id, timestamp, updated_ip, user_agent,
+        &mut tx, course_id, gloss_id, word_id, info,
     )
     .await?;
 
@@ -220,10 +217,7 @@ pub async fn arrow_word_trx<'a, 'b>(
     course_id: u32,
     gloss_id: u32,
     word_id: u32,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<(), sqlx::Error> {
     let query = "SELECT word_id \
   FROM arrowed_words \
@@ -265,8 +259,8 @@ pub async fn arrow_word_trx<'a, 'b>(
             .bind(course_id)
             .bind(gloss_id)
             .bind(word_id)
-            .bind(timestamp)
-            .bind(user_id)
+            .bind(info.timestamp)
+            .bind(info.user_id)
             //.bind(comment)
             .execute(&mut *tx)
             .await?;
@@ -282,10 +276,7 @@ pub async fn arrow_word_trx<'a, 'b>(
                 gloss_id, word_id, unwrapped_old_word_id, course_id
             )
             .as_str(),
-            timestamp,
-            user_id,
-            updated_ip,
-            user_agent,
+            info,
         )
         .await?;
     } else {
@@ -302,8 +293,8 @@ pub async fn arrow_word_trx<'a, 'b>(
         sqlx::query(query)
             .bind(course_id)
             .bind(gloss_id)
-            .bind(timestamp)
-            .bind(user_id)
+            .bind(info.timestamp)
+            .bind(info.user_id)
             //.bind(comment)
             .execute(&mut *tx)
             .await?;
@@ -319,10 +310,7 @@ pub async fn arrow_word_trx<'a, 'b>(
                 gloss_id, unwrapped_old_word_id, course_id
             )
             .as_str(),
-            timestamp,
-            user_id,
-            updated_ip,
-            user_agent,
+            info,
         )
         .await?;
     }
@@ -335,10 +323,7 @@ pub async fn set_gloss_id(
     course_id: u32,
     gloss_id: u32,
     word_id: u32,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<Vec<SmallWord>, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -357,7 +342,7 @@ pub async fn set_gloss_id(
         //r.rows_affected() < 1 {
         arrow_word_trx(
             &mut tx, course_id, gloss_id, 0, /*zero to unarrow*/
-            user_id, timestamp, updated_ip, user_agent,
+            info,
         )
         .await?;
     }
@@ -441,10 +426,7 @@ pub async fn set_gloss_id(
             course_id
         )
         .as_str(),
-        timestamp,
-        user_id,
-        updated_ip,
-        user_agent,
+        info,
     )
     .await?;
 
@@ -458,10 +440,7 @@ pub async fn add_text(
     course_id: u32,
     text_name: &str,
     words: Vec<TextWord>,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -490,10 +469,10 @@ pub async fn add_text(
             .bind(w.word)
             .bind(w.gloss_id)
             .bind(w.word_type)
-            .bind(timestamp)
-            .bind(user_agent)
-            .bind(updated_ip)
-            .bind(user_id)
+            .bind(info.timestamp)
+            .bind(&info.user_agent)
+            .bind(&info.ip_address)
+            .bind(info.user_id)
             .execute(&mut tx)
             .await?;
 
@@ -528,10 +507,7 @@ pub async fn add_text(
         None,
         None,
         format!("Imported {} words into text ({})", count, text_id).as_str(),
-        timestamp,
-        user_id,
-        updated_ip,
-        user_agent,
+        info,
     )
     .await?;
 
@@ -549,10 +525,7 @@ pub async fn insert_gloss(
     def: &str,
     stripped_lemma: &str,
     note: &str,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -574,10 +547,10 @@ pub async fn insert_gloss(
         .bind(def)
         .bind(pos)
         .bind(note)
-        .bind(timestamp)
-        .bind(user_agent)
-        .bind(updated_ip)
-        .bind(user_id)
+        .bind(info.timestamp)
+        .bind(&info.user_agent)
+        .bind(&info.ip_address)
+        .bind(info.user_id)
         .execute(&mut tx)
         .await?;
 
@@ -590,10 +563,7 @@ pub async fn insert_gloss(
         None,
         None,
         format!("Added gloss ({})", new_gloss_id).as_str(),
-        timestamp,
-        user_id,
-        updated_ip,
-        user_agent,
+        info,
     )
     .await?;
 
@@ -609,10 +579,7 @@ pub async fn update_log_trx<'a, 'b>(
     history_id: Option<i64>,
     course_id: Option<i64>,
     update_desc: &str,
-    timestamp: i64,
-    user_id: u32,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<(), sqlx::Error> {
     let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     sqlx::query(query)
@@ -621,10 +588,10 @@ pub async fn update_log_trx<'a, 'b>(
         .bind(history_id)
         .bind(course_id)
         .bind(update_desc)
-        .bind(timestamp)
-        .bind(user_id)
-        .bind(updated_ip)
-        .bind(user_agent)
+        .bind(info.timestamp)
+        .bind(info.user_id)
+        .bind(&info.ip_address)
+        .bind(&info.user_agent)
         .execute(&mut *tx)
         .await?;
 
@@ -634,10 +601,7 @@ pub async fn update_log_trx<'a, 'b>(
 pub async fn delete_gloss(
     pool: &SqlitePool,
     gloss_id: u32,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -655,10 +619,7 @@ pub async fn delete_gloss(
             Some(gloss_id.into()),
             None,
             format!("Deleted gloss ({})", gloss_id).as_str(),
-            timestamp,
-            user_id,
-            updated_ip,
-            user_agent,
+            info,
         )
         .await?;
 
@@ -681,10 +642,7 @@ pub async fn update_gloss(
     def: &str,
     stripped_gloss: &str,
     note: &str,
-    user_id: u32,
-    timestamp: i64,
-    updated_ip: &str,
-    user_agent: &str,
+    info: &ConnectionInfo,
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -704,10 +662,7 @@ pub async fn update_gloss(
         Some(history_id),
         None,
         format!("Edited gloss ({})", gloss_id).as_str(),
-        timestamp,
-        user_id,
-        updated_ip,
-        user_agent,
+        info,
     )
     .await?;
     //let _ = update_log_trx(&mut tx, UpdateType::NewGloss, "New gloss x.", timestamp, user_id, updated_ip, user_agent).await?;
@@ -739,10 +694,10 @@ pub async fn update_gloss(
         .bind(def)
         .bind(pos)
         .bind(note)
-        .bind(timestamp)
-        .bind(user_agent)
-        .bind(updated_ip)
-        .bind(user_id)
+        .bind(info.timestamp)
+        .bind(&info.user_agent)
+        .bind(&info.ip_address)
+        .bind(info.user_id)
         .bind(gloss_id)
         .execute(&mut tx)
         .await?;

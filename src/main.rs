@@ -74,6 +74,14 @@ struct LoginRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConnectionInfo {
+    pub user_id: u32,
+    pub timestamp: i64,
+    pub ip_address: String,
+    pub user_agent: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginResponse {
     success: bool,
 }
@@ -281,9 +289,12 @@ async fn update_or_add_gloss(
     let db = req.app_data::<SqlitePool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
-        let timestamp = get_timestamp();
-        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
-        let user_agent = get_user_agent(&req).unwrap_or("");
+        let info = ConnectionInfo {
+            user_id,
+            timestamp: get_timestamp(),
+            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            user_agent: get_user_agent(&req).unwrap_or("").to_string(),
+        };
 
         match post.qtype.as_str() {
             "newlemma" => {
@@ -294,10 +305,7 @@ async fn update_or_add_gloss(
                     post.def.as_str(),
                     post.stripped_lemma.as_str(),
                     post.note.as_str(),
-                    user_id,
-                    timestamp,
-                    &updated_ip,
-                    user_agent,
+                    &info,
                 )
                 .await
                 .map_err(map_sqlx_error)?;
@@ -319,10 +327,7 @@ async fn update_or_add_gloss(
                         post.def.as_str(),
                         post.stripped_lemma.as_str(),
                         post.note.as_str(),
-                        user_id,
-                        timestamp,
-                        &updated_ip,
-                        user_agent,
+                        &info,
                     )
                     .await
                     .map_err(map_sqlx_error)?;
@@ -340,10 +345,7 @@ async fn update_or_add_gloss(
                     let rows_affected = delete_gloss(
                         db,
                         post.hqid.unwrap(),
-                        user_id,
-                        timestamp,
-                        &updated_ip,
-                        user_agent,
+                        &info,
                     )
                     .await
                     .map_err(map_sqlx_error)?;
@@ -385,9 +387,15 @@ async fn update_words(
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
 
-        let timestamp = get_timestamp();
-        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
-        let user_agent = get_user_agent(&req).unwrap_or("");
+        let info = ConnectionInfo {
+            user_id,
+            timestamp: get_timestamp(),
+            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            user_agent: get_user_agent(&req).unwrap_or("").to_string(),
+        };
+        // let timestamp = get_timestamp();
+        // let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
+        // let user_agent = get_user_agent(&req).unwrap_or("");
 
         match post.qtype.as_str() {
             "arrowWord" => {
@@ -396,10 +404,7 @@ async fn update_words(
                     course_id,
                     post.for_lemma_id.unwrap(),
                     post.set_arrowed_id_to.unwrap(),
-                    user_id,
-                    timestamp,
-                    &updated_ip,
-                    user_agent,
+                    &info,
                 )
                 .await
                 .map_err(map_sqlx_error)?;
@@ -421,10 +426,7 @@ async fn update_words(
                         course_id,
                         post.lemmaid.unwrap(),
                         post.textwordid.unwrap(),
-                        user_id,
-                        timestamp,
-                        &updated_ip,
-                        user_agent,
+                        &info,
                     )
                     .await
                     .map_err(map_sqlx_error)?;

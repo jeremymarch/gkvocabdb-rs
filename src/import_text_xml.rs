@@ -62,9 +62,12 @@ pub async fn import_text(
     let course_id = 1;
 
     if let Some(user_id) = login::get_user_id(session) {
-        let timestamp = get_timestamp();
-        let updated_ip = get_ip(&req).unwrap_or_else(|| "".to_string());
-        let user_agent = get_user_agent(&req).unwrap_or("");
+        let info = ConnectionInfo {
+            user_id,
+            timestamp: get_timestamp(),
+            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            user_agent: get_user_agent(&req).unwrap_or("").to_string(),
+        };
 
         match import_text_xml::get_xml_string(payload).await {
             Ok((xml_string, title)) => {
@@ -76,10 +79,7 @@ pub async fn import_text(
                                 course_id,
                                 &title,
                                 words,
-                                user_id,
-                                timestamp,
-                                &updated_ip,
-                                user_agent,
+                                &info,
                             )
                             .await
                             .map_err(map_sqlx_error)?;
