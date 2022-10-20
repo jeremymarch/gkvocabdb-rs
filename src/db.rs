@@ -636,6 +636,7 @@ pub async fn delete_gloss(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn update_gloss(
     pool: &SqlitePool,
     gloss_id: u32,
