@@ -1040,27 +1040,29 @@ async fn main() -> io::Result<()> {
     let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
     let secret_key = Key::from(&key);
 
-        App::new()
-            //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
-            //    err, HttpResponse::Conflict().finish()).into()))
-            //.wrap(json_cfg)
-            .app_data(db_pool.clone())
-            .wrap(middleware::Compress::default())
-            
-            //.wrap(auth_basic) //this blocks healthcheck
-            .wrap(SessionMiddleware::builder(
-                CookieSessionStore::default(), secret_key.clone())
-                    .cookie_secure(true) //cookie_secure must be false if testing without https
-                    .cookie_same_site(actix_web::cookie::SameSite::Strict)
-                    .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
-                    .session_lifecycle(
-                        PersistentSession::default().session_ttl(Duration::seconds(SECS_IN_YEAR))
-                    )
-                    .cookie_name(String::from("gkvocabdbid"))
-                    .build())
-            .wrap(middleware::Logger::default())
-            //.wrap(error_handlers)
-            .configure(config)
+    let cookie_secure = !cfg!(debug_assertions); //cookie is secure for release, not secure for debug builds
+
+    App::new()
+        //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
+        //    err, HttpResponse::Conflict().finish()).into()))
+        //.wrap(json_cfg)
+        .app_data(db_pool.clone())
+        .wrap(middleware::Compress::default())
+        
+        //.wrap(auth_basic) //this blocks healthcheck
+        .wrap(SessionMiddleware::builder(
+            CookieSessionStore::default(), secret_key.clone())
+                .cookie_secure(cookie_secure) //cookie_secure must be false if testing without https
+                .cookie_same_site(actix_web::cookie::SameSite::Strict)
+                .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
+                .session_lifecycle(
+                    PersistentSession::default().session_ttl(Duration::seconds(SECS_IN_YEAR))
+                )
+                .cookie_name(String::from("gkvocabdbid"))
+                .build())
+        .wrap(middleware::Logger::default())
+        //.wrap(error_handlers)
+        .configure(config)
     })
     .bind("0.0.0.0:8088")?
     .run()
@@ -1266,23 +1268,34 @@ mod tests {
             .await
             .expect("Could not connect to db.");
 
+        let string_key_64_bytes = "c67ba35ad969a3f4255085c359f120bae733c5a5756187aaffab31c7c84628b6a9a02ce6a1e923a945609a884f913f83ea50675b184514b5d15c3e1a606a3fd2";
+        let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
+        let secret_key = Key::from(&key);
+
+        let cookie_secure = !cfg!(debug_assertions); //cookie is secure for release, not secure for debug builds
+
         let mut app = test::init_service(
             App::new()
                 //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
                 //    err, HttpResponse::Conflict().finish()).into()))
                 //.wrap(json_cfg)
                 .app_data(db_pool.clone())
-                .wrap(middleware::Logger::default())
-                //.wrap(auth_basic) //this blocks healthcheck
-                .wrap(
-                    CookieSession::signed(&[0; 32])
-                        .secure(false)
-                        //.expires_in(2147483647) //deprecated
-                        .max_age(2147483647),
-                )
                 .wrap(middleware::Compress::default())
-                //.wrap(error_handlers)
-                .configure(config),
+                
+                //.wrap(auth_basic) //this blocks healthcheck
+                .wrap(SessionMiddleware::builder(
+                    CookieSessionStore::default(), secret_key.clone())
+                        .cookie_secure(cookie_secure) //cookie_secure must be false if testing without https
+                        .cookie_same_site(actix_web::cookie::SameSite::Strict)
+                        .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
+                        .session_lifecycle(
+                            PersistentSession::default().session_ttl(Duration::seconds(SECS_IN_YEAR))
+                        )
+                        .cookie_name(String::from("gkvocabdbid"))
+                        .build())
+                .wrap(middleware::Logger::default())
+                        //.wrap(error_handlers)
+                        .configure(config),
         )
         .await;
 
