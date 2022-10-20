@@ -82,6 +82,16 @@ pub struct ConnectionInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GlossOccurrence {
+    pub name: String,
+    pub word_id: u32,
+    pub word: String,
+    pub arrowed: Option<u32>,
+    pub unit: Option<u32>,
+    pub lemma: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginResponse {
     success: bool,
 }
@@ -637,14 +647,14 @@ async fn gloss_occurrences(
         .into_iter()
         .enumerate()
         .map(|(i, mut row)| {
-            row.0 = format!(
+            row.name = format!(
                 "{}. <b class='occurrencesarrow'>{}</b> {} - {}",
                 i + 1,
-                if row.3.is_some() { "→" } else { "" },
-                row.0,
-                row.2
+                if row.arrowed.is_some() { "→" } else { "" },
+                row.name,
+                row.word
             );
-            (row.0, row.1)
+            (row.name, row.word_id)
         })
         .collect();
 
@@ -1308,13 +1318,13 @@ mod tests {
 
     //cargo test -- --nocapture
 
-    async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
-        let query =
-            "CREATE TABLE users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);";
-        sqlx::query(query).execute(db).await?;
+    // async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    //     let query =
+    //         "CREATE TABLE users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);";
+    //     sqlx::query(query).execute(db).await?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     #[actix_web::test]
     async fn test_query_paging() {

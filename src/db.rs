@@ -21,7 +21,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool};
 use crate::ConnectionInfo;
+use crate::GlossOccurrence;
 use unicode_normalization::UnicodeNormalization;
+
 /*
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PhilologusWords {
@@ -1074,7 +1076,7 @@ pub async fn get_gloss_occurrences(
     pool: &SqlitePool,
     course_id: u32,
     gloss_id: u32,
-) -> Result<Vec<(String, u32, String, Option<u32>, Option<u32>, String)>, sqlx::Error> {
+) -> Result<Vec<GlossOccurrence>, sqlx::Error> {
     let query = "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
     FROM words a \
     INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = ?) \
@@ -1085,26 +1087,33 @@ pub async fn get_gloss_occurrences(
     ORDER BY b.text_order, a.seq \
     LIMIT 2000;".to_string();
 
-    let mut res: Vec<(String, u32, String, Option<u32>, Option<u32>, String)> = sqlx::query(&query)
+    let mut res: Vec<GlossOccurrence> = sqlx::query(&query)
         .bind(course_id)
         .bind(course_id)
         .bind(gloss_id)
         .bind(gloss_id)
         .map(|rec: SqliteRow| {
-            (
-                rec.get("name"),
-                rec.get("word_id"),
-                rec.get("word"),
-                rec.get("arrowed"),
-                rec.get("unit"),
-                rec.get("lemma"),
-            )
+            GlossOccurrence {
+                name: rec.get("name"),
+                word_id: rec.get("word_id"),
+                word: rec.get("word"),
+                arrowed: rec.get("arrowed"),
+                unit: rec.get("unit"),
+                lemma: rec.get("lemma"),
+            }
         })
         .fetch_all(pool)
         .await?;
 
-    if !res.is_empty() && res[0].4.is_some() && res[0].4.unwrap() > 0 && res[0].4.unwrap() < 21 {
-      res.insert(0, (format!("H&Q Unit {}", res[0].4.unwrap()), 1, res[0].5.to_owned(), Some(1), res[0].4, res[0].5.to_owned()) )
+    if !res.is_empty() && res[0].unit.is_some() && res[0].unit.unwrap() > 0 && res[0].unit.unwrap() < 21 {
+      res.insert(0, GlossOccurrence {
+            name: format!("H&Q Unit {}", res[0].unit.unwrap()),
+            word_id: 1,
+            word: res[0].lemma.to_owned(),
+            arrowed: Some(1),
+            unit: res[0].unit,
+            lemma: res[0].lemma.to_owned(),
+        } )
     }
 
     Ok(res)
