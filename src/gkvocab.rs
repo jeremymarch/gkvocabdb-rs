@@ -454,6 +454,11 @@ pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_wor
     })
 }
 
+pub async fn gkv_create_db(db:&SqlitePool) -> Result<(), AWError> {
+    db::create_db(db).await.map_err(map_sqlx_error)?;
+    Ok(())
+}
+
 #[derive(Error, Debug)]
 pub struct PhilologusError {
     code: StatusCode,
@@ -574,4 +579,33 @@ struct ErrorResponse {
     code: u16,
     error: String,
     message: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[actix_rt::test]
+    async fn test_db() {
+
+        let db_path = "sqlite::memory:";
+        let options = SqliteConnectOptions::from_str(&db_path)
+            .expect("Could not connect to db.")
+            .foreign_keys(true)
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .read_only(false)
+            .collation("PolytonicGreek", |l, r| {
+                l.to_lowercase().cmp(&r.to_lowercase())
+            });
+
+        let db = SqlitePool::connect_with(options)
+            .await
+            .expect("Could not connect to db.");
+
+
+        let _a = gkv_create_db(&db).await;
+
+        let a = 1;
+        assert_eq!(a, 1);
+    }
 }

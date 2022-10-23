@@ -1320,3 +1320,17 @@ mysqldump --skip-extended-insert --compact philolog_us gkvocabdb hqvocab gkvocab
     PRIMARY KEY (wordid)
   )
 */
+
+pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
+    let mut tx = db.begin().await?;
+
+    let query = r#"CREATE TABLE IF NOT EXISTS moves ( 
+        
+        );"#;
+            let _res = sqlx::query(query)
+                .execute(&mut tx)
+                .await?;
+
+    tx.commit().await?;
+    Ok(())
+}
