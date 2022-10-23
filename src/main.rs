@@ -626,6 +626,7 @@ mod tests {
             assert!(resp.status().is_success());
         }
     */
+    /*
     #[actix_rt::test]
     async fn test_index_post() {
         let db_path = std::env::var("GKVOCABDB_DB_PATH").unwrap_or_else(|_| {
@@ -711,10 +712,10 @@ mod tests {
         let db_pool = SqlitePool::connect(&db_path)
             .await
             .expect("Could not connect to db.");
-        /*
-        let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
-        create_db(&db_pool);
-        */
+        
+        // let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
+        // create_db(&db_pool);
+        
 
         let mut app = test::init_service(
             App::new()
@@ -740,5 +741,7 @@ mod tests {
         let _result: MiscErrorResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
         //assert_eq!(result.words.len(), 176);
+        
     }
+    */
 }
