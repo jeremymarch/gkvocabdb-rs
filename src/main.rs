@@ -114,7 +114,7 @@ struct TreeRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct QueryResponse {
+pub struct MiscErrorResponse {
     #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
     pub this_text: u32,
     pub text_name: String,
@@ -122,30 +122,6 @@ pub struct QueryResponse {
     #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
     pub selected_id: Option<u32>,
     pub error: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct UpdateResponse {
-    success: bool,
-    #[serde(
-        rename(serialize = "affectedRows"),
-        rename(deserialize = "affectedRows")
-    )]
-    affected_rows: u32,
-    #[serde(
-        rename(serialize = "arrowedValue"),
-        rename(deserialize = "arrowedValue")
-    )]
-    arrowed_value: u32,
-    lemmaid: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct UpdateGlossIdResponse {
-    qtype: String,
-    words: Vec<SmallWord>,
-    success: bool,
-    affectedrows: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -181,7 +157,7 @@ pub struct QueryRequest {
 }
 
 #[derive(Deserialize)]
-pub struct UpdateRequest {
+pub struct ArrowWordRequest {
     pub qtype: String,
     #[serde(rename(serialize = "forLemmaID"), rename(deserialize = "forLemmaID"))]
     pub for_lemma_id: Option<u32>,
@@ -194,6 +170,13 @@ pub struct UpdateRequest {
     pub textwordid: Option<u32>,
     pub lemmaid: Option<u32>,
     pub lemmastr: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SetGlossRequest {
+    pub qtype: String,
+    pub word_id: u32,
+    pub gloss_id: u32,
 }
 
 #[derive(Deserialize)]
@@ -315,9 +298,8 @@ async fn update_or_add_gloss(
     }
 }
 
-//need to split before moving
-async fn update_words(
-    (session, post, req): (Session, web::Form<UpdateRequest>, HttpRequest),
+async fn arrow_word_req(
+    (session, post, req): (Session, web::Form<ArrowWordRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
@@ -331,95 +313,49 @@ async fn update_words(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        match post.qtype.as_str() {
-            "arrowWord" => {
-                arrow_word(
-                    db,
-                    course_id,
-                    post.for_lemma_id.unwrap(),
-                    post.set_arrowed_id_to.unwrap(),
-                    &info,
-                )
-                .await
-                .map_err(map_sqlx_error)?;
-                let res = UpdateResponse {
-                    success: true,
-                    affected_rows: 1,
-                    arrowed_value: 1,
-                    lemmaid: 1,
-                };
-                return Ok(HttpResponse::Ok().json(res));
-            }
-            "flagUnflagWord" => (),
-            "updateLemmaID" => {
-                //qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr
-
-                if post.textwordid.is_some() && post.lemmaid.is_some() {
-                    let words = set_gloss_id(
-                        db,
-                        course_id,
-                        post.lemmaid.unwrap(),
-                        post.textwordid.unwrap(),
-                        &info,
-                    )
-                    .await
-                    .map_err(map_sqlx_error)?;
-
-                    let res = UpdateGlossIdResponse {
-                        qtype: "updateLemmaID".to_string(),
-                        words,
-                        success: true,
-                        affectedrows: 1,
-                    };
-                    return Ok(HttpResponse::Ok().json(res));
-                }
-            }
-
-            "getWordAnnotation" => (),
-            "removeDuplicate" => (),
-            "updateCounts" => (),
-            "getWordsByLemmaId" => (),
-            _ => (),
-        }
-
-        /*
-        history topics:
-
-        arrow word
-        change word's gloss
-        new gloss
-        edit gloss
-        flagged word/unflagged
-
-        delete gloss
-
-        changed text seq
-
-        inserted word
-        deleted word
-        changed word seq
-        */
-
-        let res = QueryResponse {
-            this_text: 1,
-            text_name:"".to_string(),
-            words: [].to_vec(),
-            selected_id: None,
-            error: "fall through error (update_words)".to_string(),
-        };
-
-        Ok(HttpResponse::Ok().json(res))
-    } else {
-        let res = QueryResponse {
-            this_text: 1,
-            text_name:"".to_string(),
-            words: [].to_vec(),
-            selected_id: None,
-            error: "Not logged in (update_words)".to_string(),
-        };
-
-        Ok(HttpResponse::Ok().json(res))
+        let res = gkv_arrow_word(db, &post, &info, course_id).await?;
+        return Ok(HttpResponse::Ok().json(res));
     }
+
+    let res = MiscErrorResponse {
+        this_text: 1,
+        text_name:"".to_string(),
+        words: [].to_vec(),
+        selected_id: None,
+        error: "Not logged in (update_words)".to_string(),
+    };
+    Ok(HttpResponse::Ok().json(res))
+}
+
+//need to split before moving
+async fn set_gloss(
+    (session, post, req): (Session, web::Form<SetGlossRequest>, HttpRequest),
+) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+
+    if let Some(user_id) = login::get_user_id(session) {
+        let course_id = 1;
+
+        let info = ConnectionInfo {
+            user_id,
+            timestamp: get_timestamp(),
+            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            user_agent: get_user_agent(&req).unwrap_or("").to_string(),
+        };
+       
+        let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id).await?;
+        return Ok(HttpResponse::Ok().json(res));
+        
+    } 
+    let res = MiscErrorResponse {
+        this_text: 1,
+        text_name:"".to_string(),
+        words: [].to_vec(),
+        selected_id: None,
+        error: "Not logged in (update_words)".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(res))
 }
 
 async fn get_gloss(
@@ -494,7 +430,7 @@ async fn get_text_words(
 
         Ok(HttpResponse::Ok().json(res))
     } else {
-        let res = QueryResponse {
+        let res = MiscErrorResponse {
             this_text: 1,
             text_name: "".to_string(),
             words: vec![],
@@ -723,8 +659,12 @@ fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::get().to(hqvocab)),
         )
         .service(
-            web::resource("/updatedb") //checks session
-                .route(web::post().to(update_words)),
+            web::resource("/arrowword") //checks session
+                .route(web::post().to(arrow_word_req)),
+        )
+        .service(
+            web::resource("/setgloss") //checks session
+                .route(web::post().to(set_gloss)),
         )
         .service(
             web::resource("/updategloss") //checks session
@@ -946,7 +886,7 @@ mod tests {
 
         assert!(&resp.status().is_success());
         //println!("resp: {:?}", resp);
-        let result: QueryResponse = test::read_body_json(resp).await;
+        let result: MiscErrorResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
         assert_eq!(result.error, "Not logged in".to_string());
     }
@@ -996,7 +936,7 @@ mod tests {
 
         assert!(&resp.status().is_success());
         //println!("resp: {:?}", resp);
-        let _result: QueryResponse = test::read_body_json(resp).await;
+        let _result: MiscErrorResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
         //assert_eq!(result.words.len(), 176);
     }

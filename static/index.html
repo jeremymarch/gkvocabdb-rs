@@ -1892,12 +1892,11 @@ function getEditLemmaData(vLemmaid)
     });
 }
 
-function realSetGlossForWord(vTextWordID, vlemmaid, vlemmastr)
-{
+function realSetGlossForWord(vTextWordID, vlemmaid, vlemmastr) {
    $.ajax({
-        url: "updatedb",
+        url: "setgloss",
         type: "POST",
-        data: {qtype:"updateLemmaID",textwordid:vTextWordID, lemmaid:vlemmaid, lemmastr:vlemmastr},
+        data: {qtype:"updateLemmaID",word_id:vTextWordID, gloss_id:vlemmaid},
         dataType: "text",//JSON automatically deserializes json
         success: function (data, textStatus, jqXHR){ 
             //procResponse(data, textStatus); 
@@ -2074,7 +2073,7 @@ function realToggleArrow(vTextWordID, vLemmaID, toggleOff)
     var vTextWordIdOrZero = (toggleOff) ? 0 : vTextWordID;
     vToggleArrowPending = true;
     $.ajax({
-        url: "updatedb",
+        url: "arrowword",
         type: "POST",
         data: {qtype:"arrowWord",setArrowedIDTo: parseInt(vTextWordIdOrZero), forLemmaID: parseInt(vLemmaID) },
         dataType: "text",//JSON automatically deserializes json

@@ -28,6 +28,66 @@ pub struct WordtreeQueryResponse {
     pub arr_options: Vec<AssignmentTree>, //Vec<(String,u32)>
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UpdateResponse {
+    pub success: bool,
+    #[serde(
+        rename(serialize = "affectedRows"),
+        rename(deserialize = "affectedRows")
+    )]
+    pub affected_rows: u32,
+    #[serde(
+        rename(serialize = "arrowedValue"),
+        rename(deserialize = "arrowedValue")
+    )]
+    pub arrowed_value: u32,
+    pub lemmaid: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UpdateGlossIdResponse {
+    pub qtype: String,
+    pub words: Vec<SmallWord>,
+    pub success: bool,
+    pub affectedrows: u32,
+}
+
+pub async fn gkv_arrow_word(db: &SqlitePool, post: &ArrowWordRequest, info: &ConnectionInfo, course_id:u32) -> Result<UpdateResponse, AWError> {
+    arrow_word(
+        db,
+        course_id,
+        post.for_lemma_id.unwrap(),
+        post.set_arrowed_id_to.unwrap(),
+        info,
+    ).await
+    .map_err(map_sqlx_error)?;
+    Ok(UpdateResponse {
+        success: true,
+        affected_rows: 1,
+        arrowed_value: 1,
+        lemmaid: 1,
+    })
+}
+
+pub async fn gkv_update_gloss_id(db: &SqlitePool, gloss_id:u32, text_word_id:u32, info: &ConnectionInfo, course_id:u32) -> Result<UpdateGlossIdResponse, AWError> {
+
+    let words = set_gloss_id(
+        db,
+        course_id,
+        gloss_id,
+        text_word_id,
+        info,
+    ).await
+    .map_err(map_sqlx_error)?;
+
+    Ok(UpdateGlossIdResponse {
+        qtype: "updateLemmaID".to_string(),
+        words,
+        success: true,
+        affectedrows: 1,
+    })
+}
+
 pub async fn gkv_update_or_add_gloss(db: &SqlitePool, post: &UpdateGlossRequest, info: &ConnectionInfo) -> Result<UpdateGlossResponse, AWError> {
     match post.qtype.as_str() {
         "newlemma" => {
@@ -352,7 +412,7 @@ pub async fn gkv_get_texts(db:&SqlitePool, info:&WordtreeQueryRequest) -> Result
     })
 }
 
-pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_word_id:Option<u32>) -> Result<QueryResponse, AWError> {
+pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_word_id:Option<u32>) -> Result<MiscErrorResponse, AWError> {
     let course_id = 1;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -385,7 +445,7 @@ pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_wor
     //{"thisText":"1","words":[{"i":"1","w":"530a","t":"4","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"1","s2":null,"c":null,"rc":"0","if":"0"},
     //{"i":"2","w":"ΣΩ.","t":"2","l":null,"pos":null,"l1":"","def":null,"u":null,"a":null,"hqid":null,"s":"2","s2":null,"c":null,"rc":"0","if":"0"}],"selectedid":0}
 
-    Ok(QueryResponse {
+    Ok(MiscErrorResponse {
         this_text: text_id,
         text_name,
         words: w,
