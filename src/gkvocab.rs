@@ -586,10 +586,8 @@ mod tests {
     use super::*;
 
     #[actix_rt::test]
-    async fn test_db() {
-
-        let db_path = "sqlite::memory:";
-        let options = SqliteConnectOptions::from_str(&db_path)
+    async fn insert_gloss() {
+        let options = SqliteConnectOptions::from_str("sqlite::memory:")
             .expect("Could not connect to db.")
             .foreign_keys(true)
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
@@ -597,16 +595,17 @@ mod tests {
             .collation("PolytonicGreek", |l, r| {
                 l.to_lowercase().cmp(&r.to_lowercase())
             });
-
-        let db = SqlitePool::connect_with(options)
-            .await
-            .expect("Could not connect to db.");
-
+        let db = SqlitePool::connect_with(options).await.expect("Could not connect to db.");
 
         let _res = gkv_create_db(&db).await.expect("Could not create db.");
-
         let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com").await.unwrap();
-        
+        let info = ConnectionInfo {
+            user_id: user_id.try_into().unwrap(),
+            timestamp: get_timestamp(),
+            ip_address: "0.0.0.0".to_string(),
+            user_agent: "test_agent".to_string(),
+        };
+
         let post = UpdateGlossRequest {
             qtype: "newlemma".to_string(),
             hqid: None,
@@ -616,13 +615,8 @@ mod tests {
             def: "newdef".to_string(),
             note: "newnote".to_string(),
         };
-        let info = ConnectionInfo {
-            user_id: user_id.try_into().unwrap(),
-            timestamp: get_timestamp(),
-            ip_address: "0.0.0.0".to_string(),
-            user_agent: "test_agent".to_string(),
-        };
         let res = gkv_update_or_add_gloss(&db, &post, &info).await;
+
         assert!(res.is_ok());
     }
 }

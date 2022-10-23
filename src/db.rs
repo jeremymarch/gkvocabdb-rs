@@ -1377,12 +1377,17 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         .execute(&mut tx)
         .await?;
 
+    //create default course
+    let query = r#"REPLACE INTO courses VALUES (1,'Greek');"#;
+    sqlx::query(query)
+        .execute(&mut tx)
+        .await?;
+
+    //insert update types
     let query = r#"REPLACE INTO update_types VALUES (?,?);"#;
-
     let update_types = vec![(1,"Arrow word"), (2,"Unarrow word"), (3,"New gloss"), (4,"Edit gloss"), (5,"Set gloss"), (6,"Import text"), (7,"Delete gloss")];
-
     for t in update_types {
-        let _res = sqlx::query(query)
+        sqlx::query(query)
             .bind(t.0)
             .bind(t.1)
             .execute(&mut tx)
