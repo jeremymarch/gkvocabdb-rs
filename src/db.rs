@@ -1321,15 +1321,73 @@ mysqldump --skip-extended-insert --compact philolog_us gkvocabdb hqvocab gkvocab
   )
 */
 
+#[allow(dead_code)]
+pub async fn insert_user(db:&SqlitePool, name:&str, initials:&str, user_type:u32, password:&str, email:&str) -> Result<i64, sqlx::Error> {
+    let mut tx = db.begin().await?;
+
+    let query = r#"INSERT INTO users VALUES (NULL, ?, ?, ?, ?, ?);"#;
+    let user_id = sqlx::query(query)
+        .bind(name)
+        .bind(initials)
+        .bind(user_type)
+        .bind(password)
+        .bind(email)
+        .execute(&mut tx)
+        .await?
+        .last_insert_rowid();
+
+    tx.commit().await?;
+    Ok(user_id)
+}
+
 pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
     let mut tx = db.begin().await?;
 
-    let query = r#"CREATE TABLE IF NOT EXISTS moves ( 
-        
-        );"#;
-            let _res = sqlx::query(query)
-                .execute(&mut tx)
-                .await?;
+    let query = r#"
+        CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
+        /*CREATE TABLE sqlite_sequence(name,seq);*/
+        CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id));
+        CREATE TABLE IF NOT EXISTS glosses (gloss_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seqold integer NOT NULL DEFAULT 0, seq integer NOT NULL DEFAULT 0, unit integer NOT NULL, lemma varchar (256) NOT NULL, lemma2 varchar (255) NOT NULL DEFAULT '', sortalpha varchar (255) NOT NULL DEFAULT '', sortkey varchar (255) NOT NULL, present varchar (256) NOT NULL, future varchar (256) NOT NULL, aorist varchar (256) NOT NULL, perfect varchar (256) NOT NULL, perfectmid varchar (256) NOT NULL, aoristpass varchar (256) NOT NULL, def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, link varchar (256) NOT NULL, freq integer NOT NULL, note varchar (256) NOT NULL, verbClass integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, arrowedDay integer DEFAULT NULL, arrowedID integer DEFAULT NULL, pageLine varchar (255) DEFAULT NULL, parentid integer DEFAULT NULL, status integer NOT NULL DEFAULT 1, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS total_counts_by_course (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), total_count INTEGER, PRIMARY KEY (course_id, gloss_id));
+        CREATE TABLE IF NOT EXISTS running_counts_by_course (course_id INTEGER NOT NULL REFERENCES courses (course_id), word_id INTEGER NOT NULL REFERENCES words (word_id), running_count INTEGER, PRIMARY KEY (course_id, word_id));
+        CREATE TABLE IF NOT EXISTS assignments (id integer NOT NULL PRIMARY KEY AUTOINCREMENT, sort integer NOT NULL, title varchar (255) NOT NULL, start integer NOT NULL, "end" integer NOT NULL, wordcount integer DEFAULT NULL);
+        CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER NOT NULL REFERENCES words (word_id), updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text, PRIMARY KEY (course_id, gloss_id, word_id));
+        CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text);
+        CREATE TABLE IF NOT EXISTS appcrit (word_id integer NOT NULL, entry varchar (1024) DEFAULT NULL, PRIMARY KEY (word_id));
+        CREATE TABLE IF NOT EXISTS words (word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, gloss_id integer NOT NULL, seqold integer NOT NULL DEFAULT 0, seq integer NOT NULL DEFAULT 0, unit integer NOT NULL, lemma varchar (256) NOT NULL, lemma2 varchar (255) NOT NULL DEFAULT '', sortalpha varchar (255) NOT NULL DEFAULT '', sortkey varchar (255) NOT NULL, present varchar (256) NOT NULL, future varchar (256) NOT NULL, aorist varchar (256) NOT NULL, perfect varchar (256) NOT NULL, perfectmid varchar (256) NOT NULL, aoristpass varchar (256) NOT NULL, def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, link varchar (256) NOT NULL, freq integer NOT NULL, note varchar (256) NOT NULL, verbClass integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, arrowedDay integer DEFAULT NULL, arrowedID integer DEFAULT NULL, pageLine varchar (255) DEFAULT NULL, parentid integer DEFAULT NULL, status integer NOT NULL DEFAULT 1, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type text NOT NULL);
+        CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, parent_id integer references texts (text_id) default null, display integer default 1);
+        CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
+        CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT "81237698562398", email TEXT);
+        CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
+        CREATE INDEX IF NOT EXISTS idx_hqvocab_parentididx ON glosses (parentid);
+        CREATE INDEX IF NOT EXISTS idx_hqvocab_seq ON glosses (seqold);
+        CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
+        CREATE INDEX IF NOT EXISTS idx_hqvocab_sortkey ON glosses (sortkey);
+        CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);
+        CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (course_id, gloss_id);
+        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemma1 ON words (lemma1);
+        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemmaid ON words (gloss_id);
+        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_seq ON words (seq);
+        "#;
+
+    let _res = sqlx::query(query)
+        .execute(&mut tx)
+        .await?;
+
+    let query = r#"REPLACE INTO update_types VALUES (?,?);"#;
+
+    let update_types = vec![(1,"Arrow word"), (2,"Unarrow word"), (3,"New gloss"), (4,"Edit gloss"), (5,"Set gloss"), (6,"Import text"), (7,"Delete gloss")];
+
+    for t in update_types {
+        let _res = sqlx::query(query)
+            .bind(t.0)
+            .bind(t.1)
+            .execute(&mut tx)
+            .await?;
+    }
 
     tx.commit().await?;
     Ok(())

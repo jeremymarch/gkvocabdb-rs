@@ -474,6 +474,8 @@ async fn main() -> io::Result<()> {
         .await
         .expect("Could not connect to db.");
 
+    gkv_create_db(&db_pool).await.expect("Could not create db.");
+
     /*
     https://github.com/SergioBenitez/Rocket/discussions/1989
     .journal_mode(SqliteJournalMode::Off)

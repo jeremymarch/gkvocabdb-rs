@@ -603,9 +603,26 @@ mod tests {
             .expect("Could not connect to db.");
 
 
-        let _a = gkv_create_db(&db).await;
+        let _res = gkv_create_db(&db).await.expect("Could not create db.");
 
-        let a = 1;
-        assert_eq!(a, 1);
+        let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com").await.unwrap();
+        
+        let post = UpdateGlossRequest {
+            qtype: "newlemma".to_string(),
+            hqid: None,
+            lemma: "newword".to_string(),
+            stripped_lemma: "newword".to_string(),
+            pos: "newpos".to_string(),
+            def: "newdef".to_string(),
+            note: "newnote".to_string(),
+        };
+        let info = ConnectionInfo {
+            user_id: user_id.try_into().unwrap(),
+            timestamp: get_timestamp(),
+            ip_address: "0.0.0.0".to_string(),
+            user_agent: "test_agent".to_string(),
+        };
+        let res = gkv_update_or_add_gloss(&db, &post, &info).await;
+        assert!(res.is_ok());
     }
 }
