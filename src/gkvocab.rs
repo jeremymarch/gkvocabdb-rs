@@ -29,7 +29,7 @@ pub struct WordtreeQueryResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UpdateResponse {
+pub struct ArrowWordResponse {
     pub success: bool,
     #[serde(
         rename(serialize = "affectedRows"),
@@ -52,7 +52,7 @@ pub struct UpdateGlossIdResponse {
     pub affectedrows: u32,
 }
 
-pub async fn gkv_arrow_word(db: &SqlitePool, post: &ArrowWordRequest, info: &ConnectionInfo, course_id:u32) -> Result<UpdateResponse, AWError> {
+pub async fn gkv_arrow_word(db: &SqlitePool, post: &ArrowWordRequest, info: &ConnectionInfo, course_id:u32) -> Result<ArrowWordResponse, AWError> {
     arrow_word(
         db,
         course_id,
@@ -61,7 +61,7 @@ pub async fn gkv_arrow_word(db: &SqlitePool, post: &ArrowWordRequest, info: &Con
         info,
     ).await
     .map_err(map_sqlx_error)?;
-    Ok(UpdateResponse {
+    Ok(ArrowWordResponse {
         success: true,
         affected_rows: 1,
         arrowed_value: 1,
@@ -81,7 +81,7 @@ pub async fn gkv_update_gloss_id(db: &SqlitePool, gloss_id:u32, text_word_id:u32
     .map_err(map_sqlx_error)?;
 
     Ok(UpdateGlossIdResponse {
-        qtype: "updateLemmaID".to_string(),
+        qtype: "set_gloss".to_string(),
         words,
         success: true,
         affectedrows: 1,
