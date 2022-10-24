@@ -585,16 +585,15 @@ struct ErrorResponse {
 mod tests {
     use super::*;
 
-    #[actix_rt::test]
-    async fn insert_gloss() {
+    async fn set_up() -> (SqlitePool, ConnectionInfo) {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")
-            .expect("Could not connect to db.")
-            .foreign_keys(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-            .read_only(false)
-            .collation("PolytonicGreek", |l, r| {
-                l.to_lowercase().cmp(&r.to_lowercase())
-            });
+        .expect("Could not connect to db.")
+        .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .read_only(false)
+        .collation("PolytonicGreek", |l, r| {
+            l.to_lowercase().cmp(&r.to_lowercase())
+        });
         let db = SqlitePool::connect_with(options).await.expect("Could not connect to db.");
 
         let _res = gkv_create_db(&db).await.expect("Could not create db.");
@@ -605,6 +604,12 @@ mod tests {
             ip_address: "0.0.0.0".to_string(),
             user_agent: "test_agent".to_string(),
         };
+        (db, info)
+    }
+
+    #[actix_rt::test]
+    async fn insert_gloss() {
+        let (db, user_info) = set_up().await;
 
         let post = UpdateGlossRequest {
             qtype: "newlemma".to_string(),
@@ -615,7 +620,7 @@ mod tests {
             def: "newdef".to_string(),
             note: "newnote".to_string(),
         };
-        let res = gkv_update_or_add_gloss(&db, &post, &info).await;
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
 
         assert!(res.is_ok());
     }
