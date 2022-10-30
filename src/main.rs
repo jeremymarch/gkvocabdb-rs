@@ -248,10 +248,10 @@ struct LoginCheckResponse {
 }
 
 #[derive(Debug, Serialize)]
-struct ImportResponse {
-    success: bool,
-    words_inserted: u64,
-    error: String,
+pub struct ImportResponse {
+    pub success: bool,
+    pub words_inserted: u64,
+    pub error: String,
 }
 
 async fn update_or_add_gloss(

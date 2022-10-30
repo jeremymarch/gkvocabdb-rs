@@ -54,6 +54,49 @@ enum WordType {
     //10 new para without indent
 }
 
+pub async fn import(db:&SqlitePool, course_id: u32, info:&ConnectionInfo, title:&str, xml_string:&str) -> ImportResponse {
+    match import_text_xml::process_imported_text(xml_string).await {
+        Ok(words) => {
+            if !words.is_empty() && !title.is_empty() {
+                let affected_rows = add_text(
+                    db,
+                    course_id,
+                    title,
+                    words,
+                    info,
+                )
+                .await
+                .map_err(|e| ImportResponse {
+                    success: false,
+                    words_inserted: 0,
+                    error: format!("sqlx error: {}", e),
+                });
+
+                ImportResponse {
+                    success: true,
+                    words_inserted: affected_rows.unwrap(),
+                    error: "".to_string(),
+                }
+            } else {
+                ImportResponse {
+                    success: false,
+                    words_inserted: 0,
+                    error:
+                        "Error importing text: File and/or Title field(s) is/are empty."
+                            .to_string(),
+                }
+            }
+        }
+        Err(e) => {
+            ImportResponse {
+                success: false,
+                words_inserted: 0,
+                error: format!("Error importing text: XML parse error: {:?}.", e),
+            }
+        }
+    }
+}
+
 pub async fn import_text(
     (session, payload, req): (Session, Multipart, HttpRequest),
 ) -> Result<HttpResponse> {
@@ -71,45 +114,8 @@ pub async fn import_text(
 
         match import_text_xml::get_xml_string(payload).await {
             Ok((xml_string, title)) => {
-                match import_text_xml::process_imported_text(&xml_string).await {
-                    Ok(words) => {
-                        if !words.is_empty() && !title.is_empty() {
-                            let affected_rows = add_text(
-                                db,
-                                course_id,
-                                &title,
-                                words,
-                                &info,
-                            )
-                            .await
-                            .map_err(map_sqlx_error)?;
-
-                            let res = ImportResponse {
-                                success: true,
-                                words_inserted: affected_rows,
-                                error: "".to_string(),
-                            };
-                            Ok(HttpResponse::Ok().json(res))
-                        } else {
-                            let res = ImportResponse {
-                                success: false,
-                                words_inserted: 0,
-                                error:
-                                    "Error importing text: File and/or Title field(s) is/are empty."
-                                        .to_string(),
-                            };
-                            Ok(HttpResponse::Ok().json(res))
-                        }
-                    }
-                    Err(e) => {
-                        let res = ImportResponse {
-                            success: false,
-                            words_inserted: 0,
-                            error: format!("Error importing text: XML parse error: {:?}.", e),
-                        };
-                        Ok(HttpResponse::Ok().json(res))
-                    }
-                }
+                let res = import(db, course_id, &info, &title, &xml_string).await;
+                Ok(HttpResponse::Ok().json(res))
             }
             Err(e) => {
                 let res = ImportResponse {

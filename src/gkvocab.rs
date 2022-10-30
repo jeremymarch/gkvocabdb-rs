@@ -608,6 +608,45 @@ mod tests {
     }
 
     #[actix_rt::test]
+    async fn import_basic_text() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+
+        //empty title fails
+        let title = "";
+        let xml_string = "<TEI.2><text>blahblah</text></TEI.2>";
+        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(!res.success);
+
+        //empty title xml fails
+        let xml_string = "";
+        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(!res.success);
+
+        let title = "testtext";
+
+        //no TEI or TEI.2 tags
+        let xml_string = "<TE><text>blahblah</text></TE>";
+        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(!res.success);
+
+        //xml has tags, but no text fails
+        let xml_string = "<TEI.2><text></text></TEI.2>";
+        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(!res.success);
+
+        //pass with TEI.2
+        let xml_string = "<TEI.2><text>blahblah</text></TEI.2>";
+        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(res.success);
+
+        //pass with TEI
+        let xml_string = "<TEI><text>blahblah</text></TEI>";
+        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(res.success);
+    }
+
+    #[actix_rt::test]
     async fn insert_gloss() {
         let (db, user_info) = set_up().await;
 
