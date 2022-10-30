@@ -607,6 +607,37 @@ mod tests {
         (db, info)
     }
 
+    async fn setup_text_test(db:&SqlitePool, course_id: u32, user_info:&ConnectionInfo) -> ImportResponse {
+        let title = "testingtext";
+
+        let xml_string = r#"<TEI.2>
+            <text lang="greek">
+                <head>Θύρσις ἢ ᾠδή</head>
+                <speaker>Θύρσις</speaker>
+                <lb rend="displayNum" n="5" />αἴκα δ᾽ αἶγα λάβῃ τῆνος γέρας, ἐς τὲ καταρρεῖ
+                <pb/>
+                <l n="10">ὁσίου γὰρ ἀνδρὸς ὅσιος ὢν ἐτύγχανον</l>
+                <desc>This is a test.</desc>
+            </text>
+        </TEI.2>"#;
+
+        //add fake glosses so the auto-glossing passes foreign key constraints
+        for _n in 1..31 {
+            let post = UpdateGlossRequest {
+                qtype: "newlemma".to_string(),
+                hqid: None,
+                lemma: "newword".to_string(),
+                stripped_lemma: "newword".to_string(),
+                pos: "newpos".to_string(),
+                def: "newdef".to_string(),
+                note: "newnote".to_string(),
+            };
+            let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        }
+
+        import_text_xml::import(db, course_id, user_info, &title, &xml_string).await
+    }
+
     #[actix_rt::test]
     async fn import_basic_text() {
         let (db, user_info) = set_up().await;
@@ -643,6 +674,9 @@ mod tests {
         //pass with TEI
         let xml_string = "<TEI><text>blahblah</text></TEI>";
         let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        assert!(res.success);
+
+        let res = setup_text_test(&db, course_id, &user_info).await;
         assert!(res.success);
     }
 
