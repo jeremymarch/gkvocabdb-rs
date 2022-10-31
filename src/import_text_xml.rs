@@ -586,9 +586,9 @@ mod tests {
         </TEI.2>"#;
         let r = process_imported_text(&xml_string).await.unwrap();
         //to see this: cargo test -- --nocapture
-        for a in &r {
-            println!("{:?}", a);
-        }
+        // for a in &r {
+        //     println!("{:?}", a);
+        // }
         assert_eq!(r.len(), 29);
         assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as u32);
         assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as u32);

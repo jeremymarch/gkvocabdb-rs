@@ -1,10 +1,11 @@
 use super::*;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
 pub struct UpdateGlossResponse {
     pub qtype: String,
     pub success: bool,
     pub affectedrows: u64,
+    pub inserted_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -28,7 +29,7 @@ pub struct WordtreeQueryResponse {
     pub arr_options: Vec<AssignmentTree>, //Vec<(String,u32)>
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone,PartialEq,Eq)]
 pub struct ArrowWordResponse {
     pub success: bool,
     #[serde(
@@ -44,7 +45,7 @@ pub struct ArrowWordResponse {
     pub lemmaid: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone,PartialEq,Eq)]
 pub struct UpdateGlossIdResponse {
     pub qtype: String,
     pub words: Vec<SmallWord>,
@@ -91,7 +92,7 @@ pub async fn gkv_update_gloss_id(db: &SqlitePool, gloss_id:u32, text_word_id:u32
 pub async fn gkv_update_or_add_gloss(db: &SqlitePool, post: &UpdateGlossRequest, info: &ConnectionInfo) -> Result<UpdateGlossResponse, AWError> {
     match post.qtype.as_str() {
         "newlemma" => {
-            let rows_affected = insert_gloss(
+            let (inserted_id,rows_affected) = insert_gloss(
                 db,
                 &post.lemma,
                 &post.pos,
@@ -107,6 +108,7 @@ pub async fn gkv_update_or_add_gloss(db: &SqlitePool, post: &UpdateGlossRequest,
                 qtype: post.qtype.to_string(),
                 success: true,
                 affectedrows: rows_affected,
+                inserted_id: Some(inserted_id),
             })
         }
         "editlemma" => {
@@ -128,6 +130,7 @@ pub async fn gkv_update_or_add_gloss(db: &SqlitePool, post: &UpdateGlossRequest,
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
+                    inserted_id: None,
                 })
             }
         }
@@ -145,6 +148,7 @@ pub async fn gkv_update_or_add_gloss(db: &SqlitePool, post: &UpdateGlossRequest,
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
+                    inserted_id: None,
                 })
             }
         }
@@ -152,12 +156,14 @@ pub async fn gkv_update_or_add_gloss(db: &SqlitePool, post: &UpdateGlossRequest,
             qtype: post.qtype.to_string(),
             success: false,
             affectedrows: 0,
+            inserted_id: None,
         })
     }
     Ok(UpdateGlossResponse {
         qtype: post.qtype.to_string(),
         success: false,
         affectedrows: 0,
+        inserted_id: None,
     })
 }
 
@@ -681,7 +687,81 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn insert_gloss() {
+    async fn arrow_word() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+
+        let res = setup_text_test(&db, course_id, &user_info).await;
+        assert!(res.success);
+
+        // let info = QueryRequest {
+        //     text: 1,
+        //     wordid: 0,
+        // };
+        //let selected_word_id = None;
+        //let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        //println!("words: {:?}", res);
+
+        let post = ArrowWordRequest {
+            qtype: "arrowWord".to_string(),
+            for_lemma_id: Some(30), //gloss_id
+            set_arrowed_id_to: Some(5), //word_id
+            textwordid: None,
+            lemmaid: None,
+            lemmastr: None,
+        };
+
+        let res = gkv_arrow_word(&db, &post, &user_info, course_id).await;
+        assert_eq!(res.unwrap(), ArrowWordResponse { success: true, affected_rows: 1, arrowed_value: 1, lemmaid: 1 });
+        //println!("arrow: {:?}", res);
+
+        // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        // println!("words: {:?}", res);
+    }
+
+    //edit gloss
+    //arrow word and check hidden words
+    //add two texts, reorder texts, do same in other sequence
+    //check update log
+
+
+    #[actix_rt::test]
+    async fn set_gloss() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+
+        let res = setup_text_test(&db, course_id, &user_info).await;
+        assert!(res.success);
+
+        // let info = QueryRequest {
+        //     text: 1,
+        //     wordid: 0,
+        // };
+        // let selected_word_id = None;
+
+        // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        // println!("words: {:?}", res);
+
+        let post = SetGlossRequest {
+            qtype: "set_gloss".to_string(),
+            word_id: 17,
+            gloss_id: 30,
+        };
+
+        let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
+        //println!("arrow: {:?}", res);
+        assert_eq!(res.unwrap(), UpdateGlossIdResponse { qtype: "set_gloss".to_string(), 
+        words: [SmallWord { wordid: 5, hqid: 30, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(1), arrowed_seq: None, total: Some(2), seq: 5, is_flagged: false, word_text_seq: 1, arrowed_text_seq: None }, 
+        SmallWord { wordid: 17, hqid: 30, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(2), arrowed_seq: None, total: Some(2), seq: 17, is_flagged: false, word_text_seq: 1, arrowed_text_seq: None }].to_vec(), 
+        success: true, affectedrows: 1 });
+        // println!("arrow: {:?}", res);
+
+        // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        // println!("words: {:?}", res);
+    }
+
+    #[actix_rt::test]
+    async fn insert_and_update_gloss() {
         let (db, user_info) = set_up().await;
 
         let post = UpdateGlossRequest {
@@ -694,7 +774,25 @@ mod tests {
             note: "newnote".to_string(),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        //println!("words: {:?}", res);
+        
+        let gloss_id:u32 = res.as_ref().unwrap().inserted_id.unwrap().try_into().unwrap();
 
-        assert!(res.is_ok());
+        assert_eq!(*res.as_ref().unwrap(), UpdateGlossResponse { qtype: "newlemma".to_string(), success: true, affectedrows: 1, inserted_id:Some(1) });
+
+        let post = UpdateGlossRequest {
+            qtype: "editlemma".to_string(),
+            hqid: Some(gloss_id),
+            lemma: "newword2".to_string(),
+            stripped_lemma: "newword2".to_string(),
+            pos: "newpos2".to_string(),
+            def: "newdef2".to_string(),
+            note: "newnote2".to_string(),
+        };
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        //println!("words: {:?}", res);
+        assert_eq!(*res.as_ref().unwrap(), UpdateGlossResponse { qtype: "editlemma".to_string(), success: true, affectedrows: 1, inserted_id:None });
+
+
     }
 }

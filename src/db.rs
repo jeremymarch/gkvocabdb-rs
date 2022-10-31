@@ -72,7 +72,7 @@ pub struct WordRow {
     pub arrowed_text_seq: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
 pub struct SmallWord {
     #[serde(rename(serialize = "i"))]
     pub wordid: u32,
@@ -528,7 +528,7 @@ pub async fn insert_gloss(
     stripped_lemma: &str,
     note: &str,
     info: &ConnectionInfo,
-) -> Result<u64, sqlx::Error> {
+) -> Result<(i64,u64), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
     let query = "INSERT INTO glosses (gloss_id, seqold, seq, unit, lemma, lemma2, sortalpha, sortkey, \
@@ -571,7 +571,7 @@ pub async fn insert_gloss(
 
     tx.commit().await?;
 
-    Ok(res.rows_affected())
+    Ok((new_gloss_id, res.rows_affected()))
 }
 
 pub async fn update_log_trx<'a, 'b>(

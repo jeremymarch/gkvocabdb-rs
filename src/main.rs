@@ -277,6 +277,7 @@ async fn update_or_add_gloss(
             qtype: post.qtype.to_string(),
             success: false,
             affectedrows: 0,
+            inserted_id: None,
         };
         Ok(HttpResponse::Ok().json(res))
     }
