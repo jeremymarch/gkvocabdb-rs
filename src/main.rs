@@ -58,7 +58,7 @@ use chrono::prelude::*;
 //https://stackoverflow.com/questions/64348528/how-can-i-pass-multi-variable-by-actix-web-appdata
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
 pub struct AssignmentTree {
     pub i: u32,
     pub col: Vec<String>,

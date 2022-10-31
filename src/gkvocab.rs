@@ -8,7 +8,7 @@ pub struct UpdateGlossResponse {
     pub inserted_id: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
 pub struct WordtreeQueryResponse {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
     pub select_id: Option<u32>,
@@ -719,12 +719,6 @@ mod tests {
         // println!("words: {:?}", res);
     }
 
-    //edit gloss
-    //arrow word and check hidden words
-    //add two texts, reorder texts, do same in other sequence
-    //check update log
-
-
     #[actix_rt::test]
     async fn set_gloss() {
         let (db, user_info) = set_up().await;
@@ -792,7 +786,21 @@ mod tests {
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
         assert_eq!(*res.as_ref().unwrap(), UpdateGlossResponse { qtype: "editlemma".to_string(), success: true, affectedrows: 1, inserted_id:None });
+    
+        let timestamp = 1667191605; //get_timestamp().try_into().unwrap(),
+        let info = WordtreeQueryRequest {
+            n: 101,
+            idprefix: "updatelog".to_string(),
+            x: "0.4828853350220542".to_string(),
+            request_time: timestamp,
+            page: 0, //can be negative for pages before
+            mode: "context".to_string(),
+            query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
+            lex: None,
+        };
 
-
+        let res = gkv_update_log(&db, &info).await;
+        //just check number of update records to avoid having to match up timestamps
+        assert_eq!(res.unwrap().arr_options.len(), 2);
     }
 }
