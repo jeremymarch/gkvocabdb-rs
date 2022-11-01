@@ -393,7 +393,7 @@ pub async fn set_gloss_id(
   LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
   LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
   WHERE A.gloss_id = {gloss_id} AND A.type > -1 \
-  ORDER BY A.seq \
+  ORDER BY G.text_order,A.seq \
   LIMIT 400;", gloss_id=gloss_id, course_id = course_id);
 
     let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)

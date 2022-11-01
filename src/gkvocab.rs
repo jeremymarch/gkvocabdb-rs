@@ -654,7 +654,7 @@ mod tests {
         </TEI.2>"#;
 
         //add fake glosses so the auto-glossing passes foreign key constraints
-        for _n in 1..31 {
+        for _n in 1..2 {
             let post = UpdateGlossRequest {
                 qtype: "newlemma".to_string(),
                 hqid: None,
@@ -862,7 +862,51 @@ mod tests {
 
 
         //add second text
+        let res = setup_small_text_test(&db, course_id, &user_info).await;
+        assert!(res.success);
+
+        let info = QueryRequest {
+            text: 2,
+            wordid: 0,
+        };
+        let selected_word_id = None;
+        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        assert_eq!(*res.as_ref().unwrap(), MiscErrorResponse { this_text: 2, text_name: "testingtext".to_string(), words: [
+            WordRow { wordid: 30, word: "ὁσίου".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 1, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
+            WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
+            WordRow { wordid: 32, word: "ὅσιος".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 3, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }].to_vec(), 
+            selected_id: None, error: "".to_string() 
+        });
+        //println!("res {:?}", res);
+
         //set_gloss
+        let post = SetGlossRequest {
+            qtype: "set_gloss".to_string(),
+            word_id: 30,
+            gloss_id: gloss_id,
+        };
+        let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
+        //println!("arrow: {:?}", res);
+        assert_eq!(res.unwrap(), UpdateGlossIdResponse { qtype: "set_gloss".to_string(), words: [
+            SmallWord { wordid: 17, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(1), arrowed_seq: Some(17), total: Some(3), seq: 17, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            SmallWord { wordid: 20, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(2), arrowed_seq: Some(17), total: Some(3), seq: 20, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) },
+            SmallWord { wordid: 30, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(3), arrowed_seq: Some(17), total: Some(3), seq: 1, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(1) }].to_vec(), 
+            success: true, affectedrows: 1 });
+
+        let post = SetGlossRequest {
+            qtype: "set_gloss".to_string(),
+            word_id: 32,
+            gloss_id: gloss_id,
+        };
+        let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
+        //println!("arrow: {:?}", res);
+        assert_eq!(res.unwrap(), UpdateGlossIdResponse { qtype: "set_gloss".to_string(), words: [
+            SmallWord { wordid: 17, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(1), arrowed_seq: Some(17), total: Some(4), seq: 17, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            SmallWord { wordid: 20, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(2), arrowed_seq: Some(17), total: Some(4), seq: 20, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) },
+            SmallWord { wordid: 30, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(3), arrowed_seq: Some(17), total: Some(4), seq: 1, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(1) }, 
+            SmallWord { wordid: 32, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(4), arrowed_seq: Some(17), total: Some(4), seq: 3, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(1) }].to_vec(), 
+            success: true, affectedrows: 1 });
+
         //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
 
         //change order of texts
