@@ -103,7 +103,7 @@ struct TreeRow {
     c: Option<Vec<TreeRow>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
 pub struct MiscErrorResponse {
     #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
     pub this_text: u32,

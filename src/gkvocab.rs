@@ -644,6 +644,32 @@ mod tests {
         import_text_xml::import(db, course_id, user_info, &title, &xml_string).await
     }
 
+    async fn setup_small_text_test(db:&SqlitePool, course_id: u32, user_info:&ConnectionInfo) -> ImportResponse {
+        let title = "testingtext";
+
+        let xml_string = r#"<TEI.2>
+            <text lang="greek">
+                ὁσίου γὰρ ὅσιος
+            </text>
+        </TEI.2>"#;
+
+        //add fake glosses so the auto-glossing passes foreign key constraints
+        for _n in 1..31 {
+            let post = UpdateGlossRequest {
+                qtype: "newlemma".to_string(),
+                hqid: None,
+                lemma: "newword".to_string(),
+                stripped_lemma: "newword".to_string(),
+                pos: "newpos".to_string(),
+                def: "newdef".to_string(),
+                note: "newnote".to_string(),
+            };
+            let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        }
+
+        import_text_xml::import(db, course_id, user_info, &title, &xml_string).await
+    }
+
     #[actix_rt::test]
     async fn import_basic_text() {
         let (db, user_info) = set_up().await;
@@ -719,6 +745,130 @@ mod tests {
         // println!("words: {:?}", res);
     }
 
+    //*import text
+    //*set_gloss
+    //*basic arrow word
+    //*insert and update gloss
+    
+    //test for gloss counts
+    //arrow word and check hidden words
+    //add two texts, reorder texts, do same in other sequence
+    //11' (132) / 9'6" (116)
+    //37:30
+
+    #[actix_rt::test]
+    async fn arrow_word2() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+
+        let res = setup_text_test(&db, course_id, &user_info).await;
+        assert!(res.success);
+
+        //insert gloss
+        let post = UpdateGlossRequest {
+            qtype: "newlemma".to_string(),
+            hqid: None,
+            lemma: "newword".to_string(),
+            stripped_lemma: "newword".to_string(),
+            pos: "newpos".to_string(),
+            def: "newdef".to_string(),
+            note: "newnote".to_string(),
+        };
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        //println!("words: {:?}", res);
+        
+        let gloss_id:u32 = res.as_ref().unwrap().inserted_id.unwrap().try_into().unwrap();
+
+        //set_gloss on word
+        let post = SetGlossRequest {
+            qtype: "set_gloss".to_string(),
+            word_id: 17,
+            gloss_id: gloss_id,
+        };
+        let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
+        //println!("arrow: {:?}", res);
+        assert_eq!(res.unwrap(), UpdateGlossIdResponse { 
+            qtype: "set_gloss".to_string(), 
+            words: [
+                SmallWord { wordid: 17, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(1), arrowed_seq: None, total: Some(1), seq: 17, is_flagged: false, word_text_seq: 1, arrowed_text_seq: None }].to_vec(), 
+            success: true, affectedrows: 1 
+        });
+
+        let post = SetGlossRequest {
+            qtype: "set_gloss".to_string(),
+            word_id: 20,
+            gloss_id: gloss_id,
+        };
+        let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
+        //println!("arrow: {:?}", res);
+        assert_eq!(res.unwrap(), UpdateGlossIdResponse { qtype: "set_gloss".to_string(), words: [
+            SmallWord { wordid: 17, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(1), arrowed_seq: None, total: Some(2), seq: 17, is_flagged: false, word_text_seq: 1, arrowed_text_seq: None }, 
+            SmallWord { wordid: 20, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(2), arrowed_seq: None, total: Some(2), seq: 20, is_flagged: false, word_text_seq: 1, arrowed_text_seq: None }].to_vec(), 
+            success: true, affectedrows: 1 });
+        
+        //arrow word
+        let post = ArrowWordRequest {
+            qtype: "arrowWord".to_string(),
+            for_lemma_id: Some(gloss_id), //gloss_id
+            set_arrowed_id_to: Some(17), //word_id
+            textwordid: None,
+            lemmaid: None,
+            lemmastr: None,
+        };
+
+        let res = gkv_arrow_word(&db, &post, &user_info, course_id).await;
+        assert_eq!(res.unwrap(), ArrowWordResponse { success: true, affected_rows: 1, arrowed_value: 1, lemmaid: 1 });
+
+        //check gkv_get_text_words
+        let info = QueryRequest {
+            text: 1,
+            wordid: 0,
+        };
+        let selected_word_id = None;
+        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        //println!("words: {:?}", res);
+        assert_eq!(res.unwrap(), MiscErrorResponse { this_text: 1, text_name: "testingtext".to_string(), words: [
+            WordRow { wordid: 1, word: "Θύρσις ἢ ᾠδή".to_string(), word_type: 7, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 1, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 2, word: "Θύρσις".to_string(), word_type: 2, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 3, word: "[line]5".to_string(), word_type: 5, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 3, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 4, word: "αἴκα".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 4, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 5, word: "δ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 30, seq: 5, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 6, word: "᾽".to_string(), word_type: 1, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 6, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 7, word: "αἶγα".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 7, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 8, word: "λάβῃ".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 8, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 9, word: "τῆνος".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 9, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 10, word: "γέρας".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 10, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 11, word: ",".to_string(), word_type: 1, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 11, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 12, word: "ἐς".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 6, seq: 12, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 13, word: "τὲ".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 13, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 14, word: "καταρρεῖ".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 14, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 15, word: "".to_string(), word_type: 11, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 15, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 16, word: "[line]10".to_string(), word_type: 5, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 16, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 17, word: "ὁσίου".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 17, arrowed_seq: Some(17), freq: 2, runningcount: 1, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 18, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 18, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 19, word: "ἀνδρὸς".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 19, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 20, word: "ὅσιος".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 20, arrowed_seq: Some(17), freq: 2, runningcount: 2, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 21, word: "ὢν".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 21, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 22, word: "ἐτύγχανον".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 22, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 23, word: "".to_string(), word_type: 10, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 23, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 24, word: "This".to_string(), word_type: 12, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 24, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 25, word: "is".to_string(), word_type: 12, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 25, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 26, word: "a".to_string(), word_type: 12, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 26, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 27, word: "test".to_string(), word_type: 12, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 27, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 28, word: ".".to_string(), word_type: 1, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 28, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 29, word: "".to_string(), word_type: 10, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 29, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }].to_vec(), 
+            selected_id: None, error: "".to_string() 
+        });
+
+
+        //add second text
+        //set_gloss
+        //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+
+        //change order of texts
+        //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+    }
+
     #[actix_rt::test]
     async fn set_gloss() {
         let (db, user_info) = set_up().await;
@@ -736,12 +886,12 @@ mod tests {
         // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
         // println!("words: {:?}", res);
 
+        //set an already existing gloss
         let post = SetGlossRequest {
             qtype: "set_gloss".to_string(),
             word_id: 17,
             gloss_id: 30,
         };
-
         let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
         //println!("arrow: {:?}", res);
         assert_eq!(res.unwrap(), UpdateGlossIdResponse { qtype: "set_gloss".to_string(), 

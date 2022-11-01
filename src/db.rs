@@ -39,7 +39,7 @@ pub struct DefRow {
 }
 */
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
 pub struct WordRow {
     #[serde(rename(serialize = "i"), rename(deserialize = "i"))]
     pub wordid: u32,
@@ -394,7 +394,7 @@ pub async fn set_gloss_id(
   LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
   WHERE A.gloss_id = {gloss_id} AND A.type > -1 \
   ORDER BY A.seq \
-  LIMIT 55000;", gloss_id=gloss_id, course_id = course_id);
+  LIMIT 400;", gloss_id=gloss_id, course_id = course_id);
 
     let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)
         .map(|rec: SqliteRow| SmallWord {
