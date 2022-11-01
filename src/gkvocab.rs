@@ -645,7 +645,7 @@ mod tests {
     }
 
     async fn setup_small_text_test(db:&SqlitePool, course_id: u32, user_info:&ConnectionInfo) -> ImportResponse {
-        let title = "testingtext";
+        let title = "testingtext2";
 
         let xml_string = r#"<TEI.2>
             <text lang="greek">
@@ -871,7 +871,7 @@ mod tests {
         };
         let selected_word_id = None;
         let res = gkv_get_text_words(&db, &info, selected_word_id).await;
-        assert_eq!(*res.as_ref().unwrap(), MiscErrorResponse { this_text: 2, text_name: "testingtext".to_string(), words: [
+        assert_eq!(*res.as_ref().unwrap(), MiscErrorResponse { this_text: 2, text_name: "testingtext2".to_string(), words: [
             WordRow { wordid: 30, word: "ὁσίου".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 1, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
             WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
             WordRow { wordid: 32, word: "ὅσιος".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 3, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }].to_vec(), 
@@ -907,8 +907,32 @@ mod tests {
             SmallWord { wordid: 32, hqid: gloss_id, lemma: "newword".to_string(), pos: "newpos".to_string(), def: "newdef".to_string(), runningcount: Some(4), arrowed_seq: Some(17), total: Some(4), seq: 3, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(1) }].to_vec(), 
             success: true, affectedrows: 1 });
 
-        //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        //check 
+        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        assert_eq!(*res.as_ref().unwrap(), MiscErrorResponse { this_text: 2, text_name: "testingtext2".to_string(), words: [
+            WordRow { wordid: 30, word: "ὁσίου".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 1, arrowed_seq: Some(17), freq: 4, runningcount: 3, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
+            WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
+            WordRow { wordid: 32, word: "ὅσιος".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 3, arrowed_seq: Some(17), freq: 4, runningcount: 4, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }].to_vec(), selected_id: None, error: "".to_string() 
+        });
 
+        let timestamp = 1667191605; //get_timestamp().try_into().unwrap(),
+        let info = WordtreeQueryRequest {
+            n: 101,
+            idprefix: "text".to_string(),
+            x: "0.2813670904164459".to_string(),
+            request_time: timestamp,
+            page: 0, //can be negative for pages before
+            mode: "context".to_string(),
+            query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
+            lex: Some("hqvocab".to_string()),
+        };
+        
+        let res = gkv_get_texts(&db, &info).await;
+        assert_eq!(*res.as_ref().unwrap(), WordtreeQueryResponse { select_id: Some(0), error: "".to_string(), wtprefix: "text".to_string(), nocache: 0, container: "textContainer".to_string(), request_time: 1667191605, page: 0, last_page: 1, lastpage_up: 1, scroll: "".to_string(), query: "".to_string(), arr_options: [
+            AssignmentTree { i: 1, col: ["testingtext".to_string(), "1".to_string()].to_vec(), c: [].to_vec(), h: false }, 
+            AssignmentTree { i: 2, col: ["testingtext2".to_string(), "2".to_string()].to_vec(), c: [].to_vec(), h: false }].to_vec() 
+        });
+        //println!("res: {:?}", res);
         //change order of texts
         //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
     }
