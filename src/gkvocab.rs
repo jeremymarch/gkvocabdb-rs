@@ -934,6 +934,32 @@ mod tests {
         });
         //println!("res: {:?}", res);
         //change order of texts
+        let text_id = 1;
+        let step = 1;
+        let res = db::update_text_order_db(&db, course_id, text_id, step).await;
+        match res {
+            Ok(r) => (),
+            Err(ref r) => println!("error: {:?}", r),
+        };
+        assert!(res.is_ok());
+
+
+        let info = WordtreeQueryRequest {
+            n: 101,
+            idprefix: "text".to_string(),
+            x: "0.2813670904164459".to_string(),
+            request_time: timestamp,
+            page: 0, //can be negative for pages before
+            mode: "context".to_string(),
+            query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
+            lex: Some("hqvocab".to_string()),
+        };
+        
+        let res = gkv_get_texts(&db, &info).await;
+        assert_eq!(*res.as_ref().unwrap(), WordtreeQueryResponse { select_id: Some(0), error: "".to_string(), wtprefix: "text".to_string(), nocache: 0, container: "textContainer".to_string(), request_time: 1667191605, page: 0, last_page: 1, lastpage_up: 1, scroll: "".to_string(), query: "".to_string(), arr_options: [
+            AssignmentTree { i: 2, col: ["testingtext2".to_string(), "2".to_string()].to_vec(), c: [].to_vec(), h: false }, 
+            AssignmentTree { i: 1, col: ["testingtext".to_string(), "1".to_string()].to_vec(), c: [].to_vec(), h: false }].to_vec() 
+        });
         //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
     }
 

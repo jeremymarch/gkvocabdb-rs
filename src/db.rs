@@ -988,6 +988,64 @@ pub async fn get_text_name(
   Ok(res.0)
 }
 
+pub async fn update_text_order_db(
+    pool: &SqlitePool,
+    course_id: u32,
+    text_id: u32,
+    step: i32,
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
+    let text_order: (i32,) = sqlx::query_as(query)
+        .bind(course_id)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
+    let text_count: (i32,) = sqlx::query_as(query)
+        .bind(course_id)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    if step == 0 || (text_order.0 - step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
+        return Ok(()); //at no where to move: abort
+    }
+    else if step > 0 {
+        let query = "UPDATE course_x_text SET text_order = text_order - 1 \
+            WHERE text_order > ? AND text_order < ? + ? + 1 AND course_id = ?;";
+        sqlx::query(query)
+        .bind(text_order.0)
+        .bind(text_order.0)
+        .bind(step)
+        .bind(course_id)
+        .execute(&mut tx)
+        .await?;
+    }
+    else {
+        let query = "UPDATE course_x_text SET text_order = text_order + 1 \
+            WHERE text_order < ? AND text_order > ? + ? - 1 AND course_id = ?;";
+        sqlx::query(query)
+        .bind(text_order.0)
+        .bind(text_order.0)
+        .bind(step) //step will be negative here
+        .bind(course_id)
+        .execute(&mut tx)
+        .await?;
+    }
+    //1 2 3 4 5 6 7
+    let query = "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
+    sqlx::query(query)
+        .bind(step)
+        .bind(course_id)
+        .bind(text_id)
+        .execute(&mut tx)
+        .await?;
+
+    tx.commit().await?;
+    Ok(())
+}
+
 pub async fn get_texts_db(
     pool: &SqlitePool,
     course_id: u32,
