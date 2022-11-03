@@ -1008,8 +1008,8 @@ pub async fn update_text_order_db(
         .bind(text_id)
         .fetch_one(pool).await?;
 
-    if step == 0 || (text_order.0 - step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
-        return Ok(()); //at no where to move: abort
+    if step == 0 || (text_order.0 + step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
+        return Err(sqlx::Error::RowNotFound); //at no where to move: abort
     }
     else if step > 0 {
         let query = "UPDATE course_x_text SET text_order = text_order - 1 \

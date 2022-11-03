@@ -745,17 +745,6 @@ mod tests {
         // println!("words: {:?}", res);
     }
 
-    //*import text
-    //*set_gloss
-    //*basic arrow word
-    //*insert and update gloss
-    
-    //test for gloss counts
-    //arrow word and check hidden words
-    //add two texts, reorder texts, do same in other sequence
-    //11' (132) / 9'6" (116)
-    //37:30
-
     #[actix_rt::test]
     async fn arrow_word2() {
         let (db, user_info) = set_up().await;
@@ -826,7 +815,7 @@ mod tests {
         };
         let selected_word_id = None;
         let res = gkv_get_text_words(&db, &info, selected_word_id).await;
-        //println!("words: {:?}", res);
+        
         assert_eq!(res.unwrap(), MiscErrorResponse { this_text: 1, text_name: "testingtext".to_string(), words: [
             WordRow { wordid: 1, word: "Θύρσις ἢ ᾠδή".to_string(), word_type: 7, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 1, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 2, word: "Θύρσις".to_string(), word_type: 2, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
@@ -934,15 +923,14 @@ mod tests {
         });
         //println!("res: {:?}", res);
         //change order of texts
-        let text_id = 1;
-        let step = 1;
+        let text_id = 2;
+        let step = -1;
         let res = db::update_text_order_db(&db, course_id, text_id, step).await;
-        match res {
-            Ok(r) => (),
-            Err(ref r) => println!("error: {:?}", r),
-        };
+        // match res {
+        //     Ok(r) => (),
+        //     Err(ref r) => println!("error: {:?}", r),
+        // };
         assert!(res.is_ok());
-
 
         let info = WordtreeQueryRequest {
             n: 101,
@@ -961,6 +949,8 @@ mod tests {
             AssignmentTree { i: 1, col: ["testingtext".to_string(), "1".to_string()].to_vec(), c: [].to_vec(), h: false }].to_vec() 
         });
         //check let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+
+
     }
 
     #[actix_rt::test]
