@@ -938,7 +938,7 @@ pub async fn get_words(
     LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
     LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
     LEFT JOIN words E ON E.word_id = D.word_id \
-    LEFT JOIN course_x_text F ON ({text_id} = F.text_id AND F.course_id = {course_id}) \
+    LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
     LEFT JOIN course_x_text G ON ({text_id} = G.text_id AND G.course_id = {course_id}) \
     LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
     LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
@@ -998,6 +998,24 @@ pub async fn get_text_name(
   Ok(res.0)
 }
 
+// pub async fn update_counts_for_text_trx<'a, 'b>(
+//     tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
+//     course_id: u32,
+//     text_id: u32,
+// ) -> Result<(), sqlx::Error> {
+
+//     let query = "SELECT hqid FROM words where text_id = ?;";
+//     let gloss_ids: Vec<(u32,)> = sqlx::query_as(&query)
+//         .bind(text_id)
+//         .fetch_all(tx)
+//         .await?;
+
+//     for gloss_id in gloss_ids {
+//         update_counts_for_gloss_id(tx, course_id, gloss_id.0).await?;
+//     }
+//     Ok(())
+// }
+
 pub async fn update_text_order_db(
     pool: &SqlitePool,
     course_id: u32,
@@ -1043,7 +1061,7 @@ pub async fn update_text_order_db(
         .execute(&mut tx)
         .await?;
     }
-    //1 2 3 4 5 6 7
+    
     let query = "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
     sqlx::query(query)
         .bind(step)
@@ -1051,6 +1069,17 @@ pub async fn update_text_order_db(
         .bind(text_id)
         .execute(&mut tx)
         .await?;
+
+    //update_counts_for_text_trx(&mut tx, course_id, text_id).await?;
+    let query = "SELECT gloss_id FROM words where text = ?;";
+    let gloss_ids: Vec<(u32,)> = sqlx::query_as(query)
+        .bind(text_id)
+        .fetch_all(&mut tx)
+        .await?;
+
+    for gloss_id in gloss_ids {
+        update_counts_for_gloss_id(&mut tx, course_id, gloss_id.0).await?;
+    }
 
     tx.commit().await?;
     Ok(())

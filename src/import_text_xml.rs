@@ -104,6 +104,27 @@ pub async fn import_text(
 
     let course_id = 1;
 
+    // let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com").await.unwrap();
+    // let user_info = ConnectionInfo {
+    //     user_id: user_id.try_into().unwrap(),
+    //     timestamp: get_timestamp(),
+    //     ip_address: "0.0.0.0".to_string(),
+    //     user_agent: "test_agent".to_string(),
+    // };
+    // for _n in 1..100 {
+    //     let post = UpdateGlossRequest {
+    //         qtype: "newlemma".to_string(),
+    //         hqid: None,
+    //         lemma: "newword".to_string(),
+    //         stripped_lemma: "newword".to_string(),
+    //         pos: "newpos".to_string(),
+    //         def: "newdef".to_string(),
+    //         note: "newnote".to_string(),
+    //     };
+    //     let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+    // }
+
+
     if let Some(user_id) = login::get_user_id(session) {
         let info = ConnectionInfo {
             user_id,
