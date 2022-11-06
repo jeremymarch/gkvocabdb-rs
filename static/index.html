@@ -968,7 +968,7 @@ function handleKey(evt) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='textUpButton' onclick='textUpClicked()'>up</button><button id='textDownButton' onclick='textDownClicked()'>down</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='textUpButton' onclick='textUpClicked()'>↑</button><button id='textDownButton' onclick='textDownClicked()'>↓</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>X</button></div>";
         w2.title.innerHTML = title;
 
         w2.onEnterActivate = queryText;
@@ -1048,6 +1048,10 @@ function handleKey(evt) {
                         }
                         else {
                             return;
+                        }
+                        showTextList();
+                        if (global_selected_text_id) {
+                            getwords(global_selected_text_id);
                         }
                     }
                     catch(e) { alert("Error: " + e.message + "\n" + data); return};
@@ -1509,6 +1513,7 @@ function handleKey(evt) {
         });
     }
     
+    var global_selected_text_id = null;
     function getwords(text)
     {
         console.log("getting words from text: " + text);
@@ -1519,6 +1524,7 @@ function handleKey(evt) {
     		data: {},
     		dataType: "text",//JSON automatically deserializes json
     		success: function (data, textStatus, jqXHR){ 
+                global_selected_text_id = text;
     			procResponse(data, textStatus); 
                 
     		},
