@@ -257,7 +257,15 @@ pub async fn arrow_word_trx<'a, 'b>(
     //$arrowedVal = ($_POST['setArrowedIDTo'] < 1) ? "NULL" : $_POST['setArrowedIDTo'] . "";
 
     if word_id > 0 {
-        let query = "REPLACE INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
+        //first delete old arrowed location
+        let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+        sqlx::query(query)
+            .bind(course_id)
+            .bind(gloss_id)
+            .execute(&mut *tx)
+            .await?;
+
+        let query = "INSERT INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
         sqlx::query(query)
             .bind(course_id)
             .bind(gloss_id)

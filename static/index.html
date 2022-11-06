@@ -2084,7 +2084,8 @@ function realToggleArrow(vTextWordID, vLemmaID, toggleOff)
             var returnObj = JSON.parse(data);
             if (returnObj.affectedRows == "1") {
                 //clear arrow from all with this lemmaid first, so we never end up with multiple arrows displaying for same lemma
-                $(".listword[lemmaid='" + vLemmaID + "'] > .listarrow").html(""); 
+                //$(".listword[lemmaid='" + vLemmaID + "'] > .listarrow").html(""); 
+                $(".listword[lemmaid='" + vLemmaID + "']").removeClass("arrowedHere");
 
                 //add or remove arrow to this word
                 if (toggleOff) {        
