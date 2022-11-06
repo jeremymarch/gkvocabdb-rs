@@ -212,17 +212,9 @@ pub async fn gkv_get_glosses(db:&SqlitePool, info:&WordtreeQueryRequest) -> Resu
     }
 
     //only check page 0 or page less than 0
-    let vlast_page_up = if before_rows.len() < info.n as usize && info.page <= 0 {
-        1
-    } else {
-        0
-    };
+    let vlast_page_up = u8::from(before_rows.len() < info.n as usize && info.page <= 0);
     //only check page 0 or page greater than 0
-    let vlast_page = if after_rows.len() < info.n as usize && info.page >= 0 {
-        1
-    } else {
-        0
-    };
+    let vlast_page = u8::from(after_rows.len() < info.n as usize && info.page >= 0);
 
     let seq = if !after_rows.is_empty() {
         after_rows[0].1
@@ -821,20 +813,20 @@ mod tests {
             WordRow { wordid: 2, word: "Θύρσις".to_string(), word_type: 2, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 3, word: "[line]5".to_string(), word_type: 5, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 3, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 4, word: "αἴκα".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 4, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
-            WordRow { wordid: 5, word: "δ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 30, seq: 5, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 5, word: "δ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 30, seq: 5, arrowed_seq: None, freq: 1, runningcount: 1, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 6, word: "᾽".to_string(), word_type: 1, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 6, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 7, word: "αἶγα".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 7, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 8, word: "λάβῃ".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 8, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 9, word: "τῆνος".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 9, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 10, word: "γέρας".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 10, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 11, word: ",".to_string(), word_type: 1, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 11, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
-            WordRow { wordid: 12, word: "ἐς".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 6, seq: 12, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 12, word: "ἐς".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 6, seq: 12, arrowed_seq: None, freq: 1, runningcount: 1, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 13, word: "τὲ".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 13, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 14, word: "καταρρεῖ".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 14, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 15, word: "".to_string(), word_type: 11, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 15, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 16, word: "[line]10".to_string(), word_type: 5, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 16, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 17, word: "ὁσίου".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 17, arrowed_seq: Some(17), freq: 2, runningcount: 1, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
-            WordRow { wordid: 18, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 18, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
+            WordRow { wordid: 18, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 18, arrowed_seq: None, freq: 1, runningcount: 1, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 19, word: "ἀνδρὸς".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 19, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 20, word: "ὅσιος".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 20, arrowed_seq: Some(17), freq: 2, runningcount: 2, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
             WordRow { wordid: 21, word: "ὢν".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 21, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 1, arrowed_text_seq: Some(1) }, 
@@ -862,7 +854,7 @@ mod tests {
         let res = gkv_get_text_words(&db, &info, selected_word_id).await;
         assert_eq!(*res.as_ref().unwrap(), MiscErrorResponse { this_text: 2, text_name: "testingtext2".to_string(), words: [
             WordRow { wordid: 30, word: "ὁσίου".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 1, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
-            WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
+            WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 2, runningcount: 2, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
             WordRow { wordid: 32, word: "ὅσιος".to_string(), word_type: 0, lemma: "".to_string(), lemma1: "".to_string(), def: "".to_string(), unit: 0, pos: "".to_string(), arrowed_id: None, hqid: 0, seq: 3, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }].to_vec(), 
             selected_id: None, error: "".to_string() 
         });
@@ -900,7 +892,7 @@ mod tests {
         let res = gkv_get_text_words(&db, &info, selected_word_id).await;
         assert_eq!(*res.as_ref().unwrap(), MiscErrorResponse { this_text: 2, text_name: "testingtext2".to_string(), words: [
             WordRow { wordid: 30, word: "ὁσίου".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 1, arrowed_seq: Some(17), freq: 4, runningcount: 3, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
-            WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 0, runningcount: 0, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
+            WordRow { wordid: 31, word: "γὰρ".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: None, hqid: 29, seq: 2, arrowed_seq: None, freq: 2, runningcount: 2, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }, 
             WordRow { wordid: 32, word: "ὅσιος".to_string(), word_type: 0, lemma: "newword".to_string(), lemma1: "".to_string(), def: "newdef".to_string(), unit: 0, pos: "newpos".to_string(), arrowed_id: Some(17), hqid: 31, seq: 3, arrowed_seq: Some(17), freq: 4, runningcount: 4, is_flagged: false, word_text_seq: 2, arrowed_text_seq: Some(2) }].to_vec(), selected_id: None, error: "".to_string() 
         });
 

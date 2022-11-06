@@ -263,7 +263,7 @@ async fn update_or_add_gloss(
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
-            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            ip_address: get_ip(&req).unwrap_or_default(),
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
@@ -294,7 +294,7 @@ async fn arrow_word_req(
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
-            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            ip_address: get_ip(&req).unwrap_or_default(),
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
@@ -323,7 +323,7 @@ async fn set_gloss(
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
-            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            ip_address: get_ip(&req).unwrap_or_default(),
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
        
@@ -612,8 +612,8 @@ fn config(cfg: &mut web::ServiceConfig) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use actix_web::{test, web, App};
+    //use super::*;
+    //use actix_web::{test, web, App};
 
     //use serde::{Serialize, Deserialize};
     //use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};

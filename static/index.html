@@ -2,58 +2,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-<title>Greek Vocab DB</title>
-<meta http-equiv="content-type" content="text/html; charset=utf-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>Greek Vocab DB</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
 
-<script src="https://code.jquery.com/jquery-3.6.1.min.js" 
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js" 
         integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" 
         crossorigin="anonymous"></script>
-  <script type="text/javascript" src="wordtree.js?v10"></script>
+    <script type="text/javascript" src="wordtree.js?v10"></script>
 <script>
 
 function setTheme() {
     var mode = localStorage.getItem("mode");
+    let html = document.querySelector("HTML");
     if ((window.matchMedia( "(prefers-color-scheme: dark)" ).matches || mode == "dark") && mode != "light") {
-        document.querySelector("HTML").classList.add("dark");
+        html.classList.add("dark");
     }
     else {
-        document.querySelector("HTML").classList.remove("dark");
+        html.classList.remove("dark");
     }
 }
 setTheme();
 
 </script>
 <style>
-    #showUpdateLogButton {
-        position: absolute;
-        top: 2px;
-        right: 123px;
-    }
-    #text_title {
-        display: inline-block;
-        top: 1px;
-        position: relative;
-    }
-    .titletitle {
-        font-family:helvetica;
-        position:absolute;
-        top:6px;
-        left:8px;
-    }
-    .titleflex {
-        font-family:helvetica;
-        width:100%;
-        display:flex;
-        padding-left:10px;
-        flex-direction: row;
-        align-items:baseline;
-        justify-content: flex-end;
-    }
+#showUpdateLogButton {
+    position: absolute;
+    top: 2px;
+    right: 123px;
+}
+#text_title {
+    display: inline-block;
+    top: 1px;
+    position: relative;
+}
+.titletitle {
+    font-family:helvetica;
+    position:absolute;
+    top:6px;
+    left:8px;
+}
+.titleflex {
+    font-family:helvetica;
+    width:100%;
+    display:flex;
+    padding-left:10px;
+    flex-direction: row;
+    align-items:baseline;
+    justify-content: flex-end;
+}
 
 .occurrencesarrow {
   width: 20px;
@@ -124,22 +125,22 @@ setTheme();
 .listword.selectedWord { }
 
 .listword {cursor:pointer;
-  position:relative;
-  margin-left:30px;
-  margin-top: 6px;
+    position:relative;
+    margin-left:30px;
+    margin-top: 6px;
 }
 .clickablelistword {padding:4px;
-  padding-left: 30px ;
-  text-indent: -30px ;}
+    padding-left: 30px ;
+    text-indent: -30px ;}
 .listarrow {position:absolute;
-top:4px;
-left:-30px;
-font-size: 11pt;
-height: 20px;
-width: 20px;
-border: 1px solid #ddd;
-text-indent:0px;
-text-align:center;
+    top:4px;
+    left:-30px;
+    font-size: 11pt;
+    height: 20px;
+    width: 20px;
+    border: 1px solid #ddd;
+    text-indent:0px;
+    text-align:center;
 }
 .textword { cursor:pointer;}
 .textword:hover { background-color:yellow;}
@@ -218,27 +219,27 @@ html {
 
      /* The snackbar - position it at the bottom and in the middle of the screen */
 #snackbar {
-  visibility: hidden; /* Hidden by default. Visible on click */
-  min-width: 250px; /* Set a default minimum width */
-  margin-left: -125px; /* Divide value of min-width by 2 */
-  background-color: #333; /* Black background color */
-  color: #fff; /* White text color */
-  text-align: center; /* Centered text */
-  border-radius: 2px; /* Rounded borders */
-  padding: 16px; /* Padding */
-  position: fixed; /* Sit on top of the screen */
-  z-index: 991; /* Add a z-index if needed */
-  left: 50%; /* Center the snackbar */
-  bottom: 30px; /* 30px from the bottom */
+    visibility: hidden; /* Hidden by default. Visible on click */
+    min-width: 250px; /* Set a default minimum width */
+    margin-left: -125px; /* Divide value of min-width by 2 */
+    background-color: #333; /* Black background color */
+    color: #fff; /* White text color */
+    text-align: center; /* Centered text */
+    border-radius: 2px; /* Rounded borders */
+    padding: 16px; /* Padding */
+    position: fixed; /* Sit on top of the screen */
+    z-index: 991; /* Add a z-index if needed */
+    left: 50%; /* Center the snackbar */
+    bottom: 30px; /* 30px from the bottom */
 }
 
 /* Show the snackbar when clicking on a button (class added with JavaScript) */
 #snackbar.show {
-  visibility: visible; /* Show the snackbar */
-  /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
-  However, delay the fade out process for 2.5 seconds */
-  -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
-  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    visibility: visible; /* Show the snackbar */
+    /* Add animation: Take 0.5 seconds to fade in and out the snackbar.
+    However, delay the fade out process for 2.5 seconds */
+    -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    animation: fadein 0.5s, fadeout 0.5s 2.5s;
 }
 
 /* Animations to fade the snackbar in and out */

@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool};
+use std::collections::HashSet;
 use crate::ConnectionInfo;
 use crate::GlossOccurrence;
 use unicode_normalization::UnicodeNormalization;
@@ -464,6 +465,7 @@ pub async fn add_text(
     updatedUserAgent, updatedIP, updatedUser, isFlagged, note) \
     VALUES (NULL, ?, ?, '', '', ?, ?, '', '', '', 0, ?, 0, 0, ?, ?, ?, ?, 0, '');";
     let mut count = 0;
+    let mut gloss_ids:HashSet<u32> = HashSet::new();
     for w in words {
         let res = sqlx::query(query)
             .bind(seq)
@@ -477,6 +479,10 @@ pub async fn add_text(
             .bind(info.user_id)
             .execute(&mut tx)
             .await?;
+
+        if let Some(g_id) = w.gloss_id {
+            gloss_ids.insert(g_id);
+        }
 
         seq += 1;
 
@@ -512,6 +518,10 @@ pub async fn add_text(
         info,
     )
     .await?;
+
+    for gloss_id in gloss_ids.iter() {
+        update_counts_for_gloss_id(&mut tx, course_id, *gloss_id).await?;
+    }
 
     //println!("id: {}, count: {}", text_id, count);
 

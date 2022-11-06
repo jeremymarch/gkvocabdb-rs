@@ -108,7 +108,7 @@ pub async fn import_text(
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
-            ip_address: get_ip(&req).unwrap_or_else(|| "".to_string()),
+            ip_address: get_ip(&req).unwrap_or_default(),
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
@@ -341,7 +341,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                     for a in e.attributes() {
                         //.next().unwrap().unwrap();
                         if a.as_ref().unwrap().key == QName(b"n") {
-                            line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
+                            line_num = std::str::from_utf8(&a.unwrap().value).unwrap().to_string();
                         }
                     }
                     words.push(TextWord {
@@ -375,7 +375,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                     for a in e.attributes() {
                         //.next().unwrap().unwrap();
                         if a.as_ref().unwrap().key == QName(b"n") {
-                            line_num = std::str::from_utf8(&*a.unwrap().value).unwrap().to_string();
+                            line_num = std::str::from_utf8(&a.unwrap().value).unwrap().to_string();
                         }
                     }
                     words.push(TextWord {
