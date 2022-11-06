@@ -766,6 +766,10 @@ pub async fn update_counts_for_gloss_id<'a, 'b>(
     course_id: u32,
     gloss_id: u32,
 ) -> Result<(), sqlx::Error> {
+
+    if gloss_id < 1 {
+        return Ok(());
+    }
     // to update total counts for gloss in course
     let query = "SELECT COUNT(*) \
   FROM words a \
@@ -1047,7 +1051,7 @@ pub async fn update_text_order_db(
     if step == 0 || (text_order.0 + step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
         return Err(sqlx::Error::RowNotFound); //at no where to move: abort
     }
-    else if step > 0 {
+    else if step > 0 { //make room by moving other texts up/earlier in sequence
         let query = "UPDATE course_x_text SET text_order = text_order - 1 \
             WHERE text_order > ? AND text_order < ? + ? + 1 AND course_id = ?;";
         sqlx::query(query)
@@ -1058,7 +1062,7 @@ pub async fn update_text_order_db(
         .execute(&mut tx)
         .await?;
     }
-    else {
+    else { //make room by moving other texts down/later in sequence
         let query = "UPDATE course_x_text SET text_order = text_order + 1 \
             WHERE text_order < ? AND text_order > ? + ? - 1 AND course_id = ?;";
         sqlx::query(query)
@@ -1069,7 +1073,7 @@ pub async fn update_text_order_db(
         .execute(&mut tx)
         .await?;
     }
-    
+    //set new text order
     let query = "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
     sqlx::query(query)
         .bind(step)
@@ -1079,7 +1083,7 @@ pub async fn update_text_order_db(
         .await?;
 
     //update_counts_for_text_trx(&mut tx, course_id, text_id).await?;
-    let query = "SELECT gloss_id FROM words where text = ?;";
+    let query = "SELECT gloss_id FROM words where text = ? AND gloss_id IS NOT NULL;";
     let gloss_ids: Vec<(u32,)> = sqlx::query_as(query)
         .bind(text_id)
         .fetch_all(&mut tx)

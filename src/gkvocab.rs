@@ -410,6 +410,11 @@ pub async fn gkv_get_texts(db:&SqlitePool, info:&WordtreeQueryRequest) -> Result
     })
 }
 
+pub async fn gkv_move_text(db:&SqlitePool, text_id:u32, step:i32, info:&ConnectionInfo, course_id:u32) -> Result<(), AWError> {
+    let res = update_text_order_db(db, course_id, text_id, step).await.map_err(map_sqlx_error)?;
+    Ok(res)
+}
+
 pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_word_id:Option<u32>) -> Result<MiscErrorResponse, AWError> {
     let course_id = 1;
 

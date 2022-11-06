@@ -73,6 +73,13 @@ struct LoginRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+struct MoveTextRequest {
+    qtype: String,
+    text_id: u32,
+    step: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConnectionInfo {
     pub user_id: u32,
     pub timestamp: i64,
@@ -341,6 +348,42 @@ async fn set_gloss(
     Ok(HttpResponse::Ok().json(res))
 }
 
+async fn move_text(
+    (session, post, req): (Session, web::Form<MoveTextRequest>, HttpRequest),
+) -> Result<HttpResponse, AWError> {
+    let db = req.app_data::<SqlitePool>().unwrap();  
+
+    if let Some(user_id) = login::get_user_id(session) {
+        let course_id = 1;
+
+        let info = ConnectionInfo {
+            user_id,
+            timestamp: get_timestamp(),
+            ip_address: get_ip(&req).unwrap_or_default(),
+            user_agent: get_user_agent(&req).unwrap_or("").to_string(),
+        };
+       
+        let _ = gkv_move_text(db, post.text_id, post.step, &info, course_id).await?;
+        let res = MiscErrorResponse {
+            this_text: 1,
+            text_name:"".to_string(),
+            words: [].to_vec(),
+            selected_id: None,
+            error: "Success".to_string(),
+        };
+        return Ok(HttpResponse::Ok().json(res));
+    } 
+    let res = MiscErrorResponse {
+        this_text: 1,
+        text_name:"".to_string(),
+        words: [].to_vec(),
+        selected_id: None,
+        error: "Not logged in (update_words)".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
 async fn get_gloss(
     (post, req): (web::Form<GetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -583,24 +626,28 @@ fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::get().to(hqvocab::hqvocab)),
         )
         .service(
-            web::resource("/arrowword") //checks session
+            web::resource("/arrowword") 
                 .route(web::post().to(arrow_word_req)),
         )
         .service(
-            web::resource("/setgloss") //checks session
+            web::resource("/setgloss") 
                 .route(web::post().to(set_gloss)),
         )
         .service(
-            web::resource("/updategloss") //checks session
+            web::resource("/updategloss") 
                 .route(web::post().to(update_or_add_gloss)),
         )
         .service(
-            web::resource("/importtext") //checks session
+            web::resource("/importtext") 
                 .route(web::post().to(import_text_xml::import_text)),
         )
         .service(
-            web::resource("/exporttext") //checks session
+            web::resource("/exporttext") 
                 .route(web::get().to(export_text::export_text)),
+        )
+        .service(
+            web::resource("/movetext") 
+                .route(web::post().to(move_text)),
         )
         .service(web::resource("/healthzzz").route(web::get().to(health_check)))
         .service(

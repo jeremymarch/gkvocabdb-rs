@@ -968,7 +968,7 @@ function handleKey(evt) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='textUpButton' onclick='textUpClicked()'>up</button><button id='textDownButton' onclick='textDownClicked()'>down</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>X</button></div>";
         w2.title.innerHTML = title;
 
         w2.onEnterActivate = queryText;
@@ -1016,6 +1016,50 @@ function handleKey(evt) {
         //w2.onSelectionChanged = act;
         //$("#glossusesEntry").css({"font-size":"14pt","display":"block"});
         onResize();
+    }
+
+    function textUpClicked() {
+        let row = document.querySelector("#textlist .selectedRowClass");
+        if (row) { 
+            moveText(getColumnValues(row)[1], -1);
+        }
+    }
+    function textDownClicked() {
+        let row = document.querySelector("#textlist .selectedRowClass");
+        if (row) { 
+            moveText(getColumnValues(row)[1], 1);
+        }
+    }
+
+    function moveText(vtext_id, vstep) {
+        console.log("move text: " + vtext_id + ", " + vstep);
+        $.ajax({
+                url: "movetext",
+                type: "POST",
+                data: {qtype:"movetext", text_id: vtext_id, step: vstep },
+                dataType: "text",//JSON automatically deserializes json
+                success: function (data, textStatus, jqXHR){ 
+                    showToast("success: " + data);
+
+                    var returnObj;
+                    try {
+                        if (typeof JSON != "undefined") {
+                            returnObj = JSON.parse(data);
+                        }
+                        else {
+                            return;
+                        }
+                    }
+                    catch(e) { alert("Error: " + e.message + "\n" + data); return};
+                    
+                    if (!returnObj || returnObj.affectedrows < 1) {
+                        return;
+                    }
+                },
+                error: function(response) {
+                    showToast("Move text error.");
+                }
+            });
     }
 
     function showOccurrenceClicked() {
