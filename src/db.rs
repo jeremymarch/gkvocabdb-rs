@@ -1480,6 +1480,7 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemma1 ON words (lemma1);
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemmaid ON words (gloss_id);
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_seq ON words (seq);
+        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text);
         "#;
 
     let _res = sqlx::query(query)
