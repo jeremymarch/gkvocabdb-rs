@@ -2,17 +2,17 @@
 
 ## Installing and running
 
-if not installed, install rust:  
-     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh  
+- if not installed, install rust:
+    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-if not set, set environment variables for sqlite db and session key. e.g.:  
-     export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc  
-     export GKVOCABDB_KEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285  
+- if not set, set environment variables for sqlite db and session key. e.g.:
+    - export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc
+    - export GKVOCABDB_KEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285
 
-build:  
-     cargo run  
+- build:
+    - cargo run
 
-Open web browser to http://0.0.0.0:8088
+- Open web browser to http://0.0.0.0:8088
 
 
 
