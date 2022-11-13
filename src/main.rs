@@ -363,7 +363,7 @@ async fn move_text(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
        
-        let _ = gkv_move_text(db, post.text_id, post.step, &info, course_id).await?;
+        gkv_move_text(db, post.text_id, post.step, &info, course_id).await?;
         let res = MiscErrorResponse {
             this_text: 1,
             text_name:"".to_string(),

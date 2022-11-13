@@ -605,7 +605,7 @@ mod tests {
                 <desc>This is a test.</desc>
             </text>
         </TEI.2>"#;
-        let r = process_imported_text(&xml_string).await.unwrap();
+        let r = process_imported_text(xml_string).await.unwrap();
         //to see this: cargo test -- --nocapture
         // for a in &r {
         //     println!("{:?}", a);
@@ -635,7 +635,7 @@ mod tests {
     #[test]
     fn test_split() {
         // establish that combining chars are not alphanumeric
-        assert_eq!('\u{0313}'.is_alphanumeric(), false);
+        assert!(!'\u{0313}'.is_alphanumeric());
 
         // therefore: be sure combining diacritics do not divide words (this is why we use unicode_normalization::char::is_combining_mark(c))
         let a = split_words("α\u{0313}α ββ", false, false, false);

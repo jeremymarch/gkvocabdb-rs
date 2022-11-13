@@ -410,9 +410,8 @@ pub async fn gkv_get_texts(db:&SqlitePool, info:&WordtreeQueryRequest) -> Result
     })
 }
 
-pub async fn gkv_move_text(db:&SqlitePool, text_id:u32, step:i32, info:&ConnectionInfo, course_id:u32) -> Result<(), AWError> {
-    let res = update_text_order_db(db, course_id, text_id, step).await.map_err(map_sqlx_error)?;
-    Ok(res)
+pub async fn gkv_move_text(db:&SqlitePool, text_id:u32, step:i32, _info:&ConnectionInfo, course_id:u32) -> Result<(), AWError> {
+    Ok(update_text_order_db(db, course_id, text_id, step).await.map_err(map_sqlx_error)?)
 }
 
 pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_word_id:Option<u32>) -> Result<MiscErrorResponse, AWError> {
@@ -599,7 +598,7 @@ mod tests {
         });
         let db = SqlitePool::connect_with(options).await.expect("Could not connect to db.");
 
-        let _res = gkv_create_db(&db).await.expect("Could not create db.");
+        gkv_create_db(&db).await.expect("Could not create db.");
         let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com").await.unwrap();
         let info = ConnectionInfo {
             user_id: user_id.try_into().unwrap(),
@@ -636,10 +635,10 @@ mod tests {
                 def: "newdef".to_string(),
                 note: "newnote".to_string(),
             };
-            let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+            let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
 
-        import_text_xml::import(db, course_id, user_info, &title, &xml_string).await
+        import_text_xml::import(db, course_id, user_info, title, xml_string).await
     }
 
     async fn setup_small_text_test(db:&SqlitePool, course_id: u32, user_info:&ConnectionInfo) -> ImportResponse {
@@ -662,10 +661,10 @@ mod tests {
                 def: "newdef".to_string(),
                 note: "newnote".to_string(),
             };
-            let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+            let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
 
-        import_text_xml::import(db, course_id, user_info, &title, &xml_string).await
+        import_text_xml::import(db, course_id, user_info, title, xml_string).await
     }
 
     #[actix_rt::test]
@@ -676,34 +675,34 @@ mod tests {
         //empty title fails
         let title = "";
         let xml_string = "<TEI.2><text>blahblah</text></TEI.2>";
-        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
         assert!(!res.success);
 
         //empty title xml fails
         let xml_string = "";
-        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
         assert!(!res.success);
 
         let title = "testtext";
 
         //no TEI or TEI.2 tags
         let xml_string = "<TE><text>blahblah</text></TE>";
-        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
         assert!(!res.success);
 
         //xml has tags, but no text fails
         let xml_string = "<TEI.2><text></text></TEI.2>";
-        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
         assert!(!res.success);
 
         //pass with TEI.2
         let xml_string = "<TEI.2><text>blahblah</text></TEI.2>";
-        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
         assert!(res.success);
 
         //pass with TEI
         let xml_string = "<TEI><text>blahblah</text></TEI>";
-        let res = import_text_xml::import(&db, course_id, &user_info, &title, &xml_string).await;
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
         assert!(res.success);
 
         let res = setup_text_test(&db, course_id, &user_info).await;
@@ -770,7 +769,7 @@ mod tests {
         let post = SetGlossRequest {
             qtype: "set_gloss".to_string(),
             word_id: 17,
-            gloss_id: gloss_id,
+            gloss_id,
         };
         let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
         //println!("arrow: {:?}", res);
@@ -784,7 +783,7 @@ mod tests {
         let post = SetGlossRequest {
             qtype: "set_gloss".to_string(),
             word_id: 20,
-            gloss_id: gloss_id,
+            gloss_id,
         };
         let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
         //println!("arrow: {:?}", res);
@@ -871,7 +870,7 @@ mod tests {
         let post = SetGlossRequest {
             qtype: "set_gloss".to_string(),
             word_id: 31,
-            gloss_id: gloss_id,
+            gloss_id,
         };
         let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
         //println!("arrow: {:?}", res);
@@ -884,7 +883,7 @@ mod tests {
         let post = SetGlossRequest {
             qtype: "set_gloss".to_string(),
             word_id: 33,
-            gloss_id: gloss_id,
+            gloss_id,
         };
         let res = gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
         //println!("arrow: {:?}", res);
