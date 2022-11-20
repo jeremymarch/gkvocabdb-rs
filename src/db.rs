@@ -944,18 +944,44 @@ pub async fn get_words(
         return Ok(vec![]);
     }
 
-    let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
-    I.total_count, H.running_count,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
-    FROM words A \
-    LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
-    LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
-    LEFT JOIN words E ON E.word_id = D.word_id \
-    LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
-    LEFT JOIN course_x_text G ON ({text_id} = G.text_id AND G.course_id = {course_id}) \
-    LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
-    LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
-    WHERE A.text = {text_id} AND A.type > -1 \
-    ORDER BY A.seq \
+    // let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
+    // I.total_count, H.running_count,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
+    // FROM words A \
+    // LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
+    // LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
+    // LEFT JOIN words E ON E.word_id = D.word_id \
+    // LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
+    // LEFT JOIN course_x_text G ON ({text_id} = G.text_id AND G.course_id = {course_id}) \
+    // LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
+    // LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
+    // WHERE A.text = {text_id} AND A.type > -1 \
+    // ORDER BY A.seq \
+    // LIMIT 55000;", text_id = text_id, course_id = course_id);
+
+    // SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    // a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) 
+    // OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_count 
+    // FROM words a 
+    // LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    // LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = 1)
+    // LEFT JOIN words e ON e.word_id = d.word_id  
+    // LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = 1)
+    // LEFT JOIN course_x_text g ON (111 = g.text_id AND g.course_id = 1)
+    // WHERE a.text=111 AND a.type > -1
+    // ORDER BY a.seq
+    // LIMIT 55000;
+
+    let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq, \
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) \
+    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_count \
+    FROM words a \
+    LEFT JOIN glosses b ON a.gloss_id = b.gloss_id \
+    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id}) \
+    LEFT JOIN words e ON e.word_id = d.word_id \
+    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = {course_id}) \
+    LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id}) \
+    WHERE a.text={text_id} AND a.type > -1 \
+    ORDER BY a.seq \
     LIMIT 55000;", text_id = text_id, course_id = course_id);
 
     //WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
