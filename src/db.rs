@@ -958,30 +958,61 @@ pub async fn get_words(
     // ORDER BY A.seq \
     // LIMIT 55000;", text_id = text_id, course_id = course_id);
 
-    // SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
-    // a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) 
-    // OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_count 
-    // FROM words a 
-    // LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
-    // LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = 1)
-    // LEFT JOIN words e ON e.word_id = d.word_id  
-    // LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = 1)
-    // LEFT JOIN course_x_text g ON (111 = g.text_id AND g.course_id = 1)
-    // WHERE a.text=111 AND a.type > -1
-    // ORDER BY a.seq
-    // LIMIT 55000;
+    /*
+    using a subquery
+    SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) 
+    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+    + (SELECT COUNT(gloss_id) FROM words y INNER JOIN course_x_text z ON y.text=z.text_id AND z.course_id=1 WHERE z.text_order < g.text_order and y.gloss_id=b.gloss_id) AS running_count 
+    FROM words a 
+    LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = 1)
+    LEFT JOIN words e ON e.word_id = d.word_id  
+    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = 1)
+    LEFT JOIN course_x_text g ON (112 = g.text_id AND g.course_id = 1)
+    WHERE a.text=112 AND a.type > -1
+    ORDER BY a.seq
+    LIMIT 55000;
+    */
 
-    let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq, \
-    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) \
-    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_count \
-    FROM words a \
-    LEFT JOIN glosses b ON a.gloss_id = b.gloss_id \
-    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id}) \
-    LEFT JOIN words e ON e.word_id = d.word_id \
-    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = {course_id}) \
-    LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id}) \
-    WHERE a.text={text_id} AND a.type > -1 \
-    ORDER BY a.seq \
+/*
+    using a cte (and subquery)
+    WITH gloss_basis AS (
+        SELECT gloss_id, COUNT(gloss_id) AS running_basis
+        FROM words a1
+        INNER JOIN course_x_text b1 ON a1.text = b1.text_id AND course_id = 1
+        WHERE text_order < (SELECT text_order FROM course_x_text WHERE course_id = 1 AND text_id = 112)
+        GROUP BY gloss_id
+    )
+    SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) 
+    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+    + IFNULL(running_basis,0) /*(SELECT COUNT(gloss_id) FROM words y INNER JOIN course_x_text z ON y.text=z.text_id AND z.course_id=1 WHERE z.text_order < g.text_order and y.gloss_id=b.gloss_id)*/ AS running_count 
+    FROM words a 
+    LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = 1)
+    LEFT JOIN words e ON e.word_id = d.word_id  
+    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = 1)
+    LEFT JOIN course_x_text g ON (112 = g.text_id AND g.course_id = 1)
+    LEFT JOIN gloss_basis ON a.gloss_id = gloss_basis.gloss_id
+    WHERE a.text=112 AND a.type > -1
+    ORDER BY a.seq
+    LIMIT 55000;
+*/
+
+    //using subquery
+    let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) 
+    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+    + (SELECT COUNT(gloss_id) FROM words y INNER JOIN course_x_text z ON y.text=z.text_id AND z.course_id={course_id} WHERE z.text_order < g.text_order and y.gloss_id=b.gloss_id) AS running_count 
+    FROM words a 
+    LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
+    LEFT JOIN words e ON e.word_id = d.word_id  
+    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = {course_id})
+    LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
+    WHERE a.text={text_id} AND a.type > -1
+    ORDER BY a.seq
     LIMIT 55000;", text_id = text_id, course_id = course_id);
 
     //WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
