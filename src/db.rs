@@ -382,28 +382,29 @@ pub async fn set_gloss_id(
         .execute(&mut tx)
         .await?;
 
-    //3. update counts
-    update_counts_for_gloss_id(&mut tx, course_id, gloss_id).await?;
-    if old_gloss_id.0.is_some() {
-        update_counts_for_gloss_id(&mut tx, course_id, old_gloss_id.0.unwrap()).await?;
-    }
-
     //this requests all the places this word shows up, so we can update them in the displayed page.
     //fix me: need to limit this by course_id
     //fix me: need to limit this to the assignment displayed on the page, else this could return huge number of rows for e.g. article/kai/etc
-    let query = format!("SELECT B.gloss_id, B.lemma, B.pos, B.def, I.total_count, A.seq, H.running_count, A.word_id, \
-  D.word_id as arrowedID, E.seq AS arrowedSeq, A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
+    let query = format!("WITH gloss_total AS (
+        SELECT gloss_id, COUNT(gloss_id) AS total_count
+        FROM words a2
+        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {course_id}
+        GROUP BY gloss_id
+    )
+    SELECT B.gloss_id, B.lemma, B.pos, B.def, total_count, A.seq, A.word_id, \
+  D.word_id as arrowedID, E.seq AS arrowedSeq, A.isFlagged, G.text_order,F.text_order AS arrowed_text_order, \
+  COUNT(A.gloss_id) OVER (PARTITION BY A.gloss_id ORDER BY G.text_order,A.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+     AS running_count 
   FROM words A \
   LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
   LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
   LEFT JOIN words E ON E.word_id = D.word_id \
   LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
   LEFT JOIN course_x_text G ON (A.text = G.text_id AND G.course_id = {course_id}) \
-  LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
-  LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
+  LEFT JOIN gloss_total ON A.gloss_id = gloss_total.gloss_id \
   WHERE A.gloss_id = {gloss_id} AND A.type > -1 \
   ORDER BY G.text_order,A.seq \
-  LIMIT 400;", gloss_id=gloss_id, course_id = course_id);
+  LIMIT 400;", gloss_id = gloss_id, course_id = course_id);
 
     let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)
         .map(|rec: SqliteRow| SmallWord {
@@ -526,10 +527,6 @@ pub async fn add_text(
         info,
     )
     .await?;
-
-    for gloss_id in gloss_ids.iter() {
-        update_counts_for_gloss_id(&mut tx, course_id, *gloss_id).await?;
-    }
 
     //println!("id: {}, count: {}", text_id, count);
 
@@ -729,121 +726,6 @@ pub async fn update_gloss(
 }
 
 /*
-pub async fn update_counts_all<'a>(tx: &'a mut sqlx::Transaction<'a, sqlx::Sqlite>, course_id:u32) -> Result<(), sqlx::Error> {
-  //select count(*) as c,b.lemma from words a inner join glosses b on a.gloss_id=b.gloss_id group by a.gloss_id order by c;
-
-  // to update all total counts
-  let query = format!("REPLACE INTO total_counts_by_course \
-    SELECT {course_id},gloss_id,COUNT(*) \
-    FROM words \
-    WHERE gloss_id IS NOT NULL \
-    GROUP BY gloss_id;", course_id=course_id);
-
-  sqlx::query(&query).execute(&mut *tx).await?;
-
-  let query = format!("REPLACE INTO running_counts_by_course \
-    SELECT {course_id},a.word_id,count(*) AS running_count \
-    FROM words a \
-    INNER JOIN words b ON a.gloss_id=b.gloss_id \
-    INNER JOIN course_x_text c ON a.text = c.text_id \
-    INNER JOIN course_x_text d ON b.text = d.text_id \
-    WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id IS NOT NULL \
-    GROUP BY a.word_id \
-    ORDER BY a.gloss_id, running_count;", course_id=course_id);
-
-  sqlx::query(&query).execute(&mut *tx).await?;
-
-  //to select running counts
-  //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
-
-  //when updating running count of just one we only need to update the words equal and after this one.
-  Ok(())
-}
-*/
-
-pub async fn update_counts_for_gloss_id<'a, 'b>(
-    tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
-    course_id: u32,
-    gloss_id: u32,
-) -> Result<(), sqlx::Error> {
-
-    if gloss_id < 1 {
-        return Ok(());
-    }
-    // to update total counts for gloss in course
-    let query = "SELECT COUNT(*) \
-  FROM words a \
-  INNER JOIN course_x_text b ON a.text = b.text_id \
-  WHERE a.gloss_id = ? AND b.course_id = ? \
-  GROUP BY a.gloss_id;";
-    let count: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
-        .bind(gloss_id)
-        .bind(course_id)
-        .fetch_one(&mut *tx)
-        .await;
-
-    let c = if count.is_ok() { count.unwrap().0 } else { 0 };
-    let query = "REPLACE INTO total_counts_by_course VALUES (?,?,?)";
-    sqlx::query(query)
-        .bind(course_id)
-        .bind(gloss_id)
-        .bind(c)
-        .execute(&mut *tx)
-        .await?; //https://stackoverflow.com/questions/41273041/what-does-combined-together-do-in-rust
-
-    //to update running counts for gloss in course
-    /*
-      //this did not work:
-      let query = "REPLACE INTO running_counts_by_course \
-        SELECT c.course_id,a.word_id,COUNT(*) AS running_count \
-        FROM words a \
-        INNER JOIN words b ON a.gloss_id=b.gloss_id \
-        INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
-        INNER JOIN course_x_text d ON (b.text = d.text_id AND d.course_id = ?) \
-        WHERE d.text_order <= c.text_order AND b.seq <= a.seq AND a.gloss_id = ? \
-        GROUP BY a.word_id;";
-
-      /to select running counts
-      //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on a.text = c.text_id inner join course_x_text d on b.text = d.text_id where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
-
-
-
-        //???this works
-        //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and d.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=4106 group by a.word_id order by a.gloss_id, num;
-        //???but not this
-        //select a.gloss_id,a.word_id,count(*) as num from words a INNER JOIN words b ON a.gloss_id=b.gloss_id inner join course_x_text c on (a.text = c.text_id and c.course_id = 1) inner join course_x_text d on (b.text = d.text_id and c.course_id = 1) where c.text_order <= d.text_order and a.seq <= b.seq and a.gloss_id=1422 group by a.word_id order by a.gloss_id, num;
-
-
-
-      //when updating running count of just one we only need to update the words equal and after this one?
-    */
-    let query = "SELECT a.word_id FROM words a \
-  INNER JOIN course_x_text c ON (a.text = c.text_id AND c.course_id = ?) \
-  WHERE a.gloss_id = ? \
-  ORDER BY c.text_order, a.seq;";
-    let words: Vec<(u32,)> = sqlx::query_as(query)
-        .bind(course_id)
-        .bind(gloss_id)
-        .fetch_all(&mut *tx)
-        .await?;
-
-    let mut running_count = 1;
-    for word_id in words {
-        let query = "REPLACE INTO running_counts_by_course VALUES (?,?,?)";
-        sqlx::query(query)
-            .bind(course_id)
-            .bind(word_id.0)
-            .bind(running_count)
-            .execute(&mut *tx)
-            .await?;
-
-        running_count += 1;
-    }
-
-    Ok(())
-}
-
-/*
 pub async fn fix_assignments(pool: &SqlitePool) -> Result<(), sqlx::Error> {
   let mut tx = pool.begin().await?;
 /*
@@ -944,69 +826,6 @@ pub async fn get_words(
         return Ok(vec![]);
     }
 
-    // let query = format!("SELECT A.word_id,A.word,A.type,B.lemma,A.lemma1,B.def,B.unit,pos,D.word_id as arrowedID,B.gloss_id,A.seq,E.seq AS arrowedSeq, \
-    // I.total_count, H.running_count,A.isFlagged, G.text_order,F.text_order AS arrowed_text_order \
-    // FROM words A \
-    // LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
-    // LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
-    // LEFT JOIN words E ON E.word_id = D.word_id \
-    // LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
-    // LEFT JOIN course_x_text G ON ({text_id} = G.text_id AND G.course_id = {course_id}) \
-    // LEFT JOIN running_counts_by_course H ON (H.course_id = {course_id} AND H.word_id = A.word_id) \
-    // LEFT JOIN total_counts_by_course I ON (I.course_id = {course_id} AND I.gloss_id = A.gloss_id) \
-    // WHERE A.text = {text_id} AND A.type > -1 \
-    // ORDER BY A.seq \
-    // LIMIT 55000;", text_id = text_id, course_id = course_id);
-
-    /*
-    using a subquery
-    SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
-    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, 1 AS total_count, COUNT(a.gloss_id) 
-    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
-    + (SELECT COUNT(gloss_id) FROM words y INNER JOIN course_x_text z ON y.text=z.text_id AND z.course_id=1 WHERE z.text_order < g.text_order and y.gloss_id=b.gloss_id) AS running_count 
-    FROM words a 
-    LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
-    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = 1)
-    LEFT JOIN words e ON e.word_id = d.word_id  
-    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = 1)
-    LEFT JOIN course_x_text g ON (112 = g.text_id AND g.course_id = 1)
-    WHERE a.text=112 AND a.type > -1
-    ORDER BY a.seq
-    LIMIT 55000;
-    */
-
-/*
-    using a cte (and subquery)
-    WITH gloss_basis AS (
-        SELECT gloss_id, COUNT(gloss_id) AS running_basis
-        FROM words a1
-        INNER JOIN course_x_text b1 ON a1.text = b1.text_id AND course_id = 1
-        WHERE text_order < (SELECT text_order FROM course_x_text WHERE course_id = 1 AND text_id = 112)
-        GROUP BY gloss_id
-    ),
-    gloss_total AS (
-        SELECT gloss_id, COUNT(gloss_id) AS total_count
-        FROM words a1
-        INNER JOIN course_x_text b1 ON a1.text = b1.text_id AND course_id = 1
-        GROUP BY gloss_id
-    )
-    SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
-    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, total_count, COUNT(a.gloss_id) 
-    OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
-    + IFNULL(running_basis,0) /*(SELECT COUNT(gloss_id) FROM words y INNER JOIN course_x_text z ON y.text=z.text_id AND z.course_id=1 WHERE z.text_order < g.text_order and y.gloss_id=b.gloss_id)*/ AS running_count 
-    FROM words a 
-    LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
-    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = 1)
-    LEFT JOIN words e ON e.word_id = d.word_id  
-    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = 1)
-    LEFT JOIN course_x_text g ON (112 = g.text_id AND g.course_id = 1)
-    LEFT JOIN gloss_basis ON a.gloss_id = gloss_basis.gloss_id
-    LEFT JOIN gloss_total ON a.gloss_id = gloss_total.gloss_id
-    WHERE a.text=112 AND a.type > -1
-    ORDER BY a.seq
-    LIMIT 55000;
-*/
-
     let query = format!("WITH gloss_basis AS (
         SELECT gloss_id, COUNT(gloss_id) AS running_basis
         FROM words a1
@@ -1035,10 +854,6 @@ pub async fn get_words(
     WHERE a.text={text_id} AND a.type > -1
     ORDER BY a.seq
     LIMIT 55000;", text_id = text_id, course_id = course_id);
-
-    //WHERE A.seq >= {start_seq} AND A.seq <= {end_seq} AND A.type > -1 \
-
-    //println!("{}", query);
 
     let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
         .map(|rec: SqliteRow| WordRow {
@@ -1100,9 +915,6 @@ pub async fn get_text_name(
 //         .fetch_all(tx)
 //         .await?;
 
-//     for gloss_id in gloss_ids {
-//         update_counts_for_gloss_id(tx, course_id, gloss_id.0).await?;
-//     }
 //     Ok(())
 // }
 
@@ -1159,17 +971,6 @@ pub async fn update_text_order_db(
         .bind(text_id)
         .execute(&mut tx)
         .await?;
-
-    //update_counts_for_text_trx(&mut tx, course_id, text_id).await?;
-    let query = "SELECT gloss_id FROM words where text = ? AND gloss_id IS NOT NULL;";
-    let gloss_ids: Vec<(u32,)> = sqlx::query_as(query)
-        .bind(text_id)
-        .fetch_all(&mut tx)
-        .await?;
-
-    for gloss_id in gloss_ids {
-        update_counts_for_gloss_id(&mut tx, course_id, gloss_id.0).await?;
-    }
 
     tx.commit().await?;
     Ok(())
@@ -1351,7 +1152,14 @@ pub async fn get_before(
     page: i32,
     limit: u32,
 ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-    let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", searchprefix, -page * limit as i32, limit);
+    let course_id = 1;
+    let query = format!("WITH gloss_total AS (
+        SELECT gloss_id, COUNT(gloss_id) AS total_count
+        FROM words a2
+        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {}
+        GROUP BY gloss_id
+    )
+    SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", course_id, searchprefix, -page * limit as i32, limit);
     let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
         .map(|rec: SqliteRow| {
             (
@@ -1373,7 +1181,14 @@ pub async fn get_equal_and_after(
     page: i32,
     limit: u32,
 ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
-    let query = format!("SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN total_counts_by_course b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", searchprefix, page * limit as i32, limit);
+    let course_id = 1;
+    let query = format!("WITH gloss_total AS (
+        SELECT gloss_id, COUNT(gloss_id) AS total_count
+        FROM words a2
+        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {}
+        GROUP BY gloss_id
+    )
+    SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", course_id, searchprefix, page * limit as i32, limit);
     let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
         .map(|rec: SqliteRow| {
             (
@@ -1388,125 +1203,6 @@ pub async fn get_equal_and_after(
 
     res
 }
-
-/*
-CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type text NOT NULL);
-CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
-
-CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL);
-
-CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-CREATE TABLE IF NOT EXISTS texts (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-
-CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES text_sequences(course_id), gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id), word_id INTEGER NOT NULL REFERENCES words(word_id), updated INTEGER, user_id INTEGER REFERENCES users(user_id), comment text, PRIMARY KEY(course_id, gloss_id, word_id));
-INSERT INTO arrowed_words SELECT 1, hqid, arrowedID,0,NULL,NULL from hqvocab where arrowedid is not null;
-CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), lemma_id INTEGER NOT NULL REFERENCES hqvocab(hqid), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users(user_id), comment text);
-CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (seq_id, lemma_id);
-
-CREATE TABLE IF NOT EXISTS course_x_text (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), text_id INTEGER NOT NULL REFERENCES texts(text_id), text_order INTEGER NOT NULL, PRIMARY KEY (seq_id,text_id));
-
-CREATE TABLE IF NOT EXISTS running_counts_by_course (seq_id INTEGER NOT NULL REFERENCES text_sequences(seq_id), word_id INTEGER NOT NULL REFERENCES gkvocabdb(wordid), running_count INTEGER, PRIMARY KEY (seq_id,word_id));
-CREATE TABLE IF NOT EXISTS total_counts_by_course (course_id INTEGER NOT NULL REFERENCES text_sequences(course_id), gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id), total_count INTEGER, PRIMARY KEY (seq_id,lemma_id));
-
-to add:
-gkvocabdb text references text_id, lemma_id references hqid, seq, type references types table?,
-gkvocabassignments start,end references wordid?
-
-add PolytonicGreek collation to hqvocabdb sortalpha
-
-
-CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
-*/
-
-/*
-
-.mode ascii
-.separator "," "\n"
-.import /Users/jeremy/Downloads/gkvocabdbxxx.csv gkvocabdb
-
-//https://github.com/dumblob/mysql2sqlite
-mysqldump --skip-extended-insert --compact philolog_us gkvocabdb hqvocab gkvocabAssignments appcrit > gkvocabdbxxxx.sql
-./mysql2sqlite gkvocabdbxxxx.sql | sqlite3 gkvocabdb2.sqlite
-
-  CREATE TABLE IF NOT EXISTS gkvocabdb (
-    wordid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    seq int(10) NOT NULL,
-    text int(11) NOT NULL,
-    section varchar(255) DEFAULT NULL,
-    line varchar(255)  DEFAULT NULL,
-    word varchar(255)  NOT NULL,
-    lemmaid int(10)  DEFAULT NULL,
-    lemmaa varchar(255)  NOT NULL,
-    lemmab varchar(255)  NOT NULL,
-    o varchar(255)  NOT NULL,
-    runningcount int(10)  NOT NULL,
-    type tinyint(4) DEFAULT NULL,
-    arrow tinyint(1) NOT NULL DEFAULT 0,
-    flagged tinyint(1) NOT NULL DEFAULT 0,
-    updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updatedUserAgent varchar(255)  NOT NULL DEFAULT '',
-    updatedIP varchar(255)  NOT NULL DEFAULT '',
-    updatedUser varchar(255)  NOT NULL DEFAULT '',
-    isFlagged tinyint(4) NOT NULL DEFAULT 0,
-    note varchar(1024)  NOT NULL DEFAULT ''
-  )
-    CREATE TABLE gkvocabdb (wordid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,seq int(10) NOT NULL,text int(11) NOT NULL,section varchar(255) DEFAULT NULL,line varchar(255)  DEFAULT NULL,word varchar(255)  NOT NULL,lemmaid int(10)  DEFAULT NULL,lemma1 varchar(255) NOT NULL,lemma2 varchar(255)  NOT NULL,o varchar(255)  NOT NULL,runningcount int(10)  NOT NULL,type tinyint(4) DEFAULT NULL,arrow tinyint(1) NOT NULL DEFAULT 0,flagged tinyint(1) NOT NULL DEFAULT 0,updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,updatedUserAgent varchar(255)  NOT NULL DEFAULT '',updatedIP varchar(255)  NOT NULL DEFAULT '',updatedUser varchar(255)  NOT NULL DEFAULT '',isFlagged tinyint(4) NOT NULL DEFAULT 0,note varchar(1024)  NOT NULL DEFAULT '',KEY lemma1 (lemma1),KEY seq (seq),KEY lemmaid (lemmaid))
-
-  CREATE TABLE hqvocab (
-    hqid int(11)  NOT NULL AUTOINCREMENT,
-    seqold smallint(5)  NOT NULL DEFAULT 0,
-    seq smallint(10)  NOT NULL DEFAULT 0,
-    unit smallint(6)  NOT NULL,
-    lemma varchar(256) NOT NULL,
-    lemma2 varchar(255) NOT NULL DEFAULT '',
-    sortalpha varchar(255)  NOT NULL DEFAULT '',
-    sortkey varchar(255)  NOT NULL,
-    present varchar(256)  NOT NULL,
-    future varchar(256)  NOT NULL,
-    aorist varchar(256)  NOT NULL,
-    perfect varchar(256)  NOT NULL,
-    perfectmid varchar(256)  NOT NULL,
-    aoristpass varchar(256)  NOT NULL,
-    def varchar(1024)  NOT NULL,
-    pos varchar(256)  NOT NULL,
-    link varchar(256)  NOT NULL,
-    freq smallint(6) NOT NULL,
-    note varchar(256)  NOT NULL,
-    verbClass int(10)  NOT NULL DEFAULT 0,
-    updated timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-    arrowedDay smallint(5)  DEFAULT NULL,
-    arrowedID int(11) DEFAULT NULL,
-    pageLine varchar(255)  DEFAULT NULL,
-    parentid int(11)  DEFAULT NULL,
-    status tinyint(4) NOT NULL DEFAULT 1,
-    updatedUserAgent varchar(255)  NOT NULL DEFAULT '',
-    updatedIP varchar(255)  NOT NULL DEFAULT '',
-    updatedUser varchar(255)  NOT NULL DEFAULT '',
-    PRIMARY KEY (hqid),
-    KEY updated (updated),
-    KEY seq (seqold),
-    KEY sortkey (sortkey),
-    KEY sortalpha (sortalpha),
-    KEY lemma (lemma(255)),
-    KEY parentididx (parentid)
-  )
-
-  CREATE TABLE gkvocabAssignments (
-    id int(11) NOT NULL AUTO_INCREMENT,
-    sort int(11) NOT NULL,
-    title varchar(255) NOT NULL,
-    start int(10)  NOT NULL,
-    end int(10)  NOT NULL,
-    wordcount int(10)  DEFAULT NULL,
-    PRIMARY KEY (id)
-  )
-
-  CREATE TABLE appcrit (
-    wordid int(10)  NOT NULL,
-    entry varchar(1024) DEFAULT NULL,
-    PRIMARY KEY (wordid)
-  )
-*/
 
 #[allow(dead_code)]
 pub async fn insert_user(db:&SqlitePool, name:&str, initials:&str, user_type:u32, password:&str, email:&str) -> Result<i64, sqlx::Error> {
@@ -1535,8 +1231,6 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         /*CREATE TABLE sqlite_sequence(name,seq);*/
         CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id));
         CREATE TABLE IF NOT EXISTS glosses (gloss_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seqold integer NOT NULL DEFAULT 0, seq integer NOT NULL DEFAULT 0, unit integer NOT NULL, lemma varchar (256) NOT NULL, lemma2 varchar (255) NOT NULL DEFAULT '', sortalpha varchar (255) NOT NULL DEFAULT '', sortkey varchar (255) NOT NULL, present varchar (256) NOT NULL, future varchar (256) NOT NULL, aorist varchar (256) NOT NULL, perfect varchar (256) NOT NULL, perfectmid varchar (256) NOT NULL, aoristpass varchar (256) NOT NULL, def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, link varchar (256) NOT NULL, freq integer NOT NULL, note varchar (256) NOT NULL, verbClass integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, arrowedDay integer DEFAULT NULL, arrowedID integer DEFAULT NULL, pageLine varchar (255) DEFAULT NULL, parentid integer DEFAULT NULL, status integer NOT NULL DEFAULT 1, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS total_counts_by_course (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), total_count INTEGER, PRIMARY KEY (course_id, gloss_id));
-        CREATE TABLE IF NOT EXISTS running_counts_by_course (course_id INTEGER NOT NULL REFERENCES courses (course_id), word_id INTEGER NOT NULL REFERENCES words (word_id), running_count INTEGER, PRIMARY KEY (course_id, word_id));
         CREATE TABLE IF NOT EXISTS assignments (id integer NOT NULL PRIMARY KEY AUTOINCREMENT, sort integer NOT NULL, title varchar (255) NOT NULL, start integer NOT NULL, "end" integer NOT NULL, wordcount integer DEFAULT NULL);
         CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER NOT NULL REFERENCES words (word_id), updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text, PRIMARY KEY (course_id, gloss_id, word_id));
         CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text);
