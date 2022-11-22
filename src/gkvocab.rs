@@ -280,13 +280,16 @@ pub async fn gkv_get_occurrences(db:&SqlitePool, info:&WordtreeQueryRequest) -> 
         .await
         .map_err(map_sqlx_error)?;
 
+    //start numbering at 0 if H&Q, so running_count is correct
+    let start_idx = if !result_rows.is_empty() && result_rows[0].name.starts_with("H&Q Unit") { 0 } else { 1 };
+
     let result_rows_formatted: Vec<(String, u32)> = result_rows
         .into_iter()
         .enumerate()
         .map(|(i, mut row)| {
             row.name = format!(
                 "{}. <b class='occurrencesarrow'>{}</b> {} - {}",
-                i + 1,
+                i + start_idx,
                 if row.arrowed.is_some() { "→" } else { "" },
                 row.name,
                 row.word

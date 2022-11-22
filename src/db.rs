@@ -329,6 +329,8 @@ pub async fn arrow_word_trx<'a, 'b>(
 }
 
 //word_id is unique across courses, so we do not need to use course_id except for where the word is arrowed
+//to do: we need to send back updated counts both for the new gloss_id and for the old gloss_id, if one was set
+//to do: can we limit what is sent back by the text being viewed?
 pub async fn set_gloss_id(
     pool: &SqlitePool,
     course_id: u32,
