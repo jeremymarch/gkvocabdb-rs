@@ -928,6 +928,35 @@ pub async fn update_text_order_db(
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
+    /*
+    //has children? move children with parent
+    let query = "SELECT a.text_id,b.text_order FROM texts a \
+                INNER JOIN course_x_text b ON a.text_id=b.text_id \
+                WHERE parent_id = ? ORDER BY b.text_order;";
+    let children: Vec<(i32,i32,)> = sqlx::query_as(query)
+        .bind(text_id)
+        .fetch_all(pool).await?;
+
+    println!("children: {:?}", children);
+
+    let num_to_move = 1 + children.len();
+
+    if !children.empty() {
+
+    }
+
+    //has parent? only move among siblings
+    let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
+    let has_parent: (Option<i32>,) = sqlx::query_as(query)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    println!("parent: {:?}", has_parent);
+
+    //text where moving is parent and moving down?
+    //text where moving is child and moving up?
+    */
+
     let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
     let text_order: (i32,) = sqlx::query_as(query)
         .bind(course_id)

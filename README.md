@@ -18,15 +18,23 @@
 
 
 ## To do:
-- Running count and total count are not updated on nested texts when changing order
-- Updating running count and total count is pretty inefficient when changing order
-- Progress indicator for changing order of texts since it takes a while?
-- Implement exporting to LaTeX
-- add left and right arrows to text list to nest/unnest texts
-- add button to toggle on/off the Greek keyboard
-- Implement logging in to different courses, currently we can only used course 1
-- Allow Latin texts/courses
-- move logins to db as opposed to usernames/passwords hardcoded
-- add unit tests for more features
-- improve the update log, it is pretty crappy right now
-- probably overly difficult: update log can rollback changes to previous verions
+- Text Nesting (I think we only need to support one level of nesting)
+  - Changing order of nested texts is broken: need to account for 1) texts with children (move children with parent) and 2) texts with parents (only move them up and down within parent)
+  - Add left and right arrow buttons to text list to nest/unnest texts
+- Courses
+  - Implement logging in to different courses, currently we can only used course 1
+  - Create a way to add existing texts to a course or remove a text from a course
+  - Allow Latin texts/courses
+- Exporting texts
+  - re-implement exporting to LaTeX
+- Importing texts
+  - Progress indicator for changing order of texts since it takes a while?
+- UI
+  - add button to toggle on/off the Greek keyboard
+- Infrastructure
+  - move logins to db as opposed to usernames/passwords hardcoded
+  - add unit tests for more features
+  - improve the update log, it is pretty crappy right now
+    - probably overly difficult: update log can rollback changes to previous verions
+  - clean up db schema: there are a lot of columns which are no longer used and can be removed
+  - improve the error messages passed back to browser if something goes wrong

@@ -1665,12 +1665,16 @@ function getColumnValues(row)
 	
 	for (var i = 0; col; i++)
 	{
-		var match = /.*Img/.exec(col.firstChild.id); //in case it has a + or - image
-		if (match)
-			values[i] = col.firstChild.nextSibling.nodeValue;
-		else
+		var match = /.*Img/.exec(col.id); //in case it has a + or - image
+		if (match) {
+			values[i] = col.nextSibling.firstChild.nodeValue;
+            col = col.nextSibling.nextSibling;
+        }
+		else {
 			values[i] = col.firstChild.nodeValue;
-		col = col.nextSibling;
+            col = col.nextSibling;
+        }
+		
 	}
 //}catch(e) {alert(e.message)}
     //alert("values: " + values);
