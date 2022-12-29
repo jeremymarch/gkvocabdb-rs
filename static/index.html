@@ -1629,7 +1629,7 @@ function handleKey(evt) {
                     }
                     if (!i.l) //lemma is null
                     {
-                        b.innerHTML = "<div class='clickablelistword'><span class='listheadword'>" + i.w + "</span><span style='display:none;' id='lemmaAdd" + i.i + "'>" + i.l1 + "</span></div>";
+                        b.innerHTML = "<div class='clickablelistword'><span class='listheadword'>" + i.w + "</span></div>";
                     }
                     else
                     {
@@ -1756,17 +1756,11 @@ function setGlossForWord(lex, id)
         return;
     }
     var vlemmaid = id[1];
-    var vlemmastr = "";
-    var a = $("#lemmaAdd" + selectedWordInList);
-    if (a.length > 0) {
-        vlemmastr = a[0].innerHTML;
-    }
     
-    //showToast("clicked: " + vlemmaid + ", " + vlemmastr);
     hideGlossList();
 
-    console.log("setGlossForWord: " + selectedWordInList + ", " + vlemmaid + ", " + vlemmastr);
-    realSetGlossForWord(selectedWordInList, vlemmaid, vlemmastr);
+    console.log("setGlossForWord: " + selectedWordInList + ", " + vlemmaid);
+    realSetGlossForWord(selectedWordInList, vlemmaid);
 }
 
 function annotateFormSubmit()
@@ -1890,8 +1884,8 @@ function getAnnotateData(vWordid)
         },
         error: function(response) {
             //getwords(url); //redo request on error
-            showToast("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
-            console.log("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
+            showToast("error in getAnnotateData");
+            console.log("error in getAnnotateData");
         }
     });
 }
@@ -1939,13 +1933,13 @@ function getEditLemmaData(vLemmaid)
         },
         error: function(response) {
             //getwords(url); //redo request on error
-            showToast("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
-            console.log("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
+            showToast("error in getEditLemmaData");
+            console.log("error in getEditLemmaData");
         }
     });
 }
 
-function realSetGlossForWord(vTextWordID, vlemmaid, vlemmastr) {
+function realSetGlossForWord(vTextWordID, vlemmaid) {
    $.ajax({
         url: "setgloss",
         type: "POST",
@@ -1990,7 +1984,7 @@ function realSetGlossForWord(vTextWordID, vlemmaid, vlemmastr) {
             }
         },
         error: function(response) {
-            showToast("error in realSetGlossForWord: " + vlemmaid + ", " + vlemmastr);
+            showToast("error in realSetGlossForWord: " + vlemmaid);
         }
     });
 }
