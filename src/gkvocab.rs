@@ -249,7 +249,7 @@ pub async fn gkv_get_glosses(db:&SqlitePool, info:&WordtreeQueryRequest) -> Resu
         select_id: Some(seq),
         error: "".to_owned(),
         wtprefix: info.idprefix.clone(),
-        nocache: if query_params.wordid.is_none() { 0 } else { 1 }, //prevents caching when queried by wordid in url
+        nocache: u8::from(query_params.wordid.is_some()), //prevents caching when queried by wordid in url
         container: format!("{}Container", info.idprefix),
         request_time: info.request_time,
         page: info.page,
@@ -281,7 +281,7 @@ pub async fn gkv_get_occurrences(db:&SqlitePool, info:&WordtreeQueryRequest) -> 
         .map_err(map_sqlx_error)?;
 
     //start numbering at 0 if H&Q, so running_count is correct
-    let start_idx = if !result_rows.is_empty() && result_rows[0].name.starts_with("H&Q Unit") { 0 } else { 1 };
+    let start_idx = usize::from(result_rows.is_empty() || !result_rows[0].name.starts_with("H&Q Unit"));
 
     let result_rows_formatted: Vec<(String, u32)> = result_rows
         .into_iter()
@@ -397,7 +397,7 @@ pub async fn gkv_get_texts(db:&SqlitePool, info:&WordtreeQueryRequest) -> Result
         select_id: Some(seq),
         error: "".to_owned(),
         wtprefix: info.idprefix.clone(),
-        nocache: if query_params.wordid.is_none() { 0 } else { 1 }, //prevents caching when queried by wordid in url
+        nocache: u8::from(query_params.wordid.is_some()), //prevents caching when queried by wordid in url
         container: format!("{}Container", info.idprefix),
         request_time: info.request_time,
         page: info.page,
@@ -414,7 +414,7 @@ pub async fn gkv_get_texts(db:&SqlitePool, info:&WordtreeQueryRequest) -> Result
 }
 
 pub async fn gkv_move_text(db:&SqlitePool, text_id:u32, step:i32, _info:&ConnectionInfo, course_id:u32) -> Result<(), AWError> {
-    Ok(update_text_order_db(db, course_id, text_id, step).await.map_err(map_sqlx_error)?)
+    Ok(db::update_text_order_db(db, course_id, text_id, step).await.map_err(map_sqlx_error)?)
 }
 
 pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_word_id:Option<u32>) -> Result<MiscErrorResponse, AWError> {
