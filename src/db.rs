@@ -947,8 +947,17 @@ pub async fn update_text_order_db(
 
     println!("parent: {:?}", has_parent);
 
-    //text where moving is parent and moving down?
-    //text where moving is child and moving up?
+    containers
+        container_id
+        name
+
+    containers_x_text
+        container_id
+        text_id
+
+    container moving down: container and its children get + 1, following text gets - 1 or following container + children get -1
+    container moving up: container and its children get - 1, text above gets + num_children + 1
+    text where moving is child and moving up?
     */
 
     let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";

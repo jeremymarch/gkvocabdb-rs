@@ -717,12 +717,12 @@ BUTTON {
       request.onerror = options.error;
     }
 
-function stripDiacriticsLocal(origChars) {
-    return strip_diacritics(origChars);
-}
+    function stripDiacriticsLocal(origChars) {
+        return strip_diacritics(origChars);
+    }
 
-var unicodeMode = 2; //pua
-function toggle_diacritic(str, pos, diacritic, unicodeMode) {
+    var unicodeMode = 2; //pua
+    function toggle_diacritic(str, pos, diacritic, unicodeMode) {
         if (pos < 0 || pos > str.length) {
             return { str: str, pos: str.length };
         }
@@ -786,7 +786,7 @@ function toggle_diacritic(str, pos, diacritic, unicodeMode) {
         lemmaListWordTree = w;
         w.hideFunction = hideGlossList;
 
-	    var title = "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistDeleteButton' onclick='deleteGlossListClicked()'>Delete</button><button id='showGlossUsesButton' onclick='showGlossOccurrencesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistDeleteButton' onclick='deleteGlossListClicked()'>Delete</button><button id='showGlossUsesButton' onclick='showGlossOccurrencesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>✕</button></div>";
         w.title.innerHTML = title;
         w.onEnterActivate = setGlossForWord;
         //w.onEnterActivate = removeDuplicate;
@@ -807,7 +807,7 @@ function toggle_diacritic(str, pos, diacritic, unicodeMode) {
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
-	    var title = "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='textUpButton' onclick='textUpClicked()'>↑</button><button id='textDownButton' onclick='textDownClicked()'>↓</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='textUpButton' onclick='textUpClicked()'>↑</button><button id='textDownButton' onclick='textDownClicked()'>↓</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>✕</button></div>";
         w2.title.innerHTML = title;
 
         w2.onEnterActivate = queryText;
@@ -827,7 +827,7 @@ function toggle_diacritic(str, pos, diacritic, unicodeMode) {
         glossUsesWordTree = w3;
         w3.hideFunction = hideGlossUsesList;
 
-	    var title = "<div class='titletitle'>Gloss Occurrences</div><div class='titleflex'><button id='gotoGlossOccurrenceButton' onclick='showOccurrenceClicked()'>Go to Occurrence</button><button id='glossusesclosebutton' class='wordtreeclosebutton' onclick='hideGlossUsesList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Gloss Occurrences</div><div class='titleflex'><button id='gotoGlossOccurrenceButton' onclick='showOccurrenceClicked()'>Go to Occurrence</button><button id='glossusesclosebutton' class='wordtreeclosebutton' onclick='hideGlossUsesList()'>✕</button></div>";
         w3.title.innerHTML = title;
 
         w3.onEnterActivate = showOccurrenceClicked;
@@ -847,7 +847,7 @@ function toggle_diacritic(str, pos, diacritic, unicodeMode) {
         updateLogWordTree = w4;
         w4.hideFunction = hideUpdateLogList;
 
-	    var title = "<div class='titletitle'>Update log</div><div class='titleflex'><button id='updatelogclosebutton' class='wordtreeclosebutton' onclick='hideUpdateLogList()'>X</button></div>";
+	    var title = "<div class='titletitle'>Update log</div><div class='titleflex'><button id='updatelogclosebutton' class='wordtreeclosebutton' onclick='hideUpdateLogList()'>✕</button></div>";
         w4.title.innerHTML = title;
 
         w4.onEnterActivate = null;
