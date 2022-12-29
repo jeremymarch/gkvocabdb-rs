@@ -651,6 +651,18 @@ BUTTON {
 </div>
 <div id="noclick"></div>
 <div id="snackbar"></div>
+<script type="module">
+    import { toggle, translit, strip_diacritics, default as init } from './hoplitekb_wasm_rs.js';
+
+    async function run() {
+        await init('./hoplitekb_wasm_rs_bg.wasm');
+        // make the functions available to the browser
+        window.toggle = toggle;
+        window.translit = translit;
+        window.strip_diacritics = strip_diacritics;
+    }
+    run();
+</script>
 <script>
     const TYPE_WORD = 0;
     const TYPE_PUNCTUATION = 1;
@@ -705,223 +717,52 @@ BUTTON {
       request.onerror = options.error;
     }
 
-function wasmSupported() {
-    try {
-        if (typeof WebAssembly === "object"
-            && typeof WebAssembly.instantiate === "function") {
-            const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
-            if (module instanceof WebAssembly.Module) {
-                console.log("WebAssembly is supported");
-                return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
-            }
-        }
-    } catch (e) {
-        return false;
-    }
-    console.log("WebAssembly is not supported");
-    return false;
-}
-
-    function loadWebAssembly(filename, imports) {
-      // Fetch the file and compile it
-        /*
-        const importObject = {
-          imports: {
-            imported_func: function(arg) {
-              console.log(arg);
-            }
-          }
-        };
-        */
-        if ( typeof(fetch) == "function" ) {
-            return fetch(filename)
-                .then(function(response){ return response.arrayBuffer()})
-                .then(function(buffer){ return WebAssembly.compile(buffer)})
-                .then(function(module){ return WebAssembly.instantiate(module)});
-        }
-        else {
-            return false;
-        }
-    }
-
 function stripDiacriticsLocal(origChars) {
-    
-    var len = origChars.length;
-    //add letter and any combining diacritics to the buffer as code points
-    for (var i = 0; i < len; i++) {
-        wasmBuffer[i] = origChars.codePointAt(i);
-    }
-
-    len = stripDiacritics2(wasmBuffer.byteOffset, len, 1);
-    //transform the returned code points back to a string
-    var newLetter = "";
-    for (var i = 0; i < len; i++) {
-        newLetter += String.fromCodePoint(wasmBuffer[i]);
-    }
-    return newLetter;
+    return strip_diacritics(origChars);
 }
 
-var wasmBuffer;
-var wasmBuffer1;
-var wasmBuffer2;
-var accentSyllableWASM;
-var stripDiacritics2;
-var compareWASM;
-
-try {
-loadWebAssembly('hoplitekb.wasm')
-  .then(function(instance) {
-    var exports = instance.exports;
-    accentSyllableWASM = exports.accentSyllable2;
-    stripDiacritics2 = exports.stripDiacritics;
-    compareWASM = exports.compare;
-    var memory = exports.memory;
-
-    wasmBuffer = new Uint16Array(memory.buffer, 0, 1024);
-    wasmBuffer1 = new Uint16Array(memory.buffer, 1024, 1024);
-    wasmBuffer2 = new Uint16Array(memory.buffer, 2048, 1024);
-    /*
-    // now we are ready, set up the button so the user can run the code
-    var button = document.getElementById('b');
-    button.value = 'Call a method in the WebAssembly module';
-    button.addEventListener('click', compareLocal);
-    */
-  },function(){console.log("error")}
-);
-} catch(e) { console.log(e.message)};
-
-var la = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
-var gr = ["α","β","ψ","δ","ε","φ","γ","η","ι","ξ","κ","λ","μ","ν","ο","π","","ρ","σ","τ","θ","ω","ς","χ","υ","ζ","Α","Β","Ψ","Δ","Ε","Φ","Γ","Η","Ι","Ξ","Κ","Λ","Μ","Ν","Ο","Π","","Ρ","Σ","Τ","Θ","Ω","Σ","Χ","Υ","Ζ"];
-var forceLowercase = false;
-function transliterate(char)
-{
-    var theChar = (forceLowercase) ? char.toLowerCase() : char;
-    var idx = la.indexOf(theChar);
-    if (idx > -1) {
-        return gr[idx];
-    }
-    else {
-        return char;
-    }
-}
-
-function accentSyllable(origChars, key) {
-    var len = origChars.length;
-    //add letter and any combining diacritics to the buffer as code points
-    for (var i = 0; i < len; i++) {
-        wasmBuffer[i] = origChars.codePointAt(i);
-    }
-
-    len = accentSyllableWASM(wasmBuffer.byteOffset, len, key, 1, parseInt(unicodeMode) );
-
-    //transform the returned code points back to a string
-    var newLetter = "";
-    for (var i = 0; i < len; i++) {
-        newLetter += String.fromCodePoint(wasmBuffer[i]);
-    }
-
-    //let win1251decoder = new TextDecoder('utf-16le');
-    return [len, newLetter];
-}
-
-var unicodeMode = 1; //pua
-function handleKey(evt) {
-    var val = this.value;
-    evt = evt || window.event;
-
-    if (typeof(accentSyllableWASM) != "function") {
-        return true;
-    }
-
-    var charCode = typeof(evt.which) == "number" ? evt.which : evt.keyCode;
-
-    if (charCode && charCode > 64 && charCode < 123) //letter
-    {
-        var start = this.selectionStart;
-        var end = this.selectionEnd;
-        var key = String.fromCharCode(charCode);
-
-        var mappedChar = transliterate(key);
-        var charsToReplace = 0;
-        this.value = val.slice(0, start - charsToReplace) + mappedChar + val.slice(end);
-        // Move the caret
-        this.selectionStart = this.selectionEnd = start + 1 - charsToReplace;
-        return false;
-    }
-    else if (charCode && charCode > /*47 blocking underdot here*/47 && charCode < 58) { //number: 0-9 are 48-57
-        var key = String.fromCharCode(charCode);
-        var hckey = 0;
-        switch( parseInt(key) ) {
-            case 1:
-                hckey = 5; //rough
-                break;
-            case 2:
-                hckey = 6; //smooth
-                break;
-            case 3:
-                hckey = 1; //acute
-                break;
-            case 4:
-                hckey = 3; //grave
-                break;
-            case 5:
-                hckey = 2; //circumflex
-                break;
-            case 6:
-                hckey = 4; //macron
-                break;
-            case 7:
-                hckey = 10; //breve
-                break;
-            case 8:
-                hckey = 7; //iota subscript
-                break;
-            case 9:
-                hckey = 9; //diaeresis
-                break;
-            case 0:
-                hckey = 11; //underdot
-                break;
+var unicodeMode = 2; //pua
+function toggle_diacritic(str, pos, diacritic, unicodeMode) {
+        if (pos < 0 || pos > str.length) {
+            return { str: str, pos: str.length };
         }
-        var start, end;
-        if (typeof(this.selectionStart) == "number" && typeof(this.selectionEnd) == "number") {
-            // Non-IE browsers and IE 9+
-            start = this.selectionStart;
-            end = this.selectionEnd;
+        const max_combining_chars = 10;
+        let replace_len = Math.min(max_combining_chars + 1, pos);
+        let s = str.slice(pos - replace_len, pos);
+        let res = toggle(s, parseInt(diacritic), false, parseInt(unicodeMode));
 
-            var combining = [0x0300, 0x0301, 0x0304, 0x0306, 0x0308, 0x0313, 0x0314, 0x0323, 0x0342, 0x0345];
-            var off = 1;
-            for (var i = start; i > -1; i--)
-            {
-                if (combining.indexOf(val.codePointAt(i - 1)) > -1) {
-                    off++;
-                }
-                else {
-                    break;
-                }
-            }
-            //0 pre
-            //1 pua
-            //2 comp
-            //unicodeMode = 1;//$("input:radio[name='unicodeMode']:checked").val();
+        let new_pos = (pos - replace_len) + res.length;
 
-            var ret = accentSyllable(val.slice(start - off, start), hckey.toString());
-            var newLetter = ret[1];
-            var charsToReplace = start - (start - off);
- 
-            if (ret[0] > 0 && newLetter != "")
-            {
-                //update the input/textarea
-                this.value = val.slice(0, start - charsToReplace) + newLetter + val.slice(end);
-                // Move the caret
-                this.selectionStart = this.selectionEnd = (start - charsToReplace) + ret[0];
-            }
-
-        } 
-        return false;
+        return { str: str.slice(0, pos - replace_len) + res + str.slice(pos), pos: new_pos };
     }
-    return true;
-}
+
+    //transliterate to greek and toggle diacritics using wasm function
+    function handleKey(e) {
+        if (typeof(this.selectionStart) == "number" && typeof(this.selectionEnd) == "number") {
+            let text = this.value;
+            let start = this.selectionStart;
+            let key = e.key;//.toLowerCase(); //force lower case
+            
+            if ( !isNaN( parseInt(key) ) ) {                
+                let res = toggle_diacritic(text, start, key, unicodeMode);
+                this.value = res.str;
+                this.selectionStart = this.selectionEnd = res.pos;
+                e.preventDefault();
+                return false;
+            }
+            else if (key.length == 1) { //len == 1 to exclude keys like "ENTER", etc.
+                let greek_letter = translit(key); //returns \0 if the character cannot be transliterated
+                if (greek_letter !== "\0") {
+                    let end = this.selectionEnd;            
+                    this.value = text.slice(0, start) + greek_letter + text.slice(end);
+                    this.selectionStart = this.selectionEnd = start + 1;
+                    e.preventDefault();
+                    return false;     
+                }
+            }
+        }
+        return true; // true allows most punctuation, etc. pass through
+    }
 
     var lemmaListWordTree = null;
     var textListWordTree = null;
@@ -954,8 +795,6 @@ function handleKey(evt) {
 
         $("#test1Entry").css("font-size", "14pt").addClass("gkinput");
         $(".gkinput").keypress(handleKey);
-
-
 
         var w2 = new wordtree("text", 480, $(document).height() - 38);
         w2.columnOffsets = [0,0,0,0];
@@ -2045,12 +1884,12 @@ function updateListWordByWordID(wid, lemma, pos, gloss, lemmaid, count, total, l
 
 function realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote)
 {
-    if (typeof(accentSyllableWASM) != "function") {
+    if (typeof(strip_diacritics) != "function") {
         console.log("Error: does not support editing: no wasm.");
         return;
     }
     var newLemmaStripped = stripDiacriticsLocal(newLemma);
-    console.log("stripped: " + newLemmaStripped);
+    console.log("stripped: " + newLemma + " : " + newLemmaStripped);
 
     var editOrInsert = "";
     var localEditHQID = 0;
