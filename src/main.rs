@@ -31,17 +31,18 @@ use actix_web::{
 };
 use actix_web::cookie::time::Duration;
 use actix_session::config::PersistentSession;
-const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 
 use std::io;
-
+use serde::{Deserialize, Serialize};
+use chrono::prelude::*;
+//use std::time::{SystemTime, UNIX_EPOCH};
 //use mime;
-
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use std::str::FromStr;
 
 use crate::gkvocab::*;
+use crate::db::*;
 
 mod hqvocab;
 mod gkvocab;
@@ -49,11 +50,8 @@ mod db;
 mod export_text;
 mod import_text_xml;
 mod login;
-use crate::db::*;
-use serde::{Deserialize, Serialize};
-extern crate chrono;
-use chrono::prelude::*;
-//use std::time::{SystemTime, UNIX_EPOCH};
+
+const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 
 //https://stackoverflow.com/questions/64348528/how-can-i-pass-multi-variable-by-actix-web-appdata
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
@@ -500,7 +498,7 @@ async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    //e.g. export GKVOCABDB_DB_PATH=sqlite://db.sqlite?mode=rwc
+    //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc
     let db_path = std::env::var("GKVOCABDB_DB_PATH").unwrap_or_else(|_| {
         panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
     });

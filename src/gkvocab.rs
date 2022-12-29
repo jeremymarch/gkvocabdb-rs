@@ -429,11 +429,11 @@ pub async fn gkv_get_text_words(db:&SqlitePool, info:&QueryRequest, selected_wor
             .map_err(map_sqlx_error)?,
     };
 
-    let w = get_words(db, text_id, course_id)
+    let w = db::get_words(db, text_id, course_id)
         .await
         .map_err(map_sqlx_error)?;
 
-    let text_name = get_text_name(db, text_id)
+    let text_name = db::get_text_name(db, text_id)
         .await
         .map_err(map_sqlx_error)?;
 
