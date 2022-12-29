@@ -58,7 +58,7 @@ pub async fn import(db:&SqlitePool, course_id: u32, info:&ConnectionInfo, title:
     match import_text_xml::process_imported_text(xml_string).await {
         Ok(words) => {
             if !words.is_empty() && !title.is_empty() {
-                let affected_rows = add_text(
+                let affected_rows = db::add_text(
                     db,
                     course_id,
                     title,

@@ -50,8 +50,6 @@ pub struct WordRow {
     pub word_type: u8,
     #[serde(rename(serialize = "l"), rename(deserialize = "l"))]
     pub lemma: String,
-    #[serde(rename(serialize = "l1"), rename(deserialize = "l1"))]
-    pub lemma1: String,
     pub def: String,
     #[serde(rename(serialize = "u"), rename(deserialize = "u"))]
     pub unit: u8,
@@ -390,7 +388,7 @@ pub async fn set_gloss_id(
     let query = format!("WITH gloss_total AS (
         SELECT gloss_id, COUNT(gloss_id) AS total_count
         FROM words a2
-        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {course_id}
+        INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {course_id}
         GROUP BY gloss_id
     )
     SELECT B.gloss_id, B.lemma, B.pos, B.def, total_count, A.seq, A.word_id, \
@@ -401,8 +399,8 @@ pub async fn set_gloss_id(
   LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
   LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
   LEFT JOIN words E ON E.word_id = D.word_id \
-  LEFT JOIN course_x_text F ON (E.text = F.text_id AND F.course_id = {course_id}) \
-  LEFT JOIN course_x_text G ON (A.text = G.text_id AND G.course_id = {course_id}) \
+  LEFT JOIN course_x_text F ON (E.text_id = F.text_id AND F.course_id = {course_id}) \
+  LEFT JOIN course_x_text G ON (A.text_id = G.text_id AND G.course_id = {course_id}) \
   LEFT JOIN gloss_total ON A.gloss_id = gloss_total.gloss_id \
   WHERE A.gloss_id = {gloss_id} AND A.type > -1 \
   ORDER BY G.text_order,A.seq \
@@ -471,10 +469,9 @@ pub async fn add_text(
 
     let mut seq: u32 = 1;
 
-    let query = "INSERT INTO words (word_id, seq, text, section, line, word, gloss_id, \
-    lemma1, lemma2, o, runningcount, type, arrow, flagged, updated, \
-    updatedUserAgent, updatedIP, updatedUser, isFlagged, note) \
-    VALUES (NULL, ?, ?, '', '', ?, ?, '', '', '', 0, ?, 0, 0, ?, ?, ?, ?, 0, '');";
+    let query = "INSERT INTO words (word_id, seq, text_id, word, gloss_id, \
+    type, updated, updatedUser, isFlagged, note) \
+    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0, '');";
     let mut count = 0;
     let mut gloss_ids:HashSet<u32> = HashSet::new();
     for w in words {
@@ -485,8 +482,6 @@ pub async fn add_text(
             .bind(w.gloss_id)
             .bind(w.word_type)
             .bind(info.timestamp)
-            .bind(&info.user_agent)
-            .bind(&info.ip_address)
             .bind(info.user_id)
             .execute(&mut tx)
             .await?;
@@ -548,10 +543,9 @@ pub async fn insert_gloss(
 ) -> Result<(i64,u64), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    let query = "INSERT INTO glosses (gloss_id, seqold, seq, unit, lemma, lemma2, sortalpha, sortkey, \
-    present, future, aorist, perfect, perfectmid, aoristpass, def, pos, link, freq, note, verbClass, \
-    updated, arrowedDay, arrowedID, pageLine, parentid, status, updatedUserAgent, updatedIP, updatedUser) \
-    VALUES (NULL, 0, 0, 0, ?, '', ?, '', '', '', '', '', '', '', ?, ?, '', 0, ?, 0, ?, 0, NULL, '', NULL, 1, ?, ?, ?);";
+    let query = "INSERT INTO glosses (gloss_id, unit, lemma, sortalpha, \
+    def, pos, note, updated, status, updatedUser) \
+    VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, 1, ?);";
 
     //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
     let sl = stripped_lemma
@@ -567,8 +561,6 @@ pub async fn insert_gloss(
         .bind(pos)
         .bind(note)
         .bind(info.timestamp)
-        .bind(&info.user_agent)
-        .bind(&info.ip_address)
         .bind(info.user_id)
         .execute(&mut tx)
         .await?;
@@ -703,8 +695,6 @@ pub async fn update_gloss(
     pos = ?, \
     note = ?, \
     updated = ?, \
-    updatedUserAgent = ?, \
-    updatedIP = ?, \
     updatedUser = ? \
     WHERE gloss_id = ?;";
 
@@ -715,8 +705,6 @@ pub async fn update_gloss(
         .bind(pos)
         .bind(note)
         .bind(info.timestamp)
-        .bind(&info.user_agent)
-        .bind(&info.ip_address)
         .bind(info.user_id)
         .bind(gloss_id)
         .execute(&mut tx)
@@ -831,17 +819,17 @@ pub async fn get_words(
     let query = format!("WITH gloss_basis AS (
         SELECT gloss_id, COUNT(gloss_id) AS running_basis
         FROM words a1
-        INNER JOIN course_x_text b1 ON a1.text = b1.text_id AND course_id = {course_id}
+        INNER JOIN course_x_text b1 ON a1.text_id = b1.text_id AND course_id = {course_id}
         WHERE text_order < (SELECT text_order FROM course_x_text WHERE course_id = {course_id} AND text_id = {text_id})
         GROUP BY gloss_id
     ),
     gloss_total AS (
         SELECT gloss_id, COUNT(gloss_id) AS total_count
         FROM words a2
-        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {course_id}
+        INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {course_id}
         GROUP BY gloss_id
     )
-    SELECT a.word_id,a.word,a.type,b.lemma,a.lemma1,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
     a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, total_count, 
     COUNT(a.gloss_id) OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
     + IFNULL(running_basis,0) AS running_count 
@@ -849,11 +837,11 @@ pub async fn get_words(
     LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
     LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
     LEFT JOIN words e ON e.word_id = d.word_id  
-    LEFT JOIN course_x_text f ON (e.text = f.text_id AND f.course_id = {course_id})
+    LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
     LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
     LEFT JOIN gloss_basis ON a.gloss_id = gloss_basis.gloss_id
     LEFT JOIN gloss_total ON a.gloss_id = gloss_total.gloss_id
-    WHERE a.text={text_id} AND a.type > -1
+    WHERE a.text_id={text_id} AND a.type > -1
     ORDER BY a.seq
     LIMIT 55000;", text_id = text_id, course_id = course_id);
 
@@ -863,7 +851,6 @@ pub async fn get_words(
             word: rec.get("word"),
             word_type: rec.get("type"),
             lemma: rec.get("lemma"),
-            lemma1: rec.get("lemma1"),
             def: rec.get("def"),
             unit: rec.get("unit"),
             pos: rec.get("pos"),
@@ -1011,7 +998,6 @@ pub async fn get_texts_db(
     pool: &SqlitePool,
     course_id: u32,
 ) -> Result<Vec<AssignmentRow>, sqlx::Error> {
-    //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
     let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id \
     FROM texts A \
     INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = ?) \
@@ -1099,8 +1085,8 @@ pub async fn get_gloss_occurrences(
 ) -> Result<Vec<GlossOccurrence>, sqlx::Error> {
     let query = "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
     FROM words a \
-    INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = ?) \
-    INNER JOIN texts c ON a.text = c.text_id \
+    INNER JOIN course_x_text b ON (a.text_id = b.text_id AND b.course_id = ?) \
+    INNER JOIN texts c ON a.text_id = c.text_id \
     INNER JOIN glosses e ON e.gloss_id = a.gloss_id \
     LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
     WHERE a.gloss_id = ? \
@@ -1187,7 +1173,7 @@ pub async fn get_before(
     let query = format!("WITH gloss_total AS (
         SELECT gloss_id, COUNT(gloss_id) AS total_count
         FROM words a2
-        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {}
+        INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {}
         GROUP BY gloss_id
     )
     SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", course_id, searchprefix, -page * limit as i32, limit);
@@ -1216,7 +1202,7 @@ pub async fn get_equal_and_after(
     let query = format!("WITH gloss_total AS (
         SELECT gloss_id, COUNT(gloss_id) AS total_count
         FROM words a2
-        INNER JOIN course_x_text b2 ON a2.text = b2.text_id AND course_id = {}
+        INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {}
         GROUP BY gloss_id
     )
     SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", course_id, searchprefix, page * limit as i32, limit);
@@ -1261,29 +1247,28 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
         /*CREATE TABLE sqlite_sequence(name,seq);*/
         CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id));
-        CREATE TABLE IF NOT EXISTS glosses (gloss_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seqold integer NOT NULL DEFAULT 0, seq integer NOT NULL DEFAULT 0, unit integer NOT NULL, lemma varchar (256) NOT NULL, lemma2 varchar (255) NOT NULL DEFAULT '', sortalpha varchar (255) NOT NULL DEFAULT '', sortkey varchar (255) NOT NULL, present varchar (256) NOT NULL, future varchar (256) NOT NULL, aorist varchar (256) NOT NULL, perfect varchar (256) NOT NULL, perfectmid varchar (256) NOT NULL, aoristpass varchar (256) NOT NULL, def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, link varchar (256) NOT NULL, freq integer NOT NULL, note varchar (256) NOT NULL, verbClass integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, arrowedDay integer DEFAULT NULL, arrowedID integer DEFAULT NULL, pageLine varchar (255) DEFAULT NULL, parentid integer DEFAULT NULL, status integer NOT NULL DEFAULT 1, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS assignments (id integer NOT NULL PRIMARY KEY AUTOINCREMENT, sort integer NOT NULL, title varchar (255) NOT NULL, start integer NOT NULL, "end" integer NOT NULL, wordcount integer DEFAULT NULL);
+        CREATE TABLE IF NOT EXISTS glosses (gloss_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER NOT NULL REFERENCES words (word_id), updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text, PRIMARY KEY (course_id, gloss_id, word_id));
         CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text);
         CREATE TABLE IF NOT EXISTS appcrit (word_id integer NOT NULL, entry varchar (1024) DEFAULT NULL, PRIMARY KEY (word_id));
-        CREATE TABLE IF NOT EXISTS words (word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL, arrow integer NOT NULL DEFAULT 0, flagged integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, gloss_id integer NOT NULL, seqold integer NOT NULL DEFAULT 0, seq integer NOT NULL DEFAULT 0, unit integer NOT NULL, lemma varchar (256) NOT NULL, lemma2 varchar (255) NOT NULL DEFAULT '', sortalpha varchar (255) NOT NULL DEFAULT '', sortkey varchar (255) NOT NULL, present varchar (256) NOT NULL, future varchar (256) NOT NULL, aorist varchar (256) NOT NULL, perfect varchar (256) NOT NULL, perfectmid varchar (256) NOT NULL, aoristpass varchar (256) NOT NULL, def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, link varchar (256) NOT NULL, freq integer NOT NULL, note varchar (256) NOT NULL, verbClass integer NOT NULL DEFAULT 0, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, arrowedDay integer DEFAULT NULL, arrowedID integer DEFAULT NULL, pageLine varchar (255) DEFAULT NULL, parentid integer DEFAULT NULL, status integer NOT NULL DEFAULT 1, updatedUserAgent varchar (255) NOT NULL DEFAULT '', updatedIP varchar (255) NOT NULL DEFAULT '', updatedUser varchar (255) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS words (word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text_id integer NOT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), type integer DEFAULT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), type integer DEFAULT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, gloss_id integer NOT NULL, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type text NOT NULL);
         CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, parent_id integer references texts (text_id) default null, display integer default 1);
         CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
         CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT "81237698562398", email TEXT);
         CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
-        CREATE INDEX IF NOT EXISTS idx_hqvocab_parentididx ON glosses (parentid);
-        CREATE INDEX IF NOT EXISTS idx_hqvocab_seq ON glosses (seqold);
+        /*CREATE INDEX IF NOT EXISTS idx_hqvocab_parentididx ON glosses (parentid);*/
+        /*CREATE INDEX IF NOT EXISTS idx_hqvocab_seq ON glosses (seqold);*/
         CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
-        CREATE INDEX IF NOT EXISTS idx_hqvocab_sortkey ON glosses (sortkey);
+        /*CREATE INDEX IF NOT EXISTS idx_hqvocab_sortkey ON glosses (sortkey);*/
         CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);
         CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (course_id, gloss_id);
-        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemma1 ON words (lemma1);
+        /*CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemma1 ON words (lemma1);*/
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemmaid ON words (gloss_id);
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_seq ON words (seq);
-        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text);
+        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);
         "#;
 
     let _res = sqlx::query(query)
