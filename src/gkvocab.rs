@@ -670,6 +670,121 @@ mod tests {
         import_text_xml::import(db, course_id, user_info, title, xml_string).await
     }
 
+    use sqlx::Row;
+    #[actix_rt::test]
+    async fn move_text() {
+        let (db, _user_info) = set_up().await;
+        let course_id = 1;
+
+        let query = "INSERT INTO texts (text_id, name, parent_id, display) VALUES (?, ?, ?, 1);";
+        let parent_id:Option<i32> = None;
+        let _ = sqlx::query(query)
+            .bind(1)
+            .bind("parent1")
+            .bind(parent_id)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query)
+            .bind(2)
+            .bind("child1ofp1")
+            .bind(1)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query)
+            .bind(3)
+            .bind("child2ofp1")
+            .bind(1)
+            .execute(&db)
+            .await;
+
+        let _ = sqlx::query(query)
+            .bind(4)
+            .bind("parent2")
+            .bind(parent_id)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query)
+            .bind(5)
+            .bind("child1ofp2")
+            .bind(2)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query)
+            .bind(6)
+            .bind("child2ofp2")
+            .bind(2)
+            .execute(&db)
+            .await;
+
+
+        let query2 = "INSERT INTO course_x_text (course_id, text_id, text_order) VALUES (?, ?, ?);";
+        let _ = sqlx::query(query2)
+            .bind(course_id)
+            .bind(1)
+            .bind(1)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query2)
+            .bind(course_id)
+            .bind(2)
+            .bind(2)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query2)
+            .bind(course_id)
+            .bind(3)
+            .bind(3)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query2)
+            .bind(course_id)
+            .bind(4)
+            .bind(4)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query2)
+            .bind(course_id)
+            .bind(5)
+            .bind(5)
+            .execute(&db)
+            .await;
+        let _ = sqlx::query(query2)
+            .bind(course_id)
+            .bind(6)
+            .bind(6)
+            .execute(&db)
+            .await;
+
+        let query3 = "SELECT text_id FROM course_x_text ORDER BY text_order ASC;";
+        let rows:Result<Vec<i32>, sqlx::Error> = sqlx::query_scalar(query3)
+            .fetch_all(&db)
+            .await;
+
+            
+        let res = update_text_order_db(&db, course_id, 1, 1).await;
+        if !res.is_ok() {
+            println!("error: {:?}", res);
+        }
+        assert!(res.is_ok());
+        let rows:Result<Vec<i32>, sqlx::Error> = sqlx::query_scalar(query3)
+            .fetch_all(&db)
+            .await;
+        assert_eq!(vec![4,5,6,1,2,3], rows.unwrap());
+
+
+
+
+        let res = update_text_order_db(&db, course_id, 1, -1).await;
+        if !res.is_ok() {
+            println!("error: {:?}", res);
+        }
+        assert!(res.is_ok());
+        let rows:Result<Vec<i32>, sqlx::Error> = sqlx::query_scalar(query3)
+            .fetch_all(&db)
+            .await;
+        assert_eq!(vec![1,2,3,4,5,6], rows.unwrap());
+    }
+
     #[actix_rt::test]
     async fn import_basic_text() {
         let (db, user_info) = set_up().await;

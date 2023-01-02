@@ -955,16 +955,44 @@ pub async fn update_text_order_db(
         container_id
         text_id
 
+    SELECT container_id FROM containers_x_text WHERE text_id = ?
+    SELECT COUNT(*) FROM containers_x_text WHERE container_id = ?
+
     container moving down: container and its children get + 1, following text gets - 1 or following container + children get -1
+        range of ids to update; plus offset for where we need to make space
     container moving up: container and its children get - 1, text above gets + num_children + 1
+
     text where moving is child and moving up?
     */
 
     let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
-    let text_order: (i32,) = sqlx::query_as(query)
+    let text_order: i32 = sqlx::query_scalar(query)
         .bind(course_id)
         .bind(text_id)
         .fetch_one(pool).await?;
+
+    let query = "SELECT COUNT(*) FROM texts WHERE parent_id = ?;";
+    let own_children: i32 = sqlx::query_scalar(query)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    if step > 0 {
+        let query = "SELECT COUNT(*) FROM texts WHERE parent_id = (SELECT text_id FROM course_x_text WHERE text_order = ? AND course_id = ?);";
+    }
+    else if step < 0 {
+        let query = "SELECT COUNT(*) FROM texts WHERE parent_id = (SELECT parent_id FROM course_x_text WHERE text_order = ? AND course_id = ?);";
+    }
+    
+    let target_children: i32 = sqlx::query_scalar(&query)
+        .bind(text_order + step)
+        .bind(course_id)
+        .fetch_one(pool).await?;
+
+    assert_eq!(2, own_children);
+    assert_eq!(2, target_children);
+
+    //let own_children = 2;
+    //let target_children = 2;
 
     let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
     let text_count: (i32,) = sqlx::query_as(query)
@@ -972,36 +1000,42 @@ pub async fn update_text_order_db(
         .bind(text_id)
         .fetch_one(pool).await?;
 
-    if step == 0 || (text_order.0 + step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
+    if step == 0 || (text_order + step < 1 && step < 0) || (text_order + step > text_count && step > 0) {
         return Err(sqlx::Error::RowNotFound); //at no where to move: abort
     }
-    else if step > 0 { //make room by moving other texts up/earlier in sequence
-        let query = "UPDATE course_x_text SET text_order = text_order - 1 \
-            WHERE text_order > ? AND text_order < ? + ? + 1 AND course_id = ?;";
+    else if step > 0 { //move down: make room by moving other texts up/earlier in sequence
+        let query = "UPDATE course_x_text SET text_order = text_order - 1 - ? \
+            WHERE text_order > ? AND text_order < ? + ? + 1 + ? AND course_id = ?;";
         sqlx::query(query)
-        .bind(text_order.0)
-        .bind(text_order.0)
+        .bind(own_children)
+        .bind(text_order + own_children) //3
+        .bind(text_order + own_children + target_children) //
         .bind(step)
+        .bind(target_children)
         .bind(course_id)
         .execute(&mut tx)
         .await?;
     }
-    else { //make room by moving other texts down/later in sequence
-        let query = "UPDATE course_x_text SET text_order = text_order + 1 \
-            WHERE text_order < ? AND text_order > ? + ? - 1 AND course_id = ?;";
+    else { //move up: make room by moving other texts down/later in sequence
+        let query = "UPDATE course_x_text SET text_order = text_order + 1 + ? \
+            WHERE text_order < ? AND text_order > ? - ? - 1 + ? AND course_id = ?;";
         sqlx::query(query)
-        .bind(text_order.0)
-        .bind(text_order.0)
+        .bind(own_children)
+        .bind(text_order)
+        .bind(text_order)
+        .bind(target_children)
         .bind(step) //step will be negative here
         .bind(course_id)
         .execute(&mut tx)
         .await?;
     }
     //set new text order
-    let query = "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
+    let query = "UPDATE course_x_text SET text_order = text_order + ? + ? WHERE course_id = ? AND text_id IN (SELECT text_id FROM texts WHERE (parent_id = ?) OR (text_id = ?));";
     sqlx::query(query)
         .bind(step)
+        .bind(target_children * if step > 0 { 1 } else { -1 })
         .bind(course_id)
+        .bind(text_id)
         .bind(text_id)
         .execute(&mut tx)
         .await?;
@@ -1077,7 +1111,7 @@ pub async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), 
 */
 
 pub async fn get_glossdb(pool: &SqlitePool, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
-    let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
+    let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ?;";
 
     sqlx::query(query)
         .bind(gloss_id)
