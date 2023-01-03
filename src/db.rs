@@ -69,6 +69,7 @@ pub struct WordRow {
     pub is_flagged: bool,
     pub word_text_seq: u32,
     pub arrowed_text_seq: Option<u32>,
+    pub sort_alpha:String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
@@ -792,6 +793,56 @@ pub async fn num_child_texts(pool: &SqlitePool, text_id: u32) -> Result<u32, sql
     Ok(rec.0)
 }
 
+pub async fn get_words_for_export(
+    pool: &SqlitePool,
+    text_id: u32,
+    course_id: u32,
+) -> Result<Vec<WordRow>, sqlx::Error> {
+    //do not get words of whole text, if text is split into assignments
+    let children = num_child_texts(pool, text_id).await?;
+    if children > 0 {
+        return Ok(vec![]);
+    }
+
+    let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
+    b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order
+    FROM words a 
+    LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
+    LEFT JOIN words e ON e.word_id = d.word_id  
+    LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
+    LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
+    WHERE a.text_id={text_id} AND a.type > -1
+    ORDER BY a.seq
+    LIMIT 55000;", text_id = text_id, course_id = course_id);
+
+    let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
+        .map(|rec: SqliteRow| WordRow {
+            wordid: rec.get("word_id"),
+            word: rec.get("word"),
+            word_type: rec.get("type"),
+            lemma: rec.get("lemma"),
+            def: rec.get("def"),
+            unit: rec.get("unit"),
+            pos: rec.get("pos"),
+            arrowed_id: rec.get("arrowedID"),
+            hqid: rec.get("gloss_id"),
+            seq: rec.get("seq"),
+            arrowed_seq: rec.get("arrowedSeq"),
+            freq: 0,
+            runningcount: 0,
+            is_flagged: rec.get("isFlagged"),
+            word_text_seq: rec.get("text_order"),
+            arrowed_text_seq: rec.get("arrowed_text_order"),
+            sort_alpha: rec.get("sortalpha"),
+        })
+        .fetch_all(pool)
+        .await;
+
+    res
+}
+
 /*
 *update get_words to not look for parent_id (just use text_id)
 update db:
@@ -829,7 +880,7 @@ pub async fn get_words(
         INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {course_id}
         GROUP BY gloss_id
     )
-    SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.unit,b.pos,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
+    SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.unit,b.pos,b.sortalpha,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
     a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, total_count, 
     COUNT(a.gloss_id) OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
     + IFNULL(running_basis,0) AS running_count 
@@ -863,6 +914,7 @@ pub async fn get_words(
             is_flagged: rec.get("isFlagged"),
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
+            sort_alpha: rec.get("sortalpha"),
         })
         .fetch_all(pool)
         .await;
