@@ -19,7 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
 use std::collections::HashMap;
-//use actix_web::http::header::{ContentDisposition, ContentType};
+
+use actix_web::http::header::{
+    ContentDisposition, DispositionParam, DispositionType,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
 struct Gloss {
@@ -75,7 +78,26 @@ pub async fn export_text(
                         res.push_str(format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str());
                     },
                     WordType::Section => { //4
-                        res.push_str(&word); //fixSubsection(word);
+
+                        // function fixSubsection($a) {
+
+                        //     $r = str_replace("[section]", "", $a);
+                        //     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
+                        //         if ($matches[2][0] == "1") {
+                        //             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
+                        //         }
+                        //         else {
+                        //             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
+                        //         }		
+                        //         return $r;
+                        //     }
+                        //     else { 
+                        //         return "%StartSubSection%" . $r . "%EndSubSection%";
+                        //     }
+                        // }
+
+                        //fixSubsection(word);
+                        res.push_str(format!("%StartSubSection%{}%EndSubSection%", word).as_str());
                         if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent { //-1 || 6
                             prev_non_space = true;
                         }
@@ -157,11 +179,16 @@ pub async fn export_text(
         }
         latex.push_str("\\end{document}\n");
 
-        //https://www.reddit.com/r/rust/comments/xzrznn/comment/irojs9f/?utm_source=share&utm_medium=web2x&context=3
-        //let filename = "export.tex";
+        let filename = "glosser_export.tex";
+        let cd_header = ContentDisposition {
+            disposition: DispositionType::Attachment,
+            parameters: vec![
+                DispositionParam::Filename(String::from(filename)),
+            ],
+        };
         Ok(HttpResponse::Ok()
             .content_type("application/x-latex")
-            //.insert_header(ContentDisposition::Attachment(filename))
+            .insert_header(cd_header)
             .body(latex))
     } else {
         let res = ImportResponse {
