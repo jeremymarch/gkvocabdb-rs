@@ -38,123 +38,131 @@ pub async fn export_text(
     let course_id = 1;
 
     if let Some(_user_id) = login::get_user_id(session) {
-        let template = include_str!("latex/doc_template.tex");
-        let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
+        let mut latex:String = include_str!("latex/doc_template.tex")
+            .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-        let text_id = info.textid;
+        //let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-        let words = get_words_for_export(db, text_id, course_id).await.map_err(map_sqlx_error)?;
+        let texts:Vec<u32> = vec![info.textid];
 
-        let mut title = String::from("");
-        let mut header = String::from("");
-        let mut prev_non_space = true;
-        let mut last_type = WordType::InvalidType;
-        //let verse_line_start = false;
-        //let mut last_word_id:i64 = -1;
-        //let mut last_seq:i64 = -1;
-        let mut glosses: HashMap<u32, Gloss> = HashMap::new();
+        for text_id in texts {
+            let mut res = String::from("");
 
-        for w in words {
-            
-            let word = w.word.trim().to_string();
+            let words = get_words_for_export(db, text_id, course_id).await.map_err(map_sqlx_error)?;
 
-            match WordType::from_i32(w.word_type.into()) {
-                WordType::WorkTitle => { //7
-                    title = word;
-                    header = title.clone();
-                },
-                WordType::Speaker => { //2
-                    res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str()); 
-                },
-                WordType::InlineSpeaker => { //9
-                    res.push_str(format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str());
-                },
-                WordType::Section => { //4
-                    res.push_str(&word); //fixSubsection(word);
-                    if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent { //-1 || 6
+            let mut title = String::from("");
+            let mut header = String::from("");
+            let mut prev_non_space = true;
+            let mut last_type = WordType::InvalidType;
+            //let verse_line_start = false;
+            //let mut last_word_id:i64 = -1;
+            //let mut last_seq:i64 = -1;
+            let mut glosses: HashMap<u32, Gloss> = HashMap::new();
+
+            for w in words {
+                
+                let word = w.word.trim().to_string();
+
+                match WordType::from_i32(w.word_type.into()) {
+                    WordType::WorkTitle => { //7
+                        title = word;
+                        header = title.clone();
+                    },
+                    WordType::Speaker => { //2
+                        res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str()); 
+                    },
+                    WordType::InlineSpeaker => { //9
+                        res.push_str(format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str());
+                    },
+                    WordType::Section => { //4
+                        res.push_str(&word); //fixSubsection(word);
+                        if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent { //-1 || 6
+                            prev_non_space = true;
+                        }
+                        else {
+                            prev_non_space = false;
+                        }
+                    },
+                    WordType::ParaWithIndent => { //6
+                        res.push_str("%para%");
+                        prev_non_space = true;
+                    },
+                    WordType::ParaNoIndent => { //10
+                        res.push_str("%parnoindent%");
+                        prev_non_space = true;
+                    },
+                    WordType::Word | WordType::Punctuation => { //0 | 1
+                        let punc = vec![".", ",", "·", "·", ";", ";", ">", "]" ,")", ",\"", "·\"", "·\"", ".’"];
+
+                        res.push_str(format!("{}{}", if punc.contains(&word.as_str()) || prev_non_space { "" } else { " " }, word).as_str()); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
+                    },
+                    WordType::VerseLine => { //5
+                        //need to skip "[line]" prefix
+                        res.push_str(format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str());
                         prev_non_space = true;
                     }
-                    else {
-                        prev_non_space = false;
+                    _ => (),
+                }
+                //last_seq = w.seq as i64;
+                //last_word_id = w.wordid as i64;
+
+                if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
+    
+                    // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
+                    //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
+                    //     continue; //skip
+                    // }
+                    // else if ((int)$row["seq"] == (int)$row["arrowedSeq"]) {
+                    //     $g->arrow = TRUE;
+                    //     $arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
+                    // }
+                    // else {
+                    //     $g->arrow = FALSE;
+                    // }
+
+                    let is_arrowed;
+                    if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
+                        
+                        is_arrowed = true; //this instance is arrowed
                     }
-                },
-                WordType::ParaWithIndent => { //6
-                    res.push_str("%para%");
-                    prev_non_space = true;
-                },
-                WordType::ParaNoIndent => { //10
-                    res.push_str("%parnoindent%");
-                    prev_non_space = true;
-                },
-                WordType::Word | WordType::Punctuation => { //0 | 1
-                    let punc = vec![".", ",", "·", "·", ";", ";", ">", "]" ,")", ",\"", "·\"", "·\"", ".’"];
+                    else if (w.arrowed_text_seq.is_some() && w.arrowed_text_seq < Some(w.word_text_seq)) || 
+                        (w.arrowed_text_seq.is_some() && w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq.is_some() && 
+                        w.arrowed_seq < Some(w.seq)) {
+                            //word was already arrowed, so hide it here
+                            continue;
+                    }
+                    else {
+                        //show word, not yet arrowed
+                        is_arrowed = false;
+                    }
 
-                    res.push_str(format!("{}{}", if punc.contains(&word.as_str()) || prev_non_space { "" } else { " " }, word).as_str()); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
-                },
-                WordType::VerseLine => { //5
-                    //need to skip "[line]" prefix
-                    res.push_str(format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str());
-                    prev_non_space = true;
+                    let gloss = Gloss {
+                        id:w.hqid,
+                        lemma:w.lemma,
+                        def:w.def,
+                        sort_alpha:w.sort_alpha,
+                        arrow:is_arrowed,
+                    };
+                    glosses.insert(w.hqid, gloss);
                 }
-                _ => (),
+                
+                last_type = WordType::from_i32(w.word_type.into());
             }
-            //last_seq = w.seq as i64;
-    	    //last_word_id = w.wordid as i64;
+            let mut sorted_glosses:Vec<Gloss> = glosses.values().cloned().collect();
+            sorted_glosses.sort_by(|a, b| a.sort_alpha.cmp(&b.sort_alpha));
 
-            if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
- 
-                // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
-                //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
-                //     continue; //skip
-                // }
-                // else if ((int)$row["seq"] == (int)$row["arrowedSeq"]) {
-                //     $g->arrow = TRUE;
-                //     $arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
-                // }
-                // else {
-                //     $g->arrow = FALSE;
-                // }
+            latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header);
 
-                let is_arrowed;
-                if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
-                    
-                    is_arrowed = true; //this instance is arrowed
-                }
-                else if (w.arrowed_text_seq.is_some() && w.arrowed_text_seq < Some(w.word_text_seq)) || 
-                    (w.arrowed_text_seq.is_some() && w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq.is_some() && 
-                    w.arrowed_seq < Some(w.seq)) {
-                        //word was already arrowed, so hide it here
-                        continue;
-                }
-                else {
-                    //show word, not yet arrowed
-                    is_arrowed = false;
-                }
 
-                let gloss = Gloss {
-                    id:w.hqid,
-                    lemma:w.lemma,
-                    def:w.def,
-                    sort_alpha:w.sort_alpha,
-                    arrow:is_arrowed,
-                };
-                glosses.insert(w.hqid, gloss);
-            }
-            
-            last_type = WordType::from_i32(w.word_type.into());
         }
-        let mut sorted_glosses:Vec<Gloss> = glosses.values().cloned().collect();
-        sorted_glosses.sort_by(|a, b| a.sort_alpha.cmp(&b.sort_alpha));
-
-        let mut res = apply_latex_templates(&title, &mut res, &sorted_glosses, &header);
-        res.push_str("\\end{document}\n");
+        latex.push_str("\\end{document}\n");
 
         //https://www.reddit.com/r/rust/comments/xzrznn/comment/irojs9f/?utm_source=share&utm_medium=web2x&context=3
         //let filename = "export.tex";
         Ok(HttpResponse::Ok()
             .content_type("application/x-latex")
             //.insert_header(ContentDisposition::Attachment(filename))
-            .body(res))
+            .body(latex))
     } else {
         let res = ImportResponse {
             success: false,
@@ -165,8 +173,8 @@ pub async fn export_text(
     }
 }
 
-fn apply_latex_templates(title:&str, text:&mut String, glosses:&Vec<Gloss>, header:&str) -> String {
-    let mut latex = String::from("");
+fn apply_latex_templates(latex:&mut String, title:&str, text:&mut String, glosses:&Vec<Gloss>, header:&str) -> String {
+    //let mut latex = String::from("");
     
     latex.push_str("\\newpage\n");
 
@@ -220,7 +228,7 @@ fn apply_latex_templates(title:&str, text:&mut String, glosses:&Vec<Gloss>, head
     latex.push_str("\\begin{table}[b!]\\leftskip -0.84cm\n");
     latex.push_str("\\begin{tabular}{ m{0.2cm} L{3.25in} D{3.1in} }\n");
     for g in glosses {
-        let arrow = if g.arrow { "\textbf{→}" } else { "" };
+        let arrow = if g.arrow { "\\textbf{→}" } else { "" };
         let mut lemma = g.lemma.replace('\\', "\\textbackslash");
         lemma = lemma.replace('&', "\\&");
         
@@ -229,7 +237,7 @@ fn apply_latex_templates(title:&str, text:&mut String, glosses:&Vec<Gloss>, head
         let mut def = g.def.replace('\\', "\\textbackslash");
         def = def.replace('&', "\\&");
         
-        def = def.replace("<i>", "\textit{");
+        def = def.replace("<i>", "\\textit{");
         def = def.replace("</i>", "}");
 
         latex.push_str(format!("{} & {} & {} \\\\\n", arrow, lemma, def).as_str());
@@ -238,8 +246,8 @@ fn apply_latex_templates(title:&str, text:&mut String, glosses:&Vec<Gloss>, head
     latex.push_str("\\end{tabular}\n");
     latex.push_str("\\end{table}\n");
 
-    latex = latex.replace(r"& Α´", "Α´");//hack to fix two type 2s together, lines 866
-    latex = latex.replace(r"& Β´", "Β´");//hack to fix two type 2s together, lines 872
+    *latex = latex.replace(r"& Α´", "Α´");//hack to fix two type 2s together, lines 866
+    *latex = latex.replace(r"& Β´", "Β´");//hack to fix two type 2s together, lines 872
 
-    latex
+    latex.to_string()
 }
