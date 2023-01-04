@@ -44,8 +44,6 @@ pub async fn export_text(
         let mut latex:String = include_str!("latex/doc_template.tex")
             .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-        //let mut res = template.replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
-
         let texts:Vec<u32> = vec![info.textid];
 
         for text_id in texts {
@@ -117,6 +115,13 @@ pub async fn export_text(
                         let punc = vec![".", ",", "·", "·", ";", ";", ">", "]" ,")", ",\"", "·\"", "·\"", ".’"];
 
                         res.push_str(format!("{}{}", if punc.contains(&word.as_str()) || prev_non_space { "" } else { " " }, word).as_str()); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
+                        
+                        if word == "<" || word == "[" || word == "(" {
+                            prev_non_space = true;
+                        }
+                        else {
+                            prev_non_space = false;
+                        }
                     },
                     WordType::VerseLine => { //5
                         //need to skip "[line]" prefix
@@ -171,7 +176,7 @@ pub async fn export_text(
                 last_type = WordType::from_i32(w.word_type.into());
             }
             let mut sorted_glosses:Vec<Gloss> = glosses.values().cloned().collect();
-            sorted_glosses.sort_by(|a, b| a.sort_alpha.cmp(&b.sort_alpha));
+            sorted_glosses.sort_by(|a, b| a.sort_alpha.to_lowercase().cmp(&b.sort_alpha.to_lowercase()));
 
             latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header);
 
