@@ -49,7 +49,7 @@ pub async fn export_text(
         for text_id in texts {
             let mut res = String::from("");
 
-            let words = get_words_for_export(db, text_id, course_id).await.map_err(map_sqlx_error)?;
+            let words = db::get_words_for_export(db, text_id, course_id).await.map_err(map_sqlx_error)?;
 
             let mut title = String::from("");
             let mut header = String::from("");
