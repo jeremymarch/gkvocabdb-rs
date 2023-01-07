@@ -209,7 +209,7 @@ pub struct WordQuery {
 
 #[derive(Deserialize)]
 pub struct ExportRequest {
-    pub textid: u32,
+    pub text_ids: String, //comma separated text_ids "133" or "133,134,135"
 }
 
 #[derive(Deserialize)]

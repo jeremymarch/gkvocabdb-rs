@@ -1118,7 +1118,8 @@ BUTTON {
         }
         let id = getColumnValues(row)[1];
         console.log("exporting text: " + id);
-        window.location = "exporttext?textid=" + id;
+        //id = "133,134,135,136,137"; //testing
+        window.location = "exporttext?text_ids=" + id;
         /*
         $.ajax({
             url: "exporttext",

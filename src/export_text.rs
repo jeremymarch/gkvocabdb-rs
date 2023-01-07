@@ -44,7 +44,12 @@ pub async fn export_text(
         let mut latex:String = include_str!("latex/doc_template.tex")
             .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-        let texts:Vec<u32> = vec![info.textid];
+        //info.text_ids is now a comma separated string of text_ids "133,134,135"
+        //let texts:Vec<u32> = vec![133,134,135,136,137];//vec![info.textid];
+        let texts: Vec<u32> = info.text_ids
+            .split(',')
+            .map(|s| s.parse().expect("parse error"))
+            .collect();
 
         for text_id in texts {
 
@@ -71,10 +76,9 @@ pub async fn export_text(
                 let mut header = String::from("");
                 let mut prev_non_space = true;
                 let mut last_type = WordType::InvalidType;
-                //let verse_line_start = false;
-                //let mut last_word_id:i64 = -1;
-                //let mut last_seq:i64 = -1;
                 let mut glosses: HashMap<u32, Gloss> = HashMap::new();
+
+                let app_crits:Vec<String> = vec![]; //placeholder for now
 
                 for w in words_in_page {
                     
@@ -194,7 +198,7 @@ pub async fn export_text(
                 let mut sorted_glosses:Vec<Gloss> = glosses.values().cloned().collect();
                 sorted_glosses.sort_by(|a, b| a.sort_alpha.to_lowercase().cmp(&b.sort_alpha.to_lowercase()));
 
-                latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header);
+                latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header, &app_crits);
 
             }
         }
@@ -221,8 +225,7 @@ pub async fn export_text(
     }
 }
 
-fn apply_latex_templates(latex:&mut String, title:&str, text:&mut String, glosses:&Vec<Gloss>, header:&str) -> String {
-    //let mut latex = String::from("");
+fn apply_latex_templates(latex:&mut String, title:&str, text:&mut String, glosses:&Vec<Gloss>, header:&str, app_crits:&Vec<String>) -> String {
     
     latex.push_str("\\newpage\n");
 
@@ -264,14 +267,13 @@ fn apply_latex_templates(latex:&mut String, title:&str, text:&mut String, glosse
     }
 
     
-    //appCrits here
-    // if ( count($appCrits) > 0) {
-    //     $latex .=  '~\\\\' . "\n";
-    // }
-    // for ($i = 0; $i < count($appCrits); $i++) {
-    //     $latex .= $appCrits[$i] . '\\\\' . "\n";
-    // }
-    
+    //insert apparatus criticus here appcrit
+    if !app_crits.is_empty() {
+        latex.push_str("~\\\\\n");
+    }
+    for a in app_crits {
+        latex.push_str(format!("{}\\\\\n", a).as_str());
+    }
 
     latex.push_str("\\begin{table}[b!]\\leftskip -0.84cm\n");
     latex.push_str("\\begin{tabular}{ m{0.2cm} L{3.25in} D{3.1in} }\n");
