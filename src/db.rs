@@ -70,6 +70,7 @@ pub struct WordRow {
     pub word_text_seq: u32,
     pub arrowed_text_seq: Option<u32>,
     pub sort_alpha:String,
+    pub last_word_of_page:bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
@@ -806,9 +807,10 @@ pub async fn get_words_for_export(
 
     let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
     b.gloss_id,a.seq,e.seq AS arrowedSeq,
-    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order,c.word_id as page_break
     FROM words a 
     LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    LEFT JOIN latex_page_breaks c ON a.word_id=c.word_id 
     LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
     LEFT JOIN words e ON e.word_id = d.word_id  
     LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
@@ -836,6 +838,7 @@ pub async fn get_words_for_export(
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
             sort_alpha: rec.get("sortalpha"),
+            last_word_of_page: rec.get::<Option<i32>,&str>("page_break").is_some(),
         })
         .fetch_all(pool)
         .await;
@@ -881,11 +884,12 @@ pub async fn get_words(
         GROUP BY gloss_id
     )
     SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.unit,b.pos,b.sortalpha,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
-    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, total_count, 
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, total_count, c.word_id as page_break, 
     COUNT(a.gloss_id) OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
     + IFNULL(running_basis,0) AS running_count 
     FROM words a 
     LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
+    LEFT JOIN latex_page_breaks c ON a.word_id=c.word_id 
     LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
     LEFT JOIN words e ON e.word_id = d.word_id  
     LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
@@ -915,6 +919,7 @@ pub async fn get_words(
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
             sort_alpha: rec.get("sortalpha"),
+            last_word_of_page: rec.get::<Option<i32>,&str>("page_break").is_some(),
         })
         .fetch_all(pool)
         .await;
@@ -1313,7 +1318,6 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
 
     let query = r#"
         CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-        /*CREATE TABLE sqlite_sequence(name,seq);*/
         CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id));
         CREATE TABLE IF NOT EXISTS glosses (gloss_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER NOT NULL REFERENCES words (word_id), updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text, PRIMARY KEY (course_id, gloss_id, word_id));
@@ -1326,14 +1330,11 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, parent_id integer references texts (text_id) default null, display integer default 1);
         CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
         CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT "81237698562398", email TEXT);
+        CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id));
         CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
-        /*CREATE INDEX IF NOT EXISTS idx_hqvocab_parentididx ON glosses (parentid);*/
-        /*CREATE INDEX IF NOT EXISTS idx_hqvocab_seq ON glosses (seqold);*/
         CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
-        /*CREATE INDEX IF NOT EXISTS idx_hqvocab_sortkey ON glosses (sortkey);*/
         CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);
         CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (course_id, gloss_id);
-        /*CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemma1 ON words (lemma1);*/
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemmaid ON words (gloss_id);
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_seq ON words (seq);
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);

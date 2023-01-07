@@ -47,140 +47,156 @@ pub async fn export_text(
         let texts:Vec<u32> = vec![info.textid];
 
         for text_id in texts {
-            let mut res = String::from("");
 
-            let words = db::get_words_for_export(db, text_id, course_id).await.map_err(map_sqlx_error)?;
+            let words:Vec<WordRow> = db::get_words_for_export(db, text_id, course_id).await.map_err(map_sqlx_error)?;
 
-            let mut title = String::from("");
-            let mut header = String::from("");
-            let mut prev_non_space = true;
-            let mut last_type = WordType::InvalidType;
-            //let verse_line_start = false;
-            //let mut last_word_id:i64 = -1;
-            //let mut last_seq:i64 = -1;
-            let mut glosses: HashMap<u32, Gloss> = HashMap::new();
+            //divide words into seperate vectors of words per page
+            let mut words_divided_by_page:Vec<Vec<WordRow>> = vec![];
 
-            for w in words {
-                
-                let word = w.word.trim().to_string();
+            let mut start = 0;
+            for (idx, ww,) in words.iter().enumerate() {
+                if ww.last_word_of_page {
+                    words_divided_by_page.push(words[start..=idx].to_vec());
+                    start = idx + 1;
+                }
+            }
+            if start < words.len() - 1 {
+                words_divided_by_page.push(words[start..words.len()].to_vec());
+            }
 
-                match WordType::from_i32(w.word_type.into()) {
-                    WordType::WorkTitle => { //7
-                        title = word;
-                        header = title.clone();
-                    },
-                    WordType::Speaker => { //2
-                        res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str()); 
-                    },
-                    WordType::InlineSpeaker => { //9
-                        res.push_str(format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str());
-                    },
-                    WordType::Section => { //4
+            for words_in_page in words_divided_by_page {
+                let mut res = String::from(""); //start fresh
 
-                        // function fixSubsection($a) {
+                let mut title = String::from("");
+                let mut header = String::from("");
+                let mut prev_non_space = true;
+                let mut last_type = WordType::InvalidType;
+                //let verse_line_start = false;
+                //let mut last_word_id:i64 = -1;
+                //let mut last_seq:i64 = -1;
+                let mut glosses: HashMap<u32, Gloss> = HashMap::new();
 
-                        //     $r = str_replace("[section]", "", $a);
-                        //     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
-                        //         if ($matches[2][0] == "1") {
-                        //             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
-                        //         }
-                        //         else {
-                        //             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
-                        //         }		
-                        //         return $r;
-                        //     }
-                        //     else { 
-                        //         return "%StartSubSection%" . $r . "%EndSubSection%";
-                        //     }
+                for w in words_in_page {
+                    
+                    let word = w.word.trim().to_string();
+
+                    match WordType::from_i32(w.word_type.into()) {
+                        WordType::WorkTitle => { //7
+                            title = word;
+                            header = title.clone();
+                        },
+                        WordType::Speaker => { //2
+                            res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str()); 
+                        },
+                        WordType::InlineSpeaker => { //9
+                            res.push_str(format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str());
+                        },
+                        WordType::Section => { //4
+
+                            // function fixSubsection($a) {
+
+                            //     $r = str_replace("[section]", "", $a);
+                            //     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
+                            //         if ($matches[2][0] == "1") {
+                            //             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
+                            //         }
+                            //         else {
+                            //             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
+                            //         }		
+                            //         return $r;
+                            //     }
+                            //     else { 
+                            //         return "%StartSubSection%" . $r . "%EndSubSection%";
+                            //     }
+                            // }
+
+                            //fixSubsection(word);
+                            res.push_str(format!("%StartSubSection%{}%EndSubSection%", word).as_str());
+                            if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent { //-1 || 6
+                                prev_non_space = true;
+                            }
+                            else {
+                                prev_non_space = false;
+                            }
+                        },
+                        WordType::ParaWithIndent => { //6
+                            res.push_str("%para%");
+                            prev_non_space = true;
+                        },
+                        WordType::ParaNoIndent => { //10
+                            res.push_str("%parnoindent%");
+                            prev_non_space = true;
+                        },
+                        WordType::Word | WordType::Punctuation => { //0 | 1
+                            let punc = vec![".", ",", "·", "·", ";", ";", ">", "]" ,")", ",\"", "·\"", "·\"", ".’"];
+
+                            res.push_str(format!("{}{}", if punc.contains(&word.as_str()) || prev_non_space { "" } else { " " }, word).as_str()); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
+                            
+                            if word == "<" || word == "[" || word == "(" {
+                                prev_non_space = true;
+                            }
+                            else {
+                                prev_non_space = false;
+                            }
+                        },
+                        WordType::VerseLine => { //5
+                            //need to skip "[line]" prefix
+                            res.push_str(format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str());
+                            prev_non_space = true;
+                        }
+                        _ => (),
+                    }
+                    //last_seq = w.seq as i64;
+                    //last_word_id = w.wordid as i64;
+
+                    if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
+        
+                        // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
+                        //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
+                        //     continue; //skip
+                        // }
+                        // else if ((int)$row["seq"] == (int)$row["arrowedSeq"]) {
+                        //     $g->arrow = TRUE;
+                        //     $arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
+                        // }
+                        // else {
+                        //     $g->arrow = FALSE;
                         // }
 
-                        //fixSubsection(word);
-                        res.push_str(format!("%StartSubSection%{}%EndSubSection%", word).as_str());
-                        if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent { //-1 || 6
-                            prev_non_space = true;
+                        let is_arrowed;
+                        if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
+                            
+                            is_arrowed = true; //this instance is arrowed
+                        }
+                        else if (w.arrowed_text_seq.is_some() && w.arrowed_text_seq < Some(w.word_text_seq)) || 
+                            (w.arrowed_text_seq.is_some() && w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq.is_some() && 
+                            w.arrowed_seq < Some(w.seq)) {
+                                //word was already arrowed, so hide it here
+                                continue;
                         }
                         else {
-                            prev_non_space = false;
+                            //show word, not yet arrowed
+                            is_arrowed = false;
                         }
-                    },
-                    WordType::ParaWithIndent => { //6
-                        res.push_str("%para%");
-                        prev_non_space = true;
-                    },
-                    WordType::ParaNoIndent => { //10
-                        res.push_str("%parnoindent%");
-                        prev_non_space = true;
-                    },
-                    WordType::Word | WordType::Punctuation => { //0 | 1
-                        let punc = vec![".", ",", "·", "·", ";", ";", ">", "]" ,")", ",\"", "·\"", "·\"", ".’"];
 
-                        res.push_str(format!("{}{}", if punc.contains(&word.as_str()) || prev_non_space { "" } else { " " }, word).as_str()); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
-                        
-                        if word == "<" || word == "[" || word == "(" {
-                            prev_non_space = true;
-                        }
-                        else {
-                            prev_non_space = false;
-                        }
-                    },
-                    WordType::VerseLine => { //5
-                        //need to skip "[line]" prefix
-                        res.push_str(format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str());
-                        prev_non_space = true;
+                        let gloss = Gloss {
+                            id:w.hqid,
+                            lemma:w.lemma,
+                            def:w.def,
+                            sort_alpha:w.sort_alpha,
+                            arrow:is_arrowed,
+                        };
+                        glosses.insert(w.hqid, gloss);
                     }
-                    _ => (),
+                    
+                    last_type = WordType::from_i32(w.word_type.into());
                 }
-                //last_seq = w.seq as i64;
-                //last_word_id = w.wordid as i64;
+                let mut sorted_glosses:Vec<Gloss> = glosses.values().cloned().collect();
+                sorted_glosses.sort_by(|a, b| a.sort_alpha.to_lowercase().cmp(&b.sort_alpha.to_lowercase()));
 
-                if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
-    
-                    // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
-                    //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
-                    //     continue; //skip
-                    // }
-                    // else if ((int)$row["seq"] == (int)$row["arrowedSeq"]) {
-                    //     $g->arrow = TRUE;
-                    //     $arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
-                    // }
-                    // else {
-                    //     $g->arrow = FALSE;
-                    // }
+                latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header);
 
-                    let is_arrowed;
-                    if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
-                        
-                        is_arrowed = true; //this instance is arrowed
-                    }
-                    else if (w.arrowed_text_seq.is_some() && w.arrowed_text_seq < Some(w.word_text_seq)) || 
-                        (w.arrowed_text_seq.is_some() && w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq.is_some() && 
-                        w.arrowed_seq < Some(w.seq)) {
-                            //word was already arrowed, so hide it here
-                            continue;
-                    }
-                    else {
-                        //show word, not yet arrowed
-                        is_arrowed = false;
-                    }
-
-                    let gloss = Gloss {
-                        id:w.hqid,
-                        lemma:w.lemma,
-                        def:w.def,
-                        sort_alpha:w.sort_alpha,
-                        arrow:is_arrowed,
-                    };
-                    glosses.insert(w.hqid, gloss);
-                }
-                
-                last_type = WordType::from_i32(w.word_type.into());
             }
-            let mut sorted_glosses:Vec<Gloss> = glosses.values().cloned().collect();
-            sorted_glosses.sort_by(|a, b| a.sort_alpha.to_lowercase().cmp(&b.sort_alpha.to_lowercase()));
-
-            latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header);
-
-
         }
         latex.push_str("\\end{document}\n");
 
