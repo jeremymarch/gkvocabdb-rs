@@ -78,11 +78,15 @@ pub async fn export_text(
                 let mut last_type = WordType::InvalidType;
                 let mut glosses: HashMap<u32, Gloss> = HashMap::new();
 
-                let app_crits:Vec<String> = vec![]; //placeholder for now
+                let mut app_crits:Vec<String> = vec![]; //placeholder for now
 
                 for w in words_in_page {
                     
                     let word = w.word.trim().to_string();
+
+                    if let Some(app_crit) = w.app_crit {
+                        app_crits.push(app_crit);
+                    }
 
                     match WordType::from_i32(w.word_type.into()) {
                         WordType::WorkTitle => { //7
@@ -199,7 +203,6 @@ pub async fn export_text(
                 sorted_glosses.sort_by(|a, b| a.sort_alpha.to_lowercase().cmp(&b.sort_alpha.to_lowercase()));
 
                 latex = apply_latex_templates(&mut latex, &title, &mut res, &sorted_glosses, &header, &app_crits);
-
             }
         }
         latex.push_str("\\end{document}\n");

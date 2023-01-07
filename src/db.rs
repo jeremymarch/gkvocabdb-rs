@@ -71,6 +71,7 @@ pub struct WordRow {
     pub arrowed_text_seq: Option<u32>,
     pub sort_alpha:String,
     pub last_word_of_page:bool,
+    pub app_crit: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
@@ -807,7 +808,7 @@ pub async fn get_words_for_export(
 
     let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
     b.gloss_id,a.seq,e.seq AS arrowedSeq,
-    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order,c.word_id as page_break
+    a.isFlagged,g.text_order,f.text_order AS arrowed_text_order,c.word_id as page_break,h.entry AS appcrit_entry
     FROM words a 
     LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
     LEFT JOIN latex_page_breaks c ON a.word_id=c.word_id 
@@ -815,6 +816,7 @@ pub async fn get_words_for_export(
     LEFT JOIN words e ON e.word_id = d.word_id  
     LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
     LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
+    LEFT JOIN appCrit h on h.word_id = A.word_id 
     WHERE a.text_id={text_id} AND a.type > -1
     ORDER BY a.seq
     LIMIT 55000;", text_id = text_id, course_id = course_id);
@@ -839,6 +841,7 @@ pub async fn get_words_for_export(
             arrowed_text_seq: rec.get("arrowed_text_order"),
             sort_alpha: rec.get("sortalpha"),
             last_word_of_page: rec.get::<Option<i32>,&str>("page_break").is_some(),
+            app_crit: rec.get("appcrit_entry"),
         })
         .fetch_all(pool)
         .await;
@@ -920,6 +923,7 @@ pub async fn get_words(
             arrowed_text_seq: rec.get("arrowed_text_order"),
             sort_alpha: rec.get("sortalpha"),
             last_word_of_page: rec.get::<Option<i32>,&str>("page_break").is_some(),
+            app_crit: None,
         })
         .fetch_all(pool)
         .await;
