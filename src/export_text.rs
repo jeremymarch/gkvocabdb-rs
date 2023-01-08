@@ -82,7 +82,27 @@ pub async fn export_text(
 
                 for w in words_in_page {
                     
-                    let word = w.word.trim().to_string();
+                    let word = w.word.trim().replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
+                    .replace('\u{1FBB}', "\u{0386}")
+                    .replace('\u{1F73}', "\u{03AD}")
+                    .replace('\u{1FC9}', "\u{0388}")
+                    .replace('\u{1F75}', "\u{03AE}")
+                    .replace('\u{1FCB}', "\u{0389}")
+                    .replace('\u{1F77}', "\u{03AF}")
+                    .replace('\u{1FDB}', "\u{038A}")
+                    .replace('\u{1F79}', "\u{03CC}")
+                    .replace('\u{1FF9}', "\u{038C}")
+                    .replace('\u{1F7B}', "\u{03CD}")
+                    .replace('\u{1FEB}', "\u{038E}")
+                    .replace('\u{1F7D}', "\u{03CE}")
+                    .replace('\u{1FFB}', "\u{038F}")
+                    .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
+                    .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
+                    .replace('\u{037E}', "\u{003B}") //semicolon
+                    .replace('\u{0387}', "\u{00B7}") //middle dot
+                    .replace('\u{0344}', "\u{0308}\u{0301}"); //combining diaeresis with acute
+
+                    //assert!(!word.contains('\u{1F79}'));
 
                     if let Some(app_crit) = w.app_crit {
                         app_crits.push(app_crit);
@@ -189,7 +209,25 @@ pub async fn export_text(
 
                         let gloss = Gloss {
                             id:w.hqid,
-                            lemma:w.lemma,
+                            lemma:w.lemma.replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
+                            .replace('\u{1FBB}', "\u{0386}")
+                            .replace('\u{1F73}', "\u{03AD}")
+                            .replace('\u{1FC9}', "\u{0388}")
+                            .replace('\u{1F75}', "\u{03AE}")
+                            .replace('\u{1FCB}', "\u{0389}")
+                            .replace('\u{1F77}', "\u{03AF}")
+                            .replace('\u{1FDB}', "\u{038A}")
+                            .replace('\u{1F79}', "\u{03CC}")
+                            .replace('\u{1FF9}', "\u{038C}")
+                            .replace('\u{1F7B}', "\u{03CD}")
+                            .replace('\u{1FEB}', "\u{038E}")
+                            .replace('\u{1F7D}', "\u{03CE}")
+                            .replace('\u{1FFB}', "\u{038F}")
+                            .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
+                            .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
+                            .replace('\u{037E}', "\u{003B}") //semicolon
+                            .replace('\u{0387}', "\u{00B7}") //middle dot
+                            .replace('\u{0344}', "\u{0308}\u{0301}"), //combining diaeresis with acute,
                             def:w.def,
                             sort_alpha:w.sort_alpha,
                             arrow:is_arrowed,
