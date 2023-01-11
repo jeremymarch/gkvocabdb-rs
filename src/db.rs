@@ -1025,13 +1025,13 @@ pub async fn update_text_order_db(
     let text_order: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
-        .fetch_one(pool).await?;
+        .fetch_one(&mut tx).await?;
 
     let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
     let text_count: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
-        .fetch_one(pool).await?;
+        .fetch_one(&mut tx).await?;
 
     if step == 0 || (text_order.0 + step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
         return Err(sqlx::Error::RowNotFound); //at no where to move: abort

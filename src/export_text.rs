@@ -40,6 +40,8 @@ pub async fn export_text(
     let bold_glosses = false;
     let course_id = 1;
 
+    //println!("host: {:?}", req.connection_info().host());
+
     if let Some(_user_id) = login::get_user_id(session) {
         let mut latex:String = include_str!("latex/doc_template.tex")
             .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
