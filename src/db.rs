@@ -102,10 +102,11 @@ pub struct SmallWord {
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct AssignmentRow {
-    pub id: u32,
-    pub assignment: String,
-    pub parent_id: Option<u32>,
+    pub text_id: u32,
+    pub text: String,
+    pub container_id: Option<u32>,
     pub course_id: Option<u32>,
+    pub container: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -968,6 +969,21 @@ pub async fn get_text_name(
 //     Ok(())
 // }
 /*
+
+create table containers (container_id integer primary key autoincrement, name text not null);
+insert into containers select null, name from texts where parent_id is null and text_id in (select parent_id from texts where parent_id is not null);
+update texts set display = 0 where parent_id is null and text_id in (select parent_id from texts where parent_id is not null);
+update texts set parent_id = parent_id - 1 where parent_id is not null;
+
+
+containers 
+    container_id
+    name
+
+update parent_id to container id
+delete the parent texts
+
+
 container_x_text
     container_id,
     text_id,
@@ -1075,17 +1091,20 @@ pub async fn get_texts_db(
     pool: &SqlitePool,
     course_id: u32,
 ) -> Result<Vec<AssignmentRow>, sqlx::Error> {
-    let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id \
+    let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id, C.name AS container \
     FROM texts A \
     INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = ?) \
+    LEFT JOIN containers C ON A.parent_id = C.container_id \
+    WHERE display != 0 \
     ORDER BY B.text_order, A.text_id;";
     let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
         .bind(course_id)
         .map(|rec: SqliteRow| AssignmentRow {
-            id: rec.get("text_id"),
-            assignment: rec.get("name"),
-            parent_id: rec.get("parent_id"),
+            text_id: rec.get("text_id"),
+            text: rec.get("name"),
+            container_id: rec.get("parent_id"),
             course_id: rec.get("course_id"),
+            container: rec.get("container"),
         })
         .fetch_all(pool)
         .await;
@@ -1335,6 +1354,7 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
         CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT "81237698562398", email TEXT);
         CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id));
+        CREATE TABLE IF NOT EXISTS containers (container_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
         CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
         CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
         CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);
