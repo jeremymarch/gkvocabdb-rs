@@ -966,8 +966,13 @@ BUTTON {
     }
 
     function selectTextClicked() {
+        
         let row = document.querySelector("#text .selectedRowClass");
         if (row) {
+            if (row.firstChild.classList.contains("openCloseBranch")) {
+                /* do not select parent nodes */
+                return;
+            }
             queryText("hqvocab", getColumnValues(row) );
         }
     }
@@ -1114,6 +1119,10 @@ BUTTON {
 
         let row = document.querySelector("#text .selectedRowClass");
         if (!row) {
+            return;
+        }
+        if (row.firstChild.classList.contains("openCloseBranch")) {
+            /* do not select parent nodes for now */
             return;
         }
         let id = getColumnValues(row)[1];

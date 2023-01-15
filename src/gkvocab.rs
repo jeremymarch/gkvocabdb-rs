@@ -426,7 +426,7 @@ pub async fn gkv_get_texts(db:&SqlitePool, info:&WordtreeQueryRequest) -> Result
             //add container
             let mut a = AssignmentTree {
                 i: r.container_id.unwrap(),
-                col: vec![r.container.as_ref().unwrap().clone(), r.text_id.to_string()],
+                col: vec![r.container.as_ref().unwrap().clone(), r.container_id.unwrap().to_string()],
                 h: false,
                 c: vec![],
             };

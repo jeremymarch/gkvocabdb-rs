@@ -789,23 +789,12 @@ pub async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option
     Ok(rec.0)
 }
 */
-pub async fn num_child_texts(pool: &SqlitePool, text_id: u32) -> Result<u32, sqlx::Error> {
-    let query = "SELECT COUNT(*) FROM texts WHERE parent_id = ?;";
-    let rec: (u32,) = sqlx::query_as(query).bind(text_id).fetch_one(pool).await?;
-
-    Ok(rec.0)
-}
 
 pub async fn get_words_for_export(
     pool: &SqlitePool,
     text_id: u32,
     course_id: u32,
 ) -> Result<Vec<WordRow>, sqlx::Error> {
-    //do not get words of whole text, if text is split into assignments
-    let children = num_child_texts(pool, text_id).await?;
-    if children > 0 {
-        return Ok(vec![]);
-    }
 
     let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
     b.gloss_id,a.seq,e.seq AS arrowedSeq,
@@ -868,11 +857,6 @@ pub async fn get_words(
     text_id: u32,
     course_id: u32,
 ) -> Result<Vec<WordRow>, sqlx::Error> {
-    //do not get words of whole text, if text is split into assignments
-    let children = num_child_texts(pool, text_id).await?;
-    if children > 0 {
-        return Ok(vec![]);
-    }
 
     let query = format!("WITH gloss_basis AS (
         SELECT gloss_id, COUNT(gloss_id) AS running_basis
