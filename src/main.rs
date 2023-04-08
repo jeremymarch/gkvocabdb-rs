@@ -20,34 +20,34 @@ use actix_web::{http::StatusCode, ResponseError};
 use thiserror::Error;
 
 use actix_files as fs;
+use actix_session::config::PersistentSession;
+use actix_session::storage::CookieSessionStore;
 use actix_session::Session;
 use actix_session::SessionMiddleware;
-use actix_session::storage::CookieSessionStore;
+use actix_web::cookie::time::Duration;
+use actix_web::cookie::Key;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
-use actix_web::cookie::Key;
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
-use actix_web::cookie::time::Duration;
-use actix_session::config::PersistentSession;
 
-use std::io;
-use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::io;
 //use std::time::{SystemTime, UNIX_EPOCH};
 //use mime;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use std::str::FromStr;
 
-use crate::gkvocab::*;
 use crate::db::*;
+use crate::gkvocab::*;
 
-mod hqvocab;
-mod gkvocab;
 mod db;
 mod export_text;
+mod gkvocab;
+mod hqvocab;
 mod import_text_xml;
 mod login;
 
@@ -56,7 +56,7 @@ const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 //https://stackoverflow.com/questions/64348528/how-can-i-pass-multi-variable-by-actix-web-appdata
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
 
-#[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct AssignmentTree {
     pub i: u32,
     pub col: Vec<String>,
@@ -108,7 +108,7 @@ struct TreeRow {
     c: Option<Vec<TreeRow>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone,Eq,PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct MiscErrorResponse {
     #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
     pub this_text: u32,
@@ -275,8 +275,7 @@ async fn update_or_add_gloss(
         let res = gkv_update_or_add_gloss(db, &post, &info).await?;
 
         Ok(HttpResponse::Ok().json(res))
-    }
-    else {
+    } else {
         //not logged in
         let res = UpdateGlossResponse {
             qtype: post.qtype.to_string(),
@@ -309,7 +308,7 @@ async fn arrow_word_req(
 
     let res = MiscErrorResponse {
         this_text: 1,
-        text_name:"".to_string(),
+        text_name: "".to_string(),
         words: [].to_vec(),
         selected_id: None,
         error: "Not logged in (update_words)".to_string(),
@@ -331,13 +330,13 @@ async fn set_gloss(
             ip_address: get_ip(&req).unwrap_or_default(),
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
-       
+
         let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id).await?;
         return Ok(HttpResponse::Ok().json(res));
-    } 
+    }
     let res = MiscErrorResponse {
         this_text: 1,
-        text_name:"".to_string(),
+        text_name: "".to_string(),
         words: [].to_vec(),
         selected_id: None,
         error: "Not logged in (update_words)".to_string(),
@@ -349,7 +348,7 @@ async fn set_gloss(
 async fn move_text(
     (session, post, req): (Session, web::Form<MoveTextRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();  
+    let db = req.app_data::<SqlitePool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -360,20 +359,20 @@ async fn move_text(
             ip_address: get_ip(&req).unwrap_or_default(),
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
-       
+
         gkv_move_text(db, post.text_id, post.step, &info, course_id).await?;
         let res = MiscErrorResponse {
             this_text: 1,
-            text_name:"".to_string(),
+            text_name: "".to_string(),
             words: [].to_vec(),
             selected_id: None,
             error: "Success".to_string(),
         };
         return Ok(HttpResponse::Ok().json(res));
-    } 
+    }
     let res = MiscErrorResponse {
         this_text: 1,
-        text_name:"".to_string(),
+        text_name: "".to_string(),
         words: [].to_vec(),
         selected_id: None,
         error: "Not logged in (update_words)".to_string(),
@@ -449,7 +448,6 @@ async fn get_text_words(
     let selected_word_id: Option<u32> = Some(info.wordid);
 
     if login::get_user_id(session).is_some() {
-
         let res = gkv_get_text_words(db, &info, selected_word_id).await?;
 
         Ok(HttpResponse::Ok().json(res))
@@ -556,50 +554,51 @@ async fn main() -> io::Result<()> {
         */
 
         //let auth_basic = HttpAuthentication::basic(validator_basic);
-        
-    //1. to make a new key:
-    // let secret_key = Key::generate(); // only for testing: should use same key from .env file/variable, else have to login again on each restart
-    // println!("key: {}{}", hex::encode( secret_key.signing() ), hex::encode( secret_key.encryption() ));
 
-    //2. a simple example testing key
-    //https://docs.rs/cookie/0.16.0/src/cookie/secure/key.rs.html#35
-    // let key: &Vec<u8> = &(0..64).collect();
-    // let secret_key = Key::from(key);
+        //1. to make a new key:
+        // let secret_key = Key::generate(); // only for testing: should use same key from .env file/variable, else have to login again on each restart
+        // println!("key: {}{}", hex::encode( secret_key.signing() ), hex::encode( secret_key.encryption() ));
 
-    //3. to load from string
-    // let string_key_64_bytes = "c67ba35ad969a3f4255085c359f120bae733c5a5756187aaffab31c7c84628b6a9a02ce6a1e923a945609a884f913f83ea50675b184514b5d15c3e1a606a3fd2";
-    // let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
-    // let secret_key = Key::from(&key);
+        //2. a simple example testing key
+        //https://docs.rs/cookie/0.16.0/src/cookie/secure/key.rs.html#35
+        // let key: &Vec<u8> = &(0..64).collect();
+        // let secret_key = Key::from(key);
 
-    //4. or load from env
-    //e.g. export GKVOCABDB_KEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285
-    let string_key_64_bytes = std::env::var("GKVOCABDB_KEY").unwrap_or_else(|_| { panic!("Key env not set.") });
-    let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
-    let secret_key = Key::from(&key);
+        //3. to load from string
+        // let string_key_64_bytes = "c67ba35ad969a3f4255085c359f120bae733c5a5756187aaffab31c7c84628b6a9a02ce6a1e923a945609a884f913f83ea50675b184514b5d15c3e1a606a3fd2";
+        // let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
+        // let secret_key = Key::from(&key);
 
-    let cookie_secure = !cfg!(debug_assertions); //cookie is secure for release, not secure for debug builds
+        //4. or load from env
+        //e.g. export GKVOCABDB_KEY=56d520157194bdab7aec18755508bf6d063be7a203ddb61ebaa203eb1335c2ab3c13ecba7fc548f4563ac1d6af0b94e6720377228230f210ac51707389bf3285
+        let string_key_64_bytes =
+            std::env::var("GKVOCABDB_KEY").unwrap_or_else(|_| panic!("Key env not set."));
+        let key = hex::decode(string_key_64_bytes).expect("Decoding key failed");
+        let secret_key = Key::from(&key);
 
-    App::new()
-        //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
-        //    err, HttpResponse::Conflict().finish()).into()))
-        //.wrap(json_cfg)
-        .app_data(db_pool.clone())
-        .wrap(middleware::Compress::default())
-        
-        //.wrap(auth_basic) //this blocks healthcheck
-        .wrap(SessionMiddleware::builder(
-            CookieSessionStore::default(), secret_key)
-                .cookie_secure(cookie_secure) //cookie_secure must be false if testing without https
-                .cookie_same_site(actix_web::cookie::SameSite::Strict)
-                .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
-                .session_lifecycle(
-                    PersistentSession::default().session_ttl(Duration::seconds(SECS_IN_YEAR))
-                )
-                .cookie_name(String::from("gkvocabdbid"))
-                .build())
-        .wrap(middleware::Logger::default())
-        //.wrap(error_handlers)
-        .configure(config)
+        let cookie_secure = !cfg!(debug_assertions); //cookie is secure for release, not secure for debug builds
+
+        App::new()
+            //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
+            //    err, HttpResponse::Conflict().finish()).into()))
+            //.wrap(json_cfg)
+            .app_data(db_pool.clone())
+            .wrap(middleware::Compress::default())
+            //.wrap(auth_basic) //this blocks healthcheck
+            .wrap(
+                SessionMiddleware::builder(CookieSessionStore::default(), secret_key)
+                    .cookie_secure(cookie_secure) //cookie_secure must be false if testing without https
+                    .cookie_same_site(actix_web::cookie::SameSite::Strict)
+                    .cookie_content_security(actix_session::config::CookieContentSecurity::Private)
+                    .session_lifecycle(
+                        PersistentSession::default().session_ttl(Duration::seconds(SECS_IN_YEAR)),
+                    )
+                    .cookie_name(String::from("gkvocabdbid"))
+                    .build(),
+            )
+            .wrap(middleware::Logger::default())
+            //.wrap(error_handlers)
+            .configure(config)
     })
     .bind("0.0.0.0:8088")?
     .run()
@@ -619,34 +618,13 @@ fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::get().to(get_assignments)),
         )*/
         .service(web::resource("/getgloss").route(web::post().to(get_gloss)))
-        .service(
-            web::resource("/hqvocab")
-                .route(web::get().to(hqvocab::hqvocab)),
-        )
-        .service(
-            web::resource("/arrowword") 
-                .route(web::post().to(arrow_word_req)),
-        )
-        .service(
-            web::resource("/setgloss") 
-                .route(web::post().to(set_gloss)),
-        )
-        .service(
-            web::resource("/updategloss") 
-                .route(web::post().to(update_or_add_gloss)),
-        )
-        .service(
-            web::resource("/importtext") 
-                .route(web::post().to(import_text_xml::import_text)),
-        )
-        .service(
-            web::resource("/exporttext") 
-                .route(web::get().to(export_text::export_text)),
-        )
-        .service(
-            web::resource("/movetext") 
-                .route(web::post().to(move_text)),
-        )
+        .service(web::resource("/hqvocab").route(web::get().to(hqvocab::hqvocab)))
+        .service(web::resource("/arrowword").route(web::post().to(arrow_word_req)))
+        .service(web::resource("/setgloss").route(web::post().to(set_gloss)))
+        .service(web::resource("/updategloss").route(web::post().to(update_or_add_gloss)))
+        .service(web::resource("/importtext").route(web::post().to(import_text_xml::import_text)))
+        .service(web::resource("/exporttext").route(web::get().to(export_text::export_text)))
+        .service(web::resource("/movetext").route(web::post().to(move_text)))
         .service(web::resource("/healthzzz").route(web::get().to(health_check)))
         .service(
             fs::Files::new("/", "./static")
@@ -705,7 +683,7 @@ mod tests {
                 //.wrap(json_cfg)
                 .app_data(db_pool.clone())
                 .wrap(middleware::Compress::default())
-                
+
                 //.wrap(auth_basic) //this blocks healthcheck
                 .wrap(SessionMiddleware::builder(
                     CookieSessionStore::default(), secret_key.clone())
@@ -758,10 +736,10 @@ mod tests {
         let db_pool = SqlitePool::connect(&db_path)
             .await
             .expect("Could not connect to db.");
-        
+
         // let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
         // create_db(&db_pool);
-        
+
 
         let mut app = test::init_service(
             App::new()
@@ -787,7 +765,7 @@ mod tests {
         let _result: MiscErrorResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
         //assert_eq!(result.words.len(), 176);
-        
+
     }
     */
 }

@@ -17,12 +17,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::ConnectionInfo;
+use crate::GlossOccurrence;
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool};
 use std::collections::HashSet;
-use crate::ConnectionInfo;
-use crate::GlossOccurrence;
 use unicode_normalization::UnicodeNormalization;
 
 /*
@@ -69,8 +69,8 @@ pub struct WordRow {
     pub is_flagged: bool,
     pub word_text_seq: u32,
     pub arrowed_text_seq: Option<u32>,
-    pub sort_alpha:String,
-    pub last_word_of_page:bool,
+    pub sort_alpha: String,
+    pub last_word_of_page: bool,
     pub app_crit: Option<String>,
 }
 
@@ -179,10 +179,16 @@ impl UpdateType {
         }
     }
 }
-pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, lower_unit: u32, unit:u32, sort:&str) -> Result<Vec<(String,u32,String)>, sqlx::Error> {
+pub async fn get_hqvocab_column(
+    pool: &SqlitePool,
+    pos: &str,
+    lower_unit: u32,
+    unit: u32,
+    sort: &str,
+) -> Result<Vec<(String, u32, String)>, sqlx::Error> {
     let s = match sort {
         "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
-        _ => "unit,sortalpha COLLATE PolytonicGreek ASC"
+        _ => "unit,sortalpha COLLATE PolytonicGreek ASC",
     };
     let p = match pos {
         "noun" => "pos == 'noun'",
@@ -191,9 +197,7 @@ pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, lower_unit: u32, un
         _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
     };
     let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit >= {} AND unit <= {} AND status=1 ORDER BY {};", p, lower_unit, unit, s);
-    let words: Vec<(String,u32,String)> = sqlx::query_as(&query)
-        .fetch_all(pool)
-        .await?;
+    let words: Vec<(String, u32, String)> = sqlx::query_as(&query).fetch_all(pool).await?;
 
     Ok(words)
 }
@@ -207,10 +211,7 @@ pub async fn arrow_word(
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    arrow_word_trx(
-        &mut tx, course_id, gloss_id, word_id, info,
-    )
-    .await?;
+    arrow_word_trx(&mut tx, course_id, gloss_id, word_id, info).await?;
 
     tx.commit().await?;
 
@@ -235,8 +236,9 @@ pub async fn arrow_word_trx<'a, 'b>(
 
     let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
 
-    if unwrapped_old_word_id == 1 { //don't allow arrow/unarrow h&q words which are set to word_id 1
-      return Err(sqlx::Error::RowNotFound); //for now
+    if unwrapped_old_word_id == 1 {
+        //don't allow arrow/unarrow h&q words which are set to word_id 1
+        return Err(sqlx::Error::RowNotFound); //for now
     }
 
     //add previous arrow to history, if it was arrowed before
@@ -477,7 +479,7 @@ pub async fn add_text(
     type, updated, updatedUser, isFlagged, note) \
     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0, '');";
     let mut count = 0;
-    let mut gloss_ids:HashSet<u32> = HashSet::new();
+    let mut gloss_ids: HashSet<u32> = HashSet::new();
     for w in words {
         let res = sqlx::query(query)
             .bind(seq)
@@ -544,7 +546,7 @@ pub async fn insert_gloss(
     stripped_lemma: &str,
     note: &str,
     info: &ConnectionInfo,
-) -> Result<(i64,u64), sqlx::Error> {
+) -> Result<(i64, u64), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
     let query = "INSERT INTO glosses (gloss_id, unit, lemma, sortalpha, \
@@ -795,7 +797,6 @@ pub async fn get_words_for_export(
     text_id: u32,
     course_id: u32,
 ) -> Result<Vec<WordRow>, sqlx::Error> {
-
     let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
     b.gloss_id,a.seq,e.seq AS arrowedSeq,
     a.isFlagged,g.text_order,f.text_order AS arrowed_text_order,c.word_id as page_break,h.entry AS appcrit_entry
@@ -830,7 +831,7 @@ pub async fn get_words_for_export(
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
             sort_alpha: rec.get("sortalpha"),
-            last_word_of_page: rec.get::<Option<i32>,&str>("page_break").is_some(),
+            last_word_of_page: rec.get::<Option<i32>, &str>("page_break").is_some(),
             app_crit: rec.get("appcrit_entry"),
         })
         .fetch_all(pool)
@@ -857,7 +858,6 @@ pub async fn get_words(
     text_id: u32,
     course_id: u32,
 ) -> Result<Vec<WordRow>, sqlx::Error> {
-
     let query = format!("WITH gloss_basis AS (
         SELECT gloss_id, COUNT(gloss_id) AS running_basis
         FROM words a1
@@ -907,7 +907,7 @@ pub async fn get_words(
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
             sort_alpha: rec.get("sortalpha"),
-            last_word_of_page: rec.get::<Option<i32>,&str>("page_break").is_some(),
+            last_word_of_page: rec.get::<Option<i32>, &str>("page_break").is_some(),
             app_crit: None,
         })
         .fetch_all(pool)
@@ -922,20 +922,14 @@ pub async fn get_words(
 //change get_words to use subtext id
 //order of assignments will be by id?  or word_seq?
 
-pub async fn get_text_name(
-  pool: &SqlitePool,
-  text_id: u32,
-) -> Result<String, sqlx::Error> {
-  //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
-  let query = "SELECT name \
+pub async fn get_text_name(pool: &SqlitePool, text_id: u32) -> Result<String, sqlx::Error> {
+    //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+    let query = "SELECT name \
   FROM texts \
   WHERE text_id = ?";
-  let res:(String,) = sqlx::query_as(query)
-      .bind(text_id)
-      .fetch_one(pool)
-      .await?;
+    let res: (String,) = sqlx::query_as(query).bind(text_id).fetch_one(pool).await?;
 
-  Ok(res.0)
+    Ok(res.0)
 }
 
 // pub async fn update_counts_for_text_trx<'a, 'b>(
@@ -960,7 +954,7 @@ update texts set display = 0 where parent_id is null and text_id in (select pare
 update texts set parent_id = parent_id - 1 where parent_id is not null;
 
 
-containers 
+containers
     container_id
     name
 
@@ -985,7 +979,7 @@ pub async fn update_text_order_db(
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    
+
     // //has children? move children with parent
     // let query = "SELECT a.text_id,b.text_order FROM texts a \
     //             INNER JOIN course_x_text b ON a.text_id=b.text_id \
@@ -1021,15 +1015,15 @@ pub async fn update_text_order_db(
     // container moving down: container and its children get + 1, following text gets - 1 or following container + children get -1
     // container moving up: container and its children get - 1, text above gets + num_children + 1
     // text where moving is child and moving up?
-    
+
     // container_id: move all items in container: select * items in container
     // text_id: move single item, if moving one text check if in container and limit to container bounds
 
     // text_seq_start, text_seq_end, step
-    
 
-    
-    
+
+
+
 
     let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
     let text_order: i32 = sqlx::query_scalar(query)
@@ -1048,7 +1042,7 @@ pub async fn update_text_order_db(
     else if step < 0 {
         let query = "SELECT COUNT(*) FROM texts WHERE parent_id = (SELECT parent_id FROM course_x_text WHERE text_order = ? AND course_id = ?);";
     }
-    
+
     let target_children: i32 = sqlx::query_scalar(&query)
         .bind(text_order + step)
         .bind(course_id)
@@ -1154,41 +1148,47 @@ pub async fn update_text_order_db(
     let text_order: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
-        .fetch_one(&mut tx).await?;
+        .fetch_one(&mut tx)
+        .await?;
 
     let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
     let text_count: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
-        .fetch_one(&mut tx).await?;
+        .fetch_one(&mut tx)
+        .await?;
 
-    if step == 0 || (text_order.0 + step < 1 && step < 0) || (text_order.0 + step > text_count.0 && step > 0) {
+    if step == 0
+        || (text_order.0 + step < 1 && step < 0)
+        || (text_order.0 + step > text_count.0 && step > 0)
+    {
         return Err(sqlx::Error::RowNotFound); //at no where to move: abort
-    }
-    else if step > 0 { //make room by moving other texts up/earlier in sequence
+    } else if step > 0 {
+        //make room by moving other texts up/earlier in sequence
         let query = "UPDATE course_x_text SET text_order = text_order - 1 \
             WHERE text_order > ? AND text_order < ? + ? + 1 AND course_id = ?;";
         sqlx::query(query)
-        .bind(text_order.0)
-        .bind(text_order.0)
-        .bind(step)
-        .bind(course_id)
-        .execute(&mut tx)
-        .await?;
-    }
-    else { //make room by moving other texts down/later in sequence
+            .bind(text_order.0)
+            .bind(text_order.0)
+            .bind(step)
+            .bind(course_id)
+            .execute(&mut tx)
+            .await?;
+    } else {
+        //make room by moving other texts down/later in sequence
         let query = "UPDATE course_x_text SET text_order = text_order + 1 \
             WHERE text_order < ? AND text_order > ? + ? - 1 AND course_id = ?;";
         sqlx::query(query)
-        .bind(text_order.0)
-        .bind(text_order.0)
-        .bind(step) //step will be negative here
-        .bind(course_id)
-        .execute(&mut tx)
-        .await?;
+            .bind(text_order.0)
+            .bind(text_order.0)
+            .bind(step) //step will be negative here
+            .bind(course_id)
+            .execute(&mut tx)
+            .await?;
     }
     //set new text order
-    let query = "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
+    let query =
+        "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
     sqlx::query(query)
         .bind(step)
         .bind(course_id)
@@ -1199,7 +1199,6 @@ pub async fn update_text_order_db(
     tx.commit().await?;
     Ok(())
 }
-
 
 pub async fn get_texts_db(
     pool: &SqlitePool,
@@ -1301,35 +1300,41 @@ pub async fn get_gloss_occurrences(
     LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
     WHERE a.gloss_id = ? \
     ORDER BY b.text_order, a.seq \
-    LIMIT 2000;".to_string();
+    LIMIT 2000;"
+        .to_string();
 
     let mut res: Vec<GlossOccurrence> = sqlx::query(&query)
         .bind(course_id)
         .bind(course_id)
         .bind(gloss_id)
         .bind(gloss_id)
-        .map(|rec: SqliteRow| {
-            GlossOccurrence {
-                name: rec.get("name"),
-                word_id: rec.get("word_id"),
-                word: rec.get("word"),
-                arrowed: rec.get("arrowed"),
-                unit: rec.get("unit"),
-                lemma: rec.get("lemma"),
-            }
+        .map(|rec: SqliteRow| GlossOccurrence {
+            name: rec.get("name"),
+            word_id: rec.get("word_id"),
+            word: rec.get("word"),
+            arrowed: rec.get("arrowed"),
+            unit: rec.get("unit"),
+            lemma: rec.get("lemma"),
         })
         .fetch_all(pool)
         .await?;
 
-    if !res.is_empty() && res[0].unit.is_some() && res[0].unit.unwrap() > 0 && res[0].unit.unwrap() < 21 {
-      res.insert(0, GlossOccurrence {
-            name: format!("H&Q Unit {}", res[0].unit.unwrap()),
-            word_id: 1,
-            word: res[0].lemma.to_owned(),
-            arrowed: Some(1),
-            unit: res[0].unit,
-            lemma: res[0].lemma.to_owned(),
-        } )
+    if !res.is_empty()
+        && res[0].unit.is_some()
+        && res[0].unit.unwrap() > 0
+        && res[0].unit.unwrap() < 21
+    {
+        res.insert(
+            0,
+            GlossOccurrence {
+                name: format!("H&Q Unit {}", res[0].unit.unwrap()),
+                word_id: 1,
+                word: res[0].lemma.to_owned(),
+                arrowed: Some(1),
+                unit: res[0].unit,
+                lemma: res[0].lemma.to_owned(),
+            },
+        )
     }
 
     Ok(res)
@@ -1347,7 +1352,7 @@ pub async fn get_update_log(
     ORDER BY updated DESC \
     LIMIT 20000;".to_string();
 
-    let res: Vec<(String, String, String, String,u32)> = sqlx::query(&query)
+    let res: Vec<(String, String, String, String, u32)> = sqlx::query(&query)
         .map(|rec: SqliteRow| {
             (
                 rec.get("timestamp"),
@@ -1360,15 +1365,15 @@ pub async fn get_update_log(
         .fetch_all(pool)
         .await?;
 
-        let mut rows: Vec<AssignmentTree> = vec![];
-        for r in &res {
-          rows.push(AssignmentTree {
-              i: r.4,
-              col: vec![format!("{} - {} {}", r.0.clone(), r.2.clone(), r.3.clone(),)],
-              h: false,
-              c: vec![],
-          });
-        }
+    let mut rows: Vec<AssignmentTree> = vec![];
+    for r in &res {
+        rows.push(AssignmentTree {
+            i: r.4,
+            col: vec![format!("{} - {} {}", r.0.clone(), r.2.clone(), r.3.clone(),)],
+            h: false,
+            c: vec![],
+        });
+    }
 
     Ok(rows)
 }
@@ -1432,7 +1437,14 @@ pub async fn get_equal_and_after(
 }
 
 #[allow(dead_code)]
-pub async fn insert_user(db:&SqlitePool, name:&str, initials:&str, user_type:u32, password:&str, email:&str) -> Result<i64, sqlx::Error> {
+pub async fn insert_user(
+    db: &SqlitePool,
+    name: &str,
+    initials: &str,
+    user_type: u32,
+    password: &str,
+    email: &str,
+) -> Result<i64, sqlx::Error> {
     let mut tx = db.begin().await?;
 
     let query = r#"INSERT INTO users VALUES (NULL, ?, ?, ?, ?, ?);"#;
@@ -1450,7 +1462,7 @@ pub async fn insert_user(db:&SqlitePool, name:&str, initials:&str, user_type:u32
     Ok(user_id)
 }
 
-pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
+pub async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
     let mut tx = db.begin().await?;
 
     let query = r#"
@@ -1478,19 +1490,23 @@ pub async fn create_db(db:&SqlitePool) -> Result<(), sqlx::Error> {
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);
         "#;
 
-    let _res = sqlx::query(query)
-        .execute(&mut tx)
-        .await?;
+    let _res = sqlx::query(query).execute(&mut tx).await?;
 
     //create default course
     let query = r#"REPLACE INTO courses VALUES (1,'Greek');"#;
-    sqlx::query(query)
-        .execute(&mut tx)
-        .await?;
+    sqlx::query(query).execute(&mut tx).await?;
 
     //insert update types
     let query = r#"REPLACE INTO update_types VALUES (?,?);"#;
-    let update_types = vec![(1,"Arrow word"), (2,"Unarrow word"), (3,"New gloss"), (4,"Edit gloss"), (5,"Set gloss"), (6,"Import text"), (7,"Delete gloss")];
+    let update_types = vec![
+        (1, "Arrow word"),
+        (2, "Unarrow word"),
+        (3, "New gloss"),
+        (4, "Edit gloss"),
+        (5, "Set gloss"),
+        (6, "Import text"),
+        (7, "Delete gloss"),
+    ];
     for t in update_types {
         sqlx::query(query)
             .bind(t.0)

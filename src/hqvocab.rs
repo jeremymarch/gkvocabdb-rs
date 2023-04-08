@@ -8,7 +8,9 @@ pub struct HQVocabRequest {
     pub abbrev: Option<String>,
 }
 
-pub async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> Result<HttpResponse, AWError> {
+pub async fn hqvocab(
+    (info, req): (web::Query<HQVocabRequest>, HttpRequest),
+) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     let mut template = include_str!("hqvocab.html").to_string();
 
@@ -41,9 +43,9 @@ pub async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> 
         None => "20".to_string(),
     };
 
-    let mut lower:u32 = lower_str.parse::<u32>().unwrap_or(1);
-    let mut upper:u32 = upper_str.parse::<u32>().unwrap_or(20);
-    
+    let mut lower: u32 = lower_str.parse::<u32>().unwrap_or(1);
+    let mut upper: u32 = upper_str.parse::<u32>().unwrap_or(20);
+
     if lower < 1 {
         lower = 1;
     }
@@ -56,63 +58,64 @@ pub async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> 
     if upper > 20 {
         upper = 20;
     }
-    if lower > upper  {
+    if lower > upper {
         upper = lower;
     }
 
     let sort = info.sort.clone().unwrap_or_else(|| "unit".to_string());
-    
+
     for p in ["noun", "verb", "adjective", "other"] {
         let mut res = String::from("");
         let mut last_unit = 0;
-        
+
         let hqv = get_hqvocab_column(db, p, lower, upper, &sort)
             .await
             .map_err(map_sqlx_error)?;
         for w in hqv {
             if sort != "alpha" && last_unit != w.1 {
-                res.push_str(format!("<div class='rowdiv'><p class='rowp'>Unit: {}</p></div>", w.1).as_str());
+                res.push_str(
+                    format!(
+                        "<div class='rowdiv'><p class='rowp'>Unit: {}</p></div>",
+                        w.1
+                    )
+                    .as_str(),
+                );
                 last_unit = w.1;
             }
             let u = format!(" <span class='unitNum'>({})</span>", w.1);
-            res.push_str(format!("<p class='row tooltip'>{}{}<span class='tooltiptext'>{}</span></p>", 
-                if info.abbrev.is_some() {
-                    if w.0.starts_with("ἐκ, ") {
-                        w.0.to_string()
-                    }
-                    else if w.0.starts_with("—, ἐ") {
-                        "—, ἐρήσομαι".to_string()
-                    }
-                    else if w.0.starts_with("—, ἀν") {
-                        "—, ἀνερήσομαι".to_string()
-                    }
-                    else if w.0.starts_with("—, ἀλ") {
-                        "—, ἀλλήλων".to_string()
-                    }
-                    else {
-                        w.0.chars()
-                        .take_while(|&ch| ch != ',')
-                        .collect::<String>() 
-                        //w.0.split(',').next().unwrap().to_string()
-                    }
-                    // }
-                    // else {
-                    //     w.0.chars()
-                    //     .take_while(|&ch| ch != ',')
-                    //     .collect::<String>() 
-                    // }
-                } else { 
-                    w.0 
-                }, 
-                if sort == "alpha" { 
-                    u 
-                } else {
-                    "".to_string()
-                }, 
-                w.2).as_str());
+            res.push_str(
+                format!(
+                    "<p class='row tooltip'>{}{}<span class='tooltiptext'>{}</span></p>",
+                    if info.abbrev.is_some() {
+                        if w.0.starts_with("ἐκ, ") {
+                            w.0.to_string()
+                        } else if w.0.starts_with("—, ἐ") {
+                            "—, ἐρήσομαι".to_string()
+                        } else if w.0.starts_with("—, ἀν") {
+                            "—, ἀνερήσομαι".to_string()
+                        } else if w.0.starts_with("—, ἀλ") {
+                            "—, ἀλλήλων".to_string()
+                        } else {
+                            w.0.chars().take_while(|&ch| ch != ',').collect::<String>()
+                            //w.0.split(',').next().unwrap().to_string()
+                        }
+                        // }
+                        // else {
+                        //     w.0.chars()
+                        //     .take_while(|&ch| ch != ',')
+                        //     .collect::<String>()
+                        // }
+                    } else {
+                        w.0
+                    },
+                    if sort == "alpha" { u } else { "".to_string() },
+                    w.2
+                )
+                .as_str(),
+            );
         }
 
-        template = template.replacen(format!("%{}%",p).as_str(), &res, 1);
+        template = template.replacen(format!("%{}%", p).as_str(), &res, 1);
     }
 
     template = template.replacen("%%upper%%", &upper.to_string(), 1);
@@ -120,21 +123,17 @@ pub async fn hqvocab((info, req): (web::Query<HQVocabRequest>, HttpRequest)) -> 
 
     if info.abbrev.is_some() {
         template = template.replacen("%abbreviated%", "checked", 1);
-    }
-    else {
+    } else {
         template = template.replacen("%abbreviated%", "", 1);
     }
 
     if sort != "alpha" {
         template = template.replacen("%sortalpha%", "", 1);
         template = template.replacen("%sortunit%", "checked", 1);
-    }
-    else {
+    } else {
         template = template.replacen("%sortalpha%", "checked", 1);
         template = template.replacen("%sortunit%", "", 1);
     }
 
-    Ok(HttpResponse::Ok()
-            .content_type("text/html")
-            .body(template))
+    Ok(HttpResponse::Ok().content_type("text/html").body(template))
 }

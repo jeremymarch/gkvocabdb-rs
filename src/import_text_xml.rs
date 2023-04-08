@@ -28,23 +28,23 @@ use quick_xml::name::QName;
 
 use super::*;
 
-pub async fn import(db:&SqlitePool, course_id: u32, info:&ConnectionInfo, title:&str, xml_string:&str) -> ImportResponse {
+pub async fn import(
+    db: &SqlitePool,
+    course_id: u32,
+    info: &ConnectionInfo,
+    title: &str,
+    xml_string: &str,
+) -> ImportResponse {
     match import_text_xml::process_imported_text(xml_string).await {
         Ok(words) => {
             if !words.is_empty() && !title.is_empty() {
-                let affected_rows = db::add_text(
-                    db,
-                    course_id,
-                    title,
-                    words,
-                    info,
-                )
-                .await
-                .map_err(|e| ImportResponse {
-                    success: false,
-                    words_inserted: 0,
-                    error: format!("sqlx error: {}", e),
-                });
+                let affected_rows = db::add_text(db, course_id, title, words, info)
+                    .await
+                    .map_err(|e| ImportResponse {
+                        success: false,
+                        words_inserted: 0,
+                        error: format!("sqlx error: {}", e),
+                    });
 
                 ImportResponse {
                     success: true,
@@ -55,19 +55,16 @@ pub async fn import(db:&SqlitePool, course_id: u32, info:&ConnectionInfo, title:
                 ImportResponse {
                     success: false,
                     words_inserted: 0,
-                    error:
-                        "Error importing text: File and/or Title field(s) is/are empty."
-                            .to_string(),
+                    error: "Error importing text: File and/or Title field(s) is/are empty."
+                        .to_string(),
                 }
             }
         }
-        Err(e) => {
-            ImportResponse {
-                success: false,
-                words_inserted: 0,
-                error: format!("Error importing text: XML parse error: {:?}.", e),
-            }
-        }
+        Err(e) => ImportResponse {
+            success: false,
+            words_inserted: 0,
+            error: format!("Error importing text: XML parse error: {:?}.", e),
+        },
     }
 }
 
@@ -97,7 +94,6 @@ pub async fn import_text(
     //     };
     //     let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
     // }
-
 
     if let Some(user_id) = login::get_user_id(session) {
         let info = ConnectionInfo {
@@ -190,7 +186,11 @@ fn sanitize_greek(s: &str) -> String {
 fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Vec<TextWord> {
     let mut words: Vec<TextWord> = vec![];
     let mut last = 0;
-    let word_type_word = if in_desc { WordType::Desc } else { WordType::Word } as u32;
+    let word_type_word = if in_desc {
+        WordType::Desc
+    } else {
+        WordType::Word
+    } as u32;
     if in_head {
         words.push(TextWord {
             word: text.to_string(),
@@ -249,13 +249,13 @@ pub async fn get_xml_string(
 
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
-        let content_type = field.content_disposition(); 
+        let content_type = field.content_disposition();
         let name = content_type.get_name().unwrap_or("").to_string();
 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
-            
+
             if name == "title" {
                 ttbytes.extend_from_slice(&data);
             } else if name == "file" {
@@ -264,19 +264,15 @@ pub async fn get_xml_string(
         }
     }
 
-    let title:String = match std::str::from_utf8(&ttbytes) {
-        Ok(xml_data) => {
-            xml_data.to_string()
-        }
+    let title: String = match std::str::from_utf8(&ttbytes) {
+        Ok(xml_data) => xml_data.to_string(),
         Err(e) => {
             return Err(e); //utf8 error
         }
     };
 
-    let xml_string:String = match std::str::from_utf8(&ddbytes) {
-        Ok(xml_data) => {
-            xml_data.to_string()
-        }
+    let xml_string: String = match std::str::from_utf8(&ddbytes) {
+        Ok(xml_data) => xml_data.to_string(),
         Err(e) => {
             return Err(e); //utf8 error
         }
@@ -599,11 +595,17 @@ mod tests {
         assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as u32);
         assert_eq!(r[15].word, "[line]10");
         assert_eq!(r[22].word, "");
-        assert_eq!(r[22].word_type, import_text_xml::WordType::ParaNoIndent as u32);
+        assert_eq!(
+            r[22].word_type,
+            import_text_xml::WordType::ParaNoIndent as u32
+        );
         assert_eq!(r[23].word, "This");
         assert_eq!(r[23].word_type, import_text_xml::WordType::Desc as u32);
         assert_eq!(r[28].word, "");
-        assert_eq!(r[28].word_type, import_text_xml::WordType::ParaNoIndent as u32);
+        assert_eq!(
+            r[28].word_type,
+            import_text_xml::WordType::ParaNoIndent as u32
+        );
     }
 
     #[test]
