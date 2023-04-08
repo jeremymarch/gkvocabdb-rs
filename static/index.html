@@ -649,6 +649,7 @@ BUTTON {
 <div id="noclick"></div>
 <div id="snackbar"></div>
 <script type="module">
+    // eslint-disable-next-line import/no-named-default, camelcase
     import { toggle, translit, strip_diacritics, default as init } from './hoplitekb_wasm_rs.js';
 
     async function run () {
@@ -656,6 +657,7 @@ BUTTON {
       // make the functions available to the browser
       window.toggle = toggle;
       window.translit = translit;
+      // eslint-disable-next-line camelcase
       window.strip_diacritics = strip_diacritics;
     }
     run();
@@ -665,6 +667,7 @@ BUTTON {
     window.addEventListener('load', onload, false);
 
     const TYPE_WORD = 0;
+    // eslint-disable-next-line no-unused-vars
     const TYPE_PUNCTUATION = 1;
     const TYPE_SPEAKER = 2;
     const TYPE_SECTION = 4;
@@ -672,9 +675,12 @@ BUTTON {
     const TYPE_PARA_WITH_INDENT = 6;
     const TYPE_WORK_TITLE = 7;
     const TYPE_SECTION_TITLE = 8;
+    // eslint-disable-next-line no-unused-vars
     const TYPE_INLINE_SPEAKER = 9;
     const TYPE_PARA_NO_INDENT = 10;
+    // eslint-disable-next-line no-unused-vars
     const TYPE_PAGE_BREAK = 11;
+    // eslint-disable-next-line no-unused-vars
     const TYPE_DESC = 12;
 
     // https://github.com/le717/microajax
@@ -716,8 +722,10 @@ BUTTON {
       // There was a connection error of some sort
       request.onerror = options.error;
     }
+    
 
     function stripDiacriticsLocal (origChars) {
+      // eslint-disable-next-line no-undef
       return strip_diacritics(origChars);
     }
 
@@ -729,6 +737,7 @@ BUTTON {
       const maxCombiningChars = 10;
       const replaceLen = Math.min(maxCombiningChars + 1, pos);
       const s = str.slice(pos - replaceLen, pos);
+      // eslint-disable-next-line no-undef
       const res = toggle(s, parseInt(diacritic), false, parseInt(unicodeMode));
 
       const newPos = (pos - replaceLen) + res.length;
@@ -750,6 +759,7 @@ BUTTON {
           e.preventDefault();
           return false;
         } else if (key.length === 1) { // len == 1 to exclude keys like "ENTER", etc.
+          // eslint-disable-next-line no-undef
           const greekLetter = translit(key); // returns \0 if the character cannot be transliterated
           if (greekLetter !== '\0') {
             const end = this.selectionEnd;
@@ -775,7 +785,7 @@ BUTTON {
     
       getwords(parseInt(thisText));
 
-      const w = new wordtree('test1', 480, $(document).height() - 38);
+      const w = new Wordtree('test1', 480, $(document).height() - 38);
       w.columnOffsets = [0, 0, 0, 0];
       w.params.lexicon = 'hqvocab';
       w.url = 'queryglosses';
@@ -794,7 +804,7 @@ BUTTON {
       $('#test1Entry').css('font-size', '14pt').addClass('gkinput');
       $('.gkinput').keypress(handleKey);
 
-      const w2 = new wordtree('text', 480, $(document).height() - 38);
+      const w2 = new Wordtree('text', 480, $(document).height() - 38);
       w2.columnOffsets = [0, 0, 0, 0];
       w2.params.lexicon = 'hqvocab';
       w2.url = 'querytexts';
@@ -814,7 +824,7 @@ BUTTON {
       // $("#textContainer").css({"top":"41px"});
       $('#textEntry').css({ 'font-size': '14pt', display: 'block' });
 
-      const w3 = new wordtree('glossuses', 480, $(document).height() - 38);
+      const w3 = new Wordtree('glossuses', 480, $(document).height() - 38);
       w3.columnOffsets = [0, 0, 0, 0];
       w3.params.lexicon = 'hqvocab';
       w3.url = 'glossuses';
@@ -833,7 +843,7 @@ BUTTON {
       // w2.onSelectionChanged = act;
       $('#glossusesEntry').css({ 'font-size': '14pt', display: 'block' });
 
-      const w4 = new wordtree('updatelog', 480, $(document).height() - 38);
+      const w4 = new Wordtree('updatelog', 480, $(document).height() - 38);
       w4.columnOffsets = [0, 0, 0, 0];
       w4.params.lexicon = 'hqvocab';
       w4.url = 'updatelog';
@@ -877,9 +887,9 @@ BUTTON {
         success: function (data, textStatus, jqXHR) {
           showToast('success: ' + data);
 
-          let returnObj;
+          // let returnObj;
           try {
-            returnObj = JSON.parse(data);
+            // returnObj = JSON.parse(data);
             showTextList();
             if (globalSelectedTextId) {
               getwords(globalSelectedTextId);
@@ -1380,10 +1390,12 @@ BUTTON {
       }
     
       let t = '';
+      const glossFragment = new DocumentFragment();
+
       const a = document.getElementById('wordscontents');
       a.innerHTML = ''; // clear old content
-      let firstOfSection = true;
 
+      let firstOfSection = true;
       let lastWord = false;
 
       if (returnObj.words && Array.isArray(returnObj.words)) {
@@ -1432,8 +1444,9 @@ BUTTON {
             if (i.arrowed_text_seq) {
               b.setAttribute('arrowedtextseq', i.arrowed_text_seq);
             }
-            a.appendChild(b);
+            glossFragment.appendChild(b);
           }
+          a.appendChild(glossFragment);
 
           // build text
           if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION) {
@@ -1764,6 +1777,7 @@ function updateListWordByWordID (wid, lemma, pos, gloss, lemmaid, count, total, 
 }
 
 function realEditLemmaFormSubmit (editHQID, newLemma, newPOS, newGloss, newNote) {
+  // eslint-disable-next-line camelcase
   if (typeof (strip_diacritics) !== 'function') {
         console.log('Error: does not support editing: no wasm.');
         return;
@@ -1933,9 +1947,9 @@ function getCookie (name) {
   return null;
 }
 
-function eraseCookie (name) {
-  setCookie(name, '', -1);
-}
+// function eraseCookie (name) {
+//   setCookie(name, '', -1);
+// }
 
 function flagToggle () {
   if (vToggleFlagPending) {
@@ -2033,7 +2047,7 @@ function onResize () {
           break;
       }
     }
-
+    // eslint-disable-next-line no-unused-vars
     function darkModeClick (radio) {
       switch (radio.value) {
         case 'dark':
@@ -2046,6 +2060,7 @@ function onResize () {
           localStorage.removeItem('mode');
           break;
       }
+      // eslint-disable-next-line no-undef
       setTheme();
     }
 

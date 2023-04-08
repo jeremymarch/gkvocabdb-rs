@@ -93,7 +93,7 @@ function destroyWT()
 	return null;
 }
 
-function wordtree(idPrefix, width, height)
+function Wordtree(idPrefix, width, height)
 {
     //alert("abc1");
 	this.showMorph = false;

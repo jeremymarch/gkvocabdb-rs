@@ -43,8 +43,8 @@ pub async fn hqvocab(
         None => "20".to_string(),
     };
 
-    let mut lower: u32 = lower_str.parse::<u32>().unwrap_or(1);
-    let mut upper: u32 = upper_str.parse::<u32>().unwrap_or(20);
+    let mut lower: u32 = lower_str.trim().parse::<u32>().unwrap_or(1);
+    let mut upper: u32 = upper_str.trim().parse::<u32>().unwrap_or(20);
 
     if lower < 1 {
         lower = 1;
