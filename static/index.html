@@ -28,6 +28,17 @@ function setTheme () {
 setTheme();
 </script>
 <style>
+.verse-line-label {
+  margin-right:10px;
+  display: inline-block;
+  width: 20px;
+}
+.section-label {
+  font-weight: bold;
+}
+.section-title {
+  font-weight: bold;
+}
 #showUpdateLogButton {
     position: absolute;
     top: 2px;
@@ -208,11 +219,11 @@ html {
     }
     @font-face {
       font-family: 'WebNewAthenaUnicode';
-      src: url('./newathu5_8.ttf') format('truetype');
+      src: local('NewAthenaUnicode'), url('./newathu5_8.ttf') format('truetype');
     }
     @font-face {
       font-family: 'WebIFAO';
-      src: url('./IFAOGrec.ttf') format('truetype');
+      src: local('IFAO-Grec-Unicode'), url('./IFAOGrec.ttf') format('truetype');
     }
 
      /* The snackbar - position it at the bottom and in the middle of the screen */
@@ -1389,11 +1400,8 @@ BUTTON {
         document.getElementById('text_title').innerHTML = returnObj.text_name;
       }
     
-      let t = '';
       const glossFragment = new DocumentFragment();
-
-      const a = document.getElementById('wordscontents');
-      a.innerHTML = ''; // clear old content
+      const textFragment = new DocumentFragment();
 
       let firstOfSection = true;
       let lastWord = false;
@@ -1410,20 +1418,23 @@ BUTTON {
               b.setAttribute('lemmaid', i.hqid);
             }
             // b.setAttribute("seq", i.s);
-    
-            b.className += 'listword';
+            b.classList.add('listword');
+            // b.className += 'listword';
             // b.setAttribute("tabindex","0");
     
             if (i.l) { // parseInt(i.u) < 21)
-              b.className += ' hqListWord';
+              b.classList.add('hqListWord');
+              // b.className += ' hqListWord';
             }
             if (!i.l) { // lemma is null
               b.innerHTML = "<div class='clickablelistword'><span class='listheadword'>" + i.w + '</span></div>';
             } else {
               if (i.arrowed_text_seq === i.word_text_seq && i.s2 === i.s) {
-                b.className += ' arrowedHere';
+                b.classList.add('arrowedHere');
+                // b.className += ' arrowedHere';
               } else if ((i.arrowed_text_seq !== null && i.arrowed_text_seq < i.word_text_seq) || (i.arrowed_text_seq !== null && i.arrowed_text_seq === i.word_text_seq && i.s2 !== null && parseInt(i.s2) < parseInt(i.s))) {
-                b.className += ' alreadyArrowed'; // hide it
+                // b.className += ' alreadyArrowed'; // hide it
+                b.classList.add('alreadyArrowed');
               }
               /*
               if (i.s2 === i.s) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
@@ -1435,7 +1446,8 @@ BUTTON {
               }
               */
               if (i.if && parseInt(i.if) === 1) {
-                b.className += ' flagged';
+                b.classList.add('flagged');
+                // b.className += ' flagged';
               }
               // setListRow(textwordid, lemmaid, lemma, pos, def, arrowed, seq);
               b.innerHTML = getListWordString(i.i, i.l, i.pos, i.def, i.rc, i.c, i.hqid);// "<div id='arrow" + i.i + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + i.i + "'>" + i.l + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + i.i + "'>" + i.pos + "</span>) </span><span class='listdef' id='listdef" + i.i + "'>" + i.def + "</span> <a class='listfrequency' href=''>[" + i.rc + " of " + i.c + "]</a></div>";
@@ -1446,32 +1458,71 @@ BUTTON {
             }
             glossFragment.appendChild(b);
           }
-          a.appendChild(glossFragment);
 
           // build text
           if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION) {
             if (firstOfSection) {
               firstOfSection = false;
             } else {
-              t += '<br><br>'; // not for first section
+              const br1 = document.createElement('br');
+              const br2 = document.createElement('br');
+              textFragment.appendChild(br1);
+              textFragment.appendChild(br2);
+              // t += '<br><br>'; // not for first section
             }
 
-            i.w = '<b>' + i.w + '</b><br>';
-            t += i.w.replace('[section]', '');
+            const sectionDiv = document.createElement('div');
+            sectionDiv.classList.add('section-label');
+            sectionDiv.innerHTML = i.w.replace('[section]', '');
+            textFragment.appendChild(sectionDiv);
+
+            // i.w = '<b>' + i.w + '</b><br>';
+            // t += i.w.replace('[section]', '');
           } else if (i.t === TYPE_WORK_TITLE || i.t === TYPE_SECTION_TITLE) {
-            t += '<b>' + i.w + '</b><br/><br/>';
+            const title = document.createElement('div');
+            title.classList.add('section-title');
+            title.innerHTML = i.w;
+            textFragment.appendChild(title);
+            // mt += '<b>' + i.w + '</b><br/><br/>';
           } else if (i.t === TYPE_VERSE_LINE) {
-            t += '<br/>' + i.w.replace('[line]', '') + '&nbsp;&nbsp;&nbsp;';
+            const br = document.createElement('br');
+            textFragment.appendChild(br);
+            const line = document.createElement('span');
+            line.classList.add('verse-line-label');
+            line.innerText = i.w.replace('[line]', '');
+            textFragment.appendChild(line);
+
+            // t += '<br/>' + i.w.replace('[line]', '') + '&nbsp;&nbsp;&nbsp;';
           } else if (i.t === TYPE_PARA_NO_INDENT || i.t === TYPE_PARA_WITH_INDENT) {
-            t += '<br/><br/>';
+            const br1 = document.createElement('br');
+            const br2 = document.createElement('br');
+            textFragment.appendChild(br1);
+            textFragment.appendChild(br2);
+            // t += '<br/><br/>';
           } else {
-            t += ((insertSpaceBefore(i.w) && lastWord !== false && insertSpaceAfter(lastWord)) ? ' ' : '') + "<span id='text" + i.i + "' class='textword'>" + i.w + '</span>';
+            if (insertSpaceBefore(i.w) && lastWord !== false && insertSpaceAfter(lastWord)) {
+              const space = document.createTextNode(' ');
+              textFragment.appendChild(space);
+            }
+            const span = document.createElement('span');
+            span.id = 'text' + i.i;
+            span.classList.add('textword');
+            span.innerText = i.w;
+            textFragment.appendChild(span);
+
+            // t += ((insertSpaceBefore(i.w) && lastWord !== false && insertSpaceAfter(lastWord)) ? ' ' : '') + "<span id='text" + i.i + "' class='textword'>" + i.w + '</span>';
             lastWord = i.w;
           }
         });
       }
+      const a = document.getElementById('wordscontents');
+      a.innerHTML = ''; // clear old content
+      a.appendChild(glossFragment);
+
       const text = document.getElementById('textcontents');
-      text.innerHTML = t;
+      text.innerHTML = ''; // clear old content
+      text.appendChild(textFragment);
+
       if (returnObj.selectedid && parseInt(returnObj.selectedid) > 0) {
         scrollToWordID('word' + returnObj.selectedid);
         scrollToTextID('text' + returnObj.selectedid);
@@ -1482,8 +1533,6 @@ BUTTON {
       $('.textword').click(function () { scrollToTextID(this.id); });
       $('.clickablelistword').click(function () { scrollToWordID(this.parentNode.id); });
       $('.listarrow').click(toggleArrow);
-    
-      // $("#words").css("border","2px solid green");
     }
     /*
     function addGloss(id)
