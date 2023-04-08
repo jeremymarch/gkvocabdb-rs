@@ -2,7 +2,16 @@
 <html><head>
 <meta http-equiv='Content-Type' content='text/html;charset=utf-8'/>
 <style>
-@font-face { font-family:'WebNewAthenaUnicode'; src:url('newathu5_8.ttf') format('truetype'); }
+@font-face {
+  font-family: 'WebNewAthenaUnicode';
+  src: local('NewAthenaUnicode'),
+    url('/newathu5_8.woff') format('woff'),
+    url('/newathu5_8.ttf') format('ttf');
+}
+BODY {font-family:helvetica,arial,sans-serif;margin:0px;}
+input[type="text"] {
+  width: 30px;
+}
 .col { padding:0px;vertical-align:top; }
 .row { margin:4px 0px;margin-left:4px;font-size:14pt;font-family:NewAthenaUnicode,WebNewAthenaUnicode;padding-left: 22px; text-indent: -22px ; }
 .unitNum { color:#888;font-family:helvetica,arial,sans-serif;font-size:10pt; }
@@ -12,7 +21,6 @@ P { -webkit-margin-before: 0px; -webkit-margin-after: 0px; } /* needed for P wit
  /* Tooltip container */
 .tooltip {
   position: relative;
- 
 }
 
 /* Tooltip text */
@@ -58,7 +66,7 @@ P { -webkit-margin-before: 0px; -webkit-margin-after: 0px; } /* needed for P wit
 .tooltip:hover .tooltiptext {
   visibility: visible;
   opacity: 1;
-} 
+}
 
 .colheader {
     font-family:helvetica,arial;background-color:#183B69;color:white;padding:4px;
@@ -70,66 +78,15 @@ P { -webkit-margin-before: 0px; -webkit-margin-after: 0px; } /* needed for P wit
   margin-bottom:4px;margin-left:4px;font-size:12pt;font-family:helvetica,arial,sans-serif;padding-top:4px;padding-bottom:4px;
 }
 </style></head>
-<body style='font-family:helvetica,arial,sans-serif;margin:0px;'>
-<!--
+<body>
 
-<div class='rowdiv'>
-<p class='rowp'>Unit: %colunit%</p></div>
-<p class="row tooltip">%lemma%%sortalphaunit%<span class="tooltiptext">%def</span></p>
-
-<span class='unitNum'>(%unit%)</span>
-
-
-
-function col($db, $unit, $type, $sort)
-{
-  $showDefs = TRUE; //FALSE;
-  if ($type && $type != "other")
-  {
-  	$type=" pos='$type' ";
-  }
-  else if ($type == "other")
-  {
-  	$type=" pos!='verb' AND pos!= 'noun' AND pos!= 'adjective' ";
-  }
-  $stmt = $db->query("SELECT lemma,unit,def FROM hqvocab where $type AND unit > 0 AND unit <= $unit ORDER BY $sort;");// COLLATE NATURAL_CMP;");
-  $locUnit = 0;
-  while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) 
-  {
-  	if ($sort == "unit,lemma" && $locUnit != $row['unit'])
-  	{
-  		$locUnit = $row['unit'];
-  		echo "<div class='rowdiv'>";
-  		echo "<p class='rowp'>Unit: " . $row['unit'] ."</p></div>";
-  	}
-  	$tooltip = "";
-  	if ($showDefs)
-  	{
-  	    $tooltip = "tooltip";
-  	}
-        echo "<p class='row " . $tooltip . "'>" . $row['lemma'];
-        if ($sort == "lemma")
-        { 
-        	echo " <span class='unitNum'>(" . $row['unit'] .")</span>";
-        }
-        if ($showDefs)
-  	    {
-            echo "<span class='tooltiptext'>";
-            echo $row['def'];
-            echo "</span>";
-  	    }
-        echo "</p>";
-  }
-  echo "</td>";
-}
-
--->
 <div style='background-color:#67A4F3;padding:10px;'>
     <span style='font-size:20pt;'>H&Q Words by POS</span>
-    <form>Unit: <input type='text' name='unit' value='%%unit%%'/> (and under<!--<input type='checkbox' name='AndUnder' checked/>-->)
+    <form>Unit(s) between <input type='text' name='lower' value='%%lower%%'/> and <input type='text' name='upper' value='%%upper%%'/>
         <input type='submit' value='Enter'/>
         <br>Sort alphabetically <input type='radio' name='sort' value='alpha' %sortalpha%/> or by unit 
         <input type='radio' name='sort' value='unit' %sortunit%/>
+        abbreviate <input type='checkbox' name='abbrev' %abbreviated%/>
     </form>
 </div>
 <table style='margin:0px auto;width:100%' cellpadding=0 cellspacing=0>

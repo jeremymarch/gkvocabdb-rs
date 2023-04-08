@@ -179,7 +179,7 @@ impl UpdateType {
         }
     }
 }
-pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, unit:u32, sort:&str) -> Result<Vec<(String,u32,String)>, sqlx::Error> {
+pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, lower_unit: u32, unit:u32, sort:&str) -> Result<Vec<(String,u32,String)>, sqlx::Error> {
     let s = match sort {
         "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
         _ => "unit,sortalpha COLLATE PolytonicGreek ASC"
@@ -190,7 +190,7 @@ pub async fn get_hqvocab_column(pool: &SqlitePool, pos:&str, unit:u32, sort:&str
         "adjective" => "pos == 'adjective'",
         _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
     };
-    let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit > 0 AND unit <= {} AND status=1 ORDER BY {};", p, unit, s);
+    let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit >= {} AND unit <= {} AND status=1 ORDER BY {};", p, lower_unit, unit, s);
     let words: Vec<(String,u32,String)> = sqlx::query_as(&query)
         .fetch_all(pool)
         .await?;
@@ -954,7 +954,7 @@ pub async fn get_text_name(
 // }
 /*
 
-create table containers (container_id integer primary key autoincrement, name text not null);
+create table containers (container_id integer primary key autoincrement not null, name text not null);
 insert into containers select null, name from texts where parent_id is null and text_id in (select parent_id from texts where parent_id is not null);
 update texts set display = 0 where parent_id is null and text_id in (select parent_id from texts where parent_id is not null);
 update texts set parent_id = parent_id - 1 where parent_id is not null;
@@ -975,6 +975,144 @@ container_x_text
     text_order,
 */
 
+// fix me
+/*
+pub async fn update_text_order_db(
+    pool: &SqlitePool,
+    course_id: u32,
+    text_id: u32,
+    step: i32,
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    
+    // //has children? move children with parent
+    // let query = "SELECT a.text_id,b.text_order FROM texts a \
+    //             INNER JOIN course_x_text b ON a.text_id=b.text_id \
+    //             WHERE parent_id = ? ORDER BY b.text_order;";
+    // let children: Vec<(i32,i32,)> = sqlx::query_as(query)
+    //     .bind(text_id)
+    //     .fetch_all(pool).await?;
+
+    // println!("children: {:?}", children);
+
+    // let num_to_move = 1 + children.len();
+
+    // if !children.empty() {
+
+    // }
+
+    // //has parent? only move among siblings
+    // let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
+    // let has_parent: (Option<i32>,) = sqlx::query_as(query)
+    //     .bind(text_id)
+    //     .fetch_one(pool).await?;
+
+    // println!("parent: {:?}", has_parent);
+
+    // containers
+    //     container_id
+    //     name
+
+    // containers_x_text
+    //     container_id
+    //     text_id
+
+    // container moving down: container and its children get + 1, following text gets - 1 or following container + children get -1
+    // container moving up: container and its children get - 1, text above gets + num_children + 1
+    // text where moving is child and moving up?
+    
+    // container_id: move all items in container: select * items in container
+    // text_id: move single item, if moving one text check if in container and limit to container bounds
+
+    // text_seq_start, text_seq_end, step
+    
+
+    
+    
+
+    let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
+    let text_order: i32 = sqlx::query_scalar(query)
+        .bind(course_id)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    let query = "SELECT COUNT(*) FROM texts WHERE parent_id = (SELECT parent_id FROM texts WHERE text_id = ?);";
+    let own_children: i32 = sqlx::query_scalar(query)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    if step > 0 {
+        let query = "SELECT COUNT(*) FROM texts WHERE parent_id = (SELECT text_id FROM course_x_text WHERE text_order = ? AND course_id = ?);";
+    }
+    else if step < 0 {
+        let query = "SELECT COUNT(*) FROM texts WHERE parent_id = (SELECT parent_id FROM course_x_text WHERE text_order = ? AND course_id = ?);";
+    }
+    
+    let target_children: i32 = sqlx::query_scalar(&query)
+        .bind(text_order + step)
+        .bind(course_id)
+        .fetch_one(pool).await?;
+
+    assert_eq!(2, own_children);
+    assert_eq!(2, target_children);
+
+    //let own_children = 2;
+    //let target_children = 2;
+
+    let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
+    let text_count_t: (i32,) = sqlx::query_as(query)
+        .bind(course_id)
+        .bind(text_id)
+        .fetch_one(pool).await?;
+
+    let text_count = text_count_t.0;
+
+    if step == 0 || (text_order + step < 1 && step < 0) || (text_order + step > text_count && step > 0) {
+        return Err(sqlx::Error::RowNotFound); //at no where to move: abort
+    }
+    else if step > 0 { //move down: make room by moving other texts up/earlier in sequence
+        let query = "UPDATE course_x_text SET text_order = text_order - 1 - ? \
+            WHERE text_order > ? AND text_order < ? + ? + 1 + ? AND course_id = ?;";
+        sqlx::query(query)
+        .bind(own_children)
+        .bind(text_order + own_children) //3
+        .bind(text_order + own_children + target_children) //
+        .bind(step)
+        .bind(target_children)
+        .bind(course_id)
+        .execute(&mut tx)
+        .await?;
+    }
+    else { //move up: make room by moving other texts down/later in sequence
+        let query = "UPDATE course_x_text SET text_order = text_order + 1 + ? \
+            WHERE text_order < ? AND text_order > ? - ? - 1 + ? AND course_id = ?;";
+        sqlx::query(query)
+        .bind(own_children)
+        .bind(text_order)
+        .bind(text_order)
+        .bind(target_children)
+        .bind(step) //step will be negative here
+        .bind(course_id)
+        .execute(&mut tx)
+        .await?;
+    }
+    //set new text order
+    let query = "UPDATE course_x_text SET text_order = text_order + ? + ? WHERE course_id = ? AND text_id IN (SELECT text_id FROM texts WHERE (parent_id = ?) OR (text_id = ?));";
+    sqlx::query(query)
+        .bind(step)
+        .bind(target_children * if step > 0 { 1 } else { -1 })
+        .bind(course_id)
+        .bind(text_id)
+        .bind(text_id)
+        .execute(&mut tx)
+        .await?;
+
+    tx.commit().await?;
+    Ok(())
+}
+*/
+
 pub async fn update_text_order_db(
     pool: &SqlitePool,
     course_id: u32,
@@ -991,31 +1129,22 @@ pub async fn update_text_order_db(
     let children: Vec<(i32,i32,)> = sqlx::query_as(query)
         .bind(text_id)
         .fetch_all(pool).await?;
-
     println!("children: {:?}", children);
-
     let num_to_move = 1 + children.len();
-
     if !children.empty() {
-
     }
-
     //has parent? only move among siblings
     let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
     let has_parent: (Option<i32>,) = sqlx::query_as(query)
         .bind(text_id)
         .fetch_one(pool).await?;
-
     println!("parent: {:?}", has_parent);
-
     containers
         container_id
         name
-
     containers_x_text
         container_id
         text_id
-
     container moving down: container and its children get + 1, following text gets - 1 or following container + children get -1
     container moving up: container and its children get - 1, text above gets + num_children + 1
     text where moving is child and moving up?
@@ -1071,6 +1200,7 @@ pub async fn update_text_order_db(
     Ok(())
 }
 
+
 pub async fn get_texts_db(
     pool: &SqlitePool,
     course_id: u32,
@@ -1107,7 +1237,7 @@ pub async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::E
 }
 */
 pub async fn get_text_id_for_word_id(pool: &SqlitePool, word_id: u32) -> Result<u32, sqlx::Error> {
-    let query = "SELECT text FROM words WHERE word_id = ?;";
+    let query = "SELECT text_id FROM words WHERE word_id = ?;";
 
     let rec: (u32,) = sqlx::query_as(query).bind(word_id).fetch_one(pool).await?;
 

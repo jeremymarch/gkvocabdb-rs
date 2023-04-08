@@ -6,10 +6,10 @@ authors = ["Jeremy March <jmarch@gradcenter.cuny.edu>"]
 license = "AGPL-3.0"
 
 [dependencies]
-actix-web = { version = "4.2.1" }
+actix-web = { version = "4.3.0" }
 actix-files = "0.6.2"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
-actix-multipart = "0.4.0"
+actix-multipart = "0.5.0"
 actix-web-httpauth = "0.8.0"
 
 quick-xml = "0.27.1"
@@ -28,11 +28,11 @@ thiserror = "1.0.38"
 secrecy = { version = "0.8", features = ["serde"] }
 hex = "0.4.3"
 
-regex = "1.7"
+regex = "1.7.1"
 percent-encoding = "2.2.0"
 
 [dev-dependencies]
-actix-rt = "2.7.0"
+actix-rt = "2.8.0"
 
 [profile.release]
 opt-level = 3
