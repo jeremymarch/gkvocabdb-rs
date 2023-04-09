@@ -441,38 +441,50 @@ pub async fn gkv_get_texts(
     let mut assignment_rows: Vec<AssignmentTree> = vec![];
     let mut last_container_id: i64 = -1;
 
+    let use_containers = false;
+
     for r in &w {
-        if r.container_id.is_some()
-            && r.container.is_some()
-            && r.container_id.unwrap() != last_container_id as u32
-        {
-            last_container_id = r.container_id.unwrap() as i64;
-            //add container
-            let mut a = AssignmentTree {
-                i: r.container_id.unwrap(),
-                col: vec![
-                    r.container.as_ref().unwrap().clone(),
-                    r.container_id.unwrap().to_string(),
-                ],
-                h: false,
-                c: vec![],
-            };
-            //container's children
-            for r2 in &w {
-                if r2.container_id.is_some() && r2.container_id.unwrap() == a.i {
-                    a.h = true;
-                    a.c.push(AssignmentTree {
-                        i: r2.text_id,
-                        col: vec![r2.text.clone(), r2.text_id.to_string()],
-                        h: false,
-                        c: vec![],
-                    });
+        if use_containers {
+            if r.container_id.is_some()
+                && r.container.is_some()
+                && r.container_id.unwrap() != last_container_id as u32
+            {
+                last_container_id = r.container_id.unwrap() as i64;
+                //add container
+                let mut a = AssignmentTree {
+                    i: r.container_id.unwrap(),
+                    col: vec![
+                        r.container.as_ref().unwrap().clone(),
+                        r.container_id.unwrap().to_string(),
+                    ],
+                    h: false,
+                    c: vec![],
+                };
+                //container's children
+                for r2 in &w {
+                    if r2.container_id.is_some() && r2.container_id.unwrap() == a.i {
+                        a.h = true;
+                        a.c.push(AssignmentTree {
+                            i: r2.text_id,
+                            col: vec![r2.text.clone(), r2.text_id.to_string()],
+                            h: false,
+                            c: vec![],
+                        });
+                    }
                 }
+                assignment_rows.push(a);
             }
-            assignment_rows.push(a);
-        }
-        //texts without containers
-        else if r.container_id.is_none() {
+            //texts without containers
+            else if r.container_id.is_none() {
+                let a = AssignmentTree {
+                    i: r.text_id,
+                    col: vec![r.text.clone(), r.text_id.to_string()],
+                    h: false,
+                    c: vec![],
+                };
+                assignment_rows.push(a);
+            }
+        } else {
             let a = AssignmentTree {
                 i: r.text_id,
                 col: vec![r.text.clone(), r.text_id.to_string()],

@@ -1144,6 +1144,7 @@ pub async fn update_text_order_db(
     text where moving is child and moving up?
     */
 
+    // get text order int
     let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
     let text_order: (i32,) = sqlx::query_as(query)
         .bind(course_id)
@@ -1151,6 +1152,7 @@ pub async fn update_text_order_db(
         .fetch_one(&mut tx)
         .await?;
 
+    // get number of texts
     let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
     let text_count: (i32,) = sqlx::query_as(query)
         .bind(course_id)
@@ -1162,7 +1164,7 @@ pub async fn update_text_order_db(
         || (text_order.0 + step < 1 && step < 0)
         || (text_order.0 + step > text_count.0 && step > 0)
     {
-        return Err(sqlx::Error::RowNotFound); //at no where to move: abort
+        return Err(sqlx::Error::RowNotFound); // no where to move: abort
     } else if step > 0 {
         //make room by moving other texts up/earlier in sequence
         let query = "UPDATE course_x_text SET text_order = text_order - 1 \
