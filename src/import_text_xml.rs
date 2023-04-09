@@ -25,8 +25,6 @@ use quick_xml::Reader;
 use actix_multipart::Multipart;
 use futures::{StreamExt, TryStreamExt};
 use quick_xml::name::QName;
-use sqlx::sqlite::SqliteRow;
-use sqlx::Row;
 use std::collections::HashMap;
 
 use super::*;
@@ -38,22 +36,7 @@ pub async fn import(
     title: &str,
     xml_string: &str,
 ) -> ImportResponse {
-    let mut lemmatizer = HashMap::new();
-
-    let query = "SELECT form,gloss_id FROM lemmatizer;";
-    let res: Result<Vec<LemmatizerRecord>, sqlx::Error> = sqlx::query(query)
-        .map(|rec: SqliteRow| LemmatizerRecord {
-            form: rec.get("form"),
-            gloss_id: rec.get("gloss_id"),
-        })
-        .fetch_all(db)
-        .await;
-
-    if let Ok(res) = res {
-        for r in res {
-            lemmatizer.insert(r.form, r.gloss_id);
-        }
-    }
+    let lemmatizer = db::get_lemmatizer(db).await;
 
     match import_text_xml::process_imported_text(xml_string, &lemmatizer).await {
         Ok(words) => {

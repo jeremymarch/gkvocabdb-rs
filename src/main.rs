@@ -491,26 +491,6 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
-#[derive(Debug, Deserialize)]
-struct LemmatizerRecord {
-    form: String,
-    gloss_id: u32,
-}
-
-async fn load_lemmatizer(db: &SqlitePool) {
-    if let Ok(mut reader) = csv::Reader::from_path("lemmatizer.csv") {
-        let query = r#"INSERT INTO lemmatizer VALUES (?, ?);"#;
-
-        for row in reader.deserialize::<LemmatizerRecord>().flatten() {
-            let _ = sqlx::query(query)
-                .bind(row.form)
-                .bind(row.gloss_id)
-                .execute(db)
-                .await;
-        }
-    }
-}
-
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
@@ -536,7 +516,7 @@ async fn main() -> io::Result<()> {
 
     gkv_create_db(&db_pool).await.expect("Could not create db.");
 
-    load_lemmatizer(&db_pool).await;
+    db::load_lemmatizer(&db_pool).await;
 
     /*
     https://github.com/SergioBenitez/Rocket/discussions/1989

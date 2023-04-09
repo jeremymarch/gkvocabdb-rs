@@ -22,6 +22,7 @@ use crate::GlossOccurrence;
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use unicode_normalization::UnicodeNormalization;
 
@@ -179,6 +180,47 @@ impl UpdateType {
         }
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct LemmatizerRecord {
+    pub form: String,
+    pub gloss_id: u32,
+}
+
+pub async fn load_lemmatizer(db: &SqlitePool) {
+    if let Ok(mut reader) = csv::Reader::from_path("lemmatizer.csv") {
+        let query = r#"INSERT INTO lemmatizer VALUES (?, ?);"#;
+
+        for row in reader.deserialize::<LemmatizerRecord>().flatten() {
+            let _ = sqlx::query(query)
+                .bind(row.form)
+                .bind(row.gloss_id)
+                .execute(db)
+                .await;
+        }
+    }
+}
+
+pub async fn get_lemmatizer(db: &SqlitePool) -> HashMap<String, u32> {
+    let mut lemmatizer = HashMap::new();
+
+    let query = "SELECT form,gloss_id FROM lemmatizer;";
+    let res: Result<Vec<LemmatizerRecord>, sqlx::Error> = sqlx::query(query)
+        .map(|rec: SqliteRow| LemmatizerRecord {
+            form: rec.get("form"),
+            gloss_id: rec.get("gloss_id"),
+        })
+        .fetch_all(db)
+        .await;
+
+    if let Ok(res) = res {
+        for r in res {
+            lemmatizer.insert(r.form, r.gloss_id);
+        }
+    }
+    lemmatizer
+}
+
 pub async fn get_hqvocab_column(
     pool: &SqlitePool,
     pos: &str,
