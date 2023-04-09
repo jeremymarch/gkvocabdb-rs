@@ -25,6 +25,9 @@ use quick_xml::Reader;
 use actix_multipart::Multipart;
 use futures::{StreamExt, TryStreamExt};
 use quick_xml::name::QName;
+use sqlx::sqlite::SqliteRow;
+use sqlx::Row;
+use std::collections::HashMap;
 
 use super::*;
 
@@ -35,7 +38,24 @@ pub async fn import(
     title: &str,
     xml_string: &str,
 ) -> ImportResponse {
-    match import_text_xml::process_imported_text(xml_string).await {
+    let mut lemmatizer = HashMap::new();
+
+    let query = "SELECT form,gloss_id FROM lemmatizer;";
+    let res: Result<Vec<LemmatizerRecord>, sqlx::Error> = sqlx::query(query)
+        .map(|rec: SqliteRow| LemmatizerRecord {
+            form: rec.get("form"),
+            gloss_id: rec.get("gloss_id"),
+        })
+        .fetch_all(db)
+        .await;
+
+    if let Ok(res) = res {
+        for r in res {
+            lemmatizer.insert(r.form, r.gloss_id);
+        }
+    }
+
+    match import_text_xml::process_imported_text(xml_string, &lemmatizer).await {
         Ok(words) => {
             if !words.is_empty() && !title.is_empty() {
                 let affected_rows = db::add_text(db, course_id, title, words, info)
@@ -183,7 +203,13 @@ fn sanitize_greek(s: &str) -> String {
         .replace('\u{0344}', "\u{0308}\u{0301}") //combining diaeresis with acute
 }
 
-fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Vec<TextWord> {
+fn split_words(
+    text: &str,
+    in_speaker: bool,
+    in_head: bool,
+    in_desc: bool,
+    lemmatizer: &HashMap<String, u32>,
+) -> Vec<TextWord> {
     let mut words: Vec<TextWord> = vec![];
     let mut last = 0;
     let word_type_word = if in_desc {
@@ -209,7 +235,7 @@ fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Ve
         }) {
             //add words
             if last != index && &text[last..index] != " " {
-                let gloss_id = lemmatize_simple(&text[last..index]);
+                let gloss_id = lemmatizer.get(&text[last..index]).copied();
                 words.push(TextWord {
                     word: text[last..index].to_string(),
                     word_type: word_type_word,
@@ -228,7 +254,7 @@ fn split_words(text: &str, in_speaker: bool, in_head: bool, in_desc: bool) -> Ve
         }
         //add last word
         if last < text.len() && &text[last..] != " " {
-            let gloss_id = lemmatize_simple(&text[last..]);
+            let gloss_id = lemmatizer.get(&text[last..]).copied();
             words.push(TextWord {
                 word: text[last..].to_string(),
                 word_type: word_type_word,
@@ -281,7 +307,10 @@ pub async fn get_xml_string(
     Ok((xml_string, title))
 }
 
-pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, quick_xml::Error> {
+pub async fn process_imported_text(
+    xml_string: &str,
+    lemmatizer: &HashMap<String, u32>,
+) -> Result<Vec<TextWord>, quick_xml::Error> {
     let mut words: Vec<TextWord> = Vec::new();
 
     let mut reader = Reader::from_str(xml_string);
@@ -349,7 +378,7 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
                         //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
                         let clean_string = sanitize_greek(&s);
                         words.extend_from_slice(
-                            &split_words(&clean_string, in_speaker, in_head, in_desc)[..],
+                            &split_words(&clean_string, in_speaker, in_head, in_desc, lemmatizer)[..],
                         );
 
                         //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
@@ -423,147 +452,15 @@ pub async fn process_imported_text(xml_string: &str) -> Result<Vec<TextWord>, qu
     Ok(words)
 }
 
-//select b.gloss_id,b.lemma,count(b.gloss_id) c from words a inner join glosses b on a.gloss_id=b.gloss_id group by b.gloss_id order by c;
-fn lemmatize_simple(word: &str) -> Option<u32> {
-    match word {
-        "ὁ" => Some(16),
-        "τοῦ" => Some(16),
-        "τὸν" => Some(16),
-        "τῷ" => Some(16),
-        "οἱ" => Some(16),
-        "τῶν" => Some(16),
-        "τοὺς" => Some(16),
-        "τοῖς" => Some(16),
-        "ἡ" => Some(16),
-        "τῆς" => Some(16),
-        "τὴν" => Some(16),
-        "τῇ" => Some(16),
-        "αἱ" => Some(16),
-        "τὰς" => Some(16),
-        "ταῖς" => Some(16),
-        "τὸ" => Some(16),
-        "τὰ" => Some(16),
-
-        "οὗτος" => Some(16),
-        "τοῦτο" => Some(16),
-        "ταῦτα" => Some(16),
-        "ἐκεῖνο" => Some(16),
-
-        "ἀεί" => Some(260),
-        "ἀεὶ" => Some(260),
-        "ἀλλ" => Some(54),
-        "ἀλλ'" => Some(54),
-        "ἀλλ᾽" => Some(54),
-        "ἀλλὰ" => Some(54),
-        "ἀλλά" => Some(54),
-        "ἅμα" => Some(191),
-        "ἄν" => Some(78),
-        "ἂν" => Some(78),
-        "ἆρα" => Some(28),
-        "αὖ" => Some(483),
-        "γὰρ" => Some(29),
-        "γάρ" => Some(29),
-        "γε" => Some(135),
-        "δ'" => Some(30),
-        "δ᾽" => Some(30),
-        "δ" => Some(30),
-        "δέ" => Some(30),
-        "δὲ" => Some(30),
-        "δὴ" => Some(59),
-        "δή" => Some(59),
-        "διά" => Some(61),
-        "διὰ" => Some(61),
-        "ἐγώ" => Some(392),
-        "ἐγὼ" => Some(392),
-        "εἰ" => Some(88),
-        "εἴ" => Some(88),
-        "εἰς" => Some(6),
-        "εἴτε" => Some(488),
-        "ἐκ" => Some(7),
-        "ἐξ" => Some(7),
-        "ἐν" => Some(8),
-        "ἐπεί" => Some(64),
-        "ἐπεὶ" => Some(64),
-        "ἐπειδή" => Some(65),
-        "ἐπειδὴ" => Some(65),
-        "ἔπειτα" => Some(193),
-        "ἐπί" => Some(333),
-        "ἐπὶ" => Some(333),
-        "ἐπ" => Some(333),
-        "ἐς" => Some(6),
-        "ἔτι" => Some(367),
-        "εὖ" => Some(32),
-        "ἢ" => Some(34),
-        "ἤ" => Some(34),
-        "ἤδη" => Some(640),
-        "καὶ" => Some(11),
-        "καί" => Some(11),
-        "καίτοι" => Some(93),
-        "κατά" => Some(146),
-        "κατὰ" => Some(146),
-        "μάλα" => Some(515),
-        "μᾶλλον" => Some(310),
-        "με" => Some(392),
-        "μέ" => Some(392),
-        "μέν" => Some(39),
-        "μὲν" => Some(39),
-        "μέντοι" => Some(598),
-        "μετά" => Some(96),
-        "μετὰ" => Some(96),
-        "μή" => Some(69),
-        "μὴ" => Some(69),
-        "μηδέ" => Some(312),
-        "μηδὲ" => Some(312),
-        "μὴν" => Some(555),
-        "μήν" => Some(555),
-        "μήτε" => Some(196),
-        "μοι" => Some(392),
-        "νῦν" => Some(40),
-        "ὅπως" => Some(348),
-        "ὅταν" => Some(282),
-        "ὅτι" => Some(435),
-        "οὐ" => Some(42),
-        "οὐκ" => Some(42),
-        "οὖν" => Some(182),
-        "οὔτε" => Some(200),
-        "οὐχ" => Some(42),
-        "παρά" => Some(44),
-        "παρὰ" => Some(44),
-        "περί" => Some(74),
-        "περὶ" => Some(74),
-        "που" => Some(319),
-        "πρίν" => Some(521),
-        "πρὶν" => Some(521),
-        "πρός" => Some(320),
-        "πρὸς" => Some(320),
-        "πῶς" => Some(284),
-        "σοι" => Some(408),
-        "σε" => Some(408),
-        "σὲ" => Some(408),
-        "σέ" => Some(408),
-        "σύ" => Some(408),
-        "σὺ" => Some(408),
-        "τ" => Some(157),
-        "τε" => Some(157),
-        "τι" => Some(414),
-        "τότε" => Some(286),
-        "ὑπό" => Some(131),
-        "ὑπὸ" => Some(131),
-        "χρή" => Some(537),
-        "χρὴ" => Some(537),
-        "ὦ" => Some(25),
-        "ὡς" => Some(76),
-        "ὥστε" => Some(259),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[actix_rt::test]
     async fn test_import() {
+        let mut lemmatizer = HashMap::new();
+        lemmatizer.insert("δ".to_string(), 30);
+
         //<?xml version="1.0" encoding="UTF-8"?> is optional
         let xml_string = r#"<TEI.2>
             <text lang="greek">
@@ -575,7 +472,9 @@ mod tests {
                 <desc>This is a test.</desc>
             </text>
         </TEI.2>"#;
-        let r = process_imported_text(xml_string).await.unwrap();
+        let r = process_imported_text(xml_string, &lemmatizer)
+            .await
+            .unwrap();
         //to see this: cargo test -- --nocapture
         // for a in &r {
         //     println!("{:?}", a);
@@ -610,15 +509,17 @@ mod tests {
 
     #[test]
     fn test_split() {
+        let lemmatizer = HashMap::new();
+
         // establish that combining chars are not alphanumeric
         assert!(!'\u{0313}'.is_alphanumeric());
 
         // therefore: be sure combining diacritics do not divide words (this is why we use unicode_normalization::char::is_combining_mark(c))
-        let a = split_words("α\u{0313}α ββ", false, false, false);
+        let a = split_words("α\u{0313}α ββ", false, false, false, &lemmatizer);
         assert_eq!(a.len(), 2);
 
         // be sure ' does not divide words
-        let a = split_words("δ' ββ", false, false, false);
+        let a = split_words("δ' ββ", false, false, false, &lemmatizer);
         assert_eq!(a.len(), 2);
         assert_eq!(a[0].word, "δ'");
     }

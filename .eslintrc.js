@@ -7,6 +7,7 @@ module.exports = {
   rules: {
     semi: [2, 'always']
   },
+  ignorePatterns: ['static/hoplitekb_wasm_rs.js'],
   overrides: [
   ],
   parserOptions: {

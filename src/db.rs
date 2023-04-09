@@ -1483,6 +1483,8 @@ pub async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
         CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT "81237698562398", email TEXT);
         CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id));
         CREATE TABLE IF NOT EXISTS containers (container_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
+        CREATE TABLE IF NOT EXISTS lemmatizer (form VARCHAR PRIMARY KEY NOT NULL, gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id));
+        
         CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
         CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
         CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);
