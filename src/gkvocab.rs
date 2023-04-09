@@ -839,6 +839,113 @@ mod tests {
     }
 
     #[actix_rt::test]
+    async fn lemmatizer_test() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+
+        //insert gloss before adding it to the lemmatizer because of foreign key
+        let post = UpdateGlossRequest {
+            qtype: "newlemma".to_string(),
+            hqid: None,
+            lemma: "newword".to_string(),
+            stripped_lemma: "newword".to_string(),
+            pos: "newpos".to_string(),
+            def: "newdef".to_string(),
+            note: "newnote".to_string(),
+        };
+        let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+
+        //add to lemmatizer
+        db::insert_lemmatizer_form(&db, "ὥστε", 1).await;
+
+        let title = "title";
+        let xml_string = "<TEI.2><text>blah ὥστε δὲ</text></TEI.2>";
+        let res = import_text_xml::import(&db, course_id, &user_info, title, xml_string).await;
+        assert!(res.success);
+
+        //check gkv_get_text_words
+        let info = QueryRequest { text: 1, wordid: 0 };
+        let selected_word_id = None;
+        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+
+        assert_eq!(
+            res.unwrap(),
+            MiscErrorResponse {
+                this_text: 1,
+                text_name: "title".to_string(),
+                words: [
+                    WordRow {
+                        wordid: 1,
+                        word: "blah".to_string(),
+                        word_type: 0,
+                        lemma: "".to_string(),
+                        def: "".to_string(),
+                        unit: 0,
+                        pos: "".to_string(),
+                        arrowed_id: None,
+                        hqid: 0,
+                        seq: 1,
+                        arrowed_seq: None,
+                        freq: 0,
+                        runningcount: 0,
+                        is_flagged: false,
+                        word_text_seq: 1,
+                        arrowed_text_seq: None,
+                        sort_alpha: "".to_string(),
+                        last_word_of_page: false,
+                        app_crit: None
+                    },
+                    WordRow {
+                        wordid: 2,
+                        word: "ὥστε".to_string(),
+                        word_type: 0,
+                        lemma: "newword".to_string(),
+                        def: "newdef".to_string(),
+                        unit: 0,
+                        pos: "newpos".to_string(),
+                        arrowed_id: None,
+                        hqid: 1,
+                        seq: 2,
+                        arrowed_seq: None,
+                        freq: 1,
+                        runningcount: 1,
+                        is_flagged: false,
+                        word_text_seq: 1,
+                        arrowed_text_seq: None,
+                        sort_alpha: "newword".to_string(),
+                        last_word_of_page: false,
+                        app_crit: None
+                    },
+                    WordRow {
+                        wordid: 3,
+                        word: "δὲ".to_string(),
+                        word_type: 0,
+                        lemma: "".to_string(),
+                        def: "".to_string(),
+                        unit: 0,
+                        pos: "".to_string(),
+                        arrowed_id: None,
+                        hqid: 0,
+                        seq: 3,
+                        arrowed_seq: None,
+                        freq: 0,
+                        runningcount: 0,
+                        is_flagged: false,
+                        word_text_seq: 1,
+                        arrowed_text_seq: None,
+                        sort_alpha: "".to_string(),
+                        last_word_of_page: false,
+                        app_crit: None
+                    }
+                ]
+                .to_vec(),
+                selected_id: None,
+                error: "".to_string()
+            }
+        );
+    }
+
+    #[actix_rt::test]
     async fn arrow_word() {
         let (db, user_info) = set_up().await;
         let course_id = 1;

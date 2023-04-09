@@ -189,16 +189,19 @@ pub struct LemmatizerRecord {
 
 pub async fn load_lemmatizer(db: &SqlitePool) {
     if let Ok(mut reader) = csv::Reader::from_path("lemmatizer.csv") {
-        let query = r#"INSERT INTO lemmatizer VALUES (?, ?);"#;
-
         for row in reader.deserialize::<LemmatizerRecord>().flatten() {
-            let _ = sqlx::query(query)
-                .bind(row.form)
-                .bind(row.gloss_id)
-                .execute(db)
-                .await;
+            insert_lemmatizer_form(db, row.form.as_str(), row.gloss_id).await;
         }
     }
+}
+
+pub async fn insert_lemmatizer_form(db: &SqlitePool, form: &str, gloss_id: u32) {
+    let query = r#"INSERT INTO lemmatizer VALUES (?, ?);"#;
+    let _ = sqlx::query(query)
+        .bind(form)
+        .bind(gloss_id)
+        .execute(db)
+        .await;
 }
 
 pub async fn get_lemmatizer(db: &SqlitePool) -> HashMap<String, u32> {
