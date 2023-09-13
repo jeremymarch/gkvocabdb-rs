@@ -191,11 +191,7 @@ pub async fn export_text(
                                 .as_str(),
                             ); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
 
-                            if word == "<" || word == "[" || word == "(" {
-                                prev_non_space = true;
-                            } else {
-                                prev_non_space = false;
-                            }
+                            prev_non_space = word == "<" || word == "[" || word == "(";
                         }
                         WordType::VerseLine => {
                             //5
