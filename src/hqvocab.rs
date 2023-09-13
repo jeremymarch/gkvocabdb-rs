@@ -11,7 +11,7 @@ pub struct HQVocabRequest {
 pub async fn hqvocab(
     (info, req): (web::Query<HQVocabRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
     let mut template = include_str!("hqvocab.html").to_string();
 
     // let mut rows = String::from("");
@@ -43,8 +43,8 @@ pub async fn hqvocab(
         None => "20".to_string(),
     };
 
-    let mut lower: u32 = lower_str.trim().parse::<u32>().unwrap_or(1);
-    let mut upper: u32 = upper_str.trim().parse::<u32>().unwrap_or(20);
+    let mut lower: i32 = lower_str.trim().parse::<i32>().unwrap_or(1);
+    let mut upper: i32 = upper_str.trim().parse::<i32>().unwrap_or(20);
 
     if lower < 1 {
         lower = 1;

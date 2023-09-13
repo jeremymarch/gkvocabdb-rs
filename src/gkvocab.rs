@@ -59,7 +59,7 @@ pub struct UpdateGlossResponse {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct WordtreeQueryResponse {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
-    pub select_id: Option<u32>,
+    pub select_id: Option<i32>,
     pub error: String,
     pub wtprefix: String,
     pub nocache: u8,
@@ -74,7 +74,7 @@ pub struct WordtreeQueryResponse {
     pub scroll: String,
     pub query: String,
     #[serde(rename(serialize = "arrOptions"), rename(deserialize = "arrOptions"))]
-    pub arr_options: Vec<AssignmentTree>, //Vec<(String,u32)>
+    pub arr_options: Vec<AssignmentTree>, //Vec<(String,i32)>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -84,13 +84,13 @@ pub struct ArrowWordResponse {
         rename(serialize = "affectedRows"),
         rename(deserialize = "affectedRows")
     )]
-    pub affected_rows: u32,
+    pub affected_rows: i32,
     #[serde(
         rename(serialize = "arrowedValue"),
         rename(deserialize = "arrowedValue")
     )]
-    pub arrowed_value: u32,
-    pub lemmaid: u32,
+    pub arrowed_value: i32,
+    pub lemmaid: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -98,14 +98,14 @@ pub struct UpdateGlossIdResponse {
     pub qtype: String,
     pub words: Vec<SmallWord>,
     pub success: bool,
-    pub affectedrows: u32,
+    pub affectedrows: i32,
 }
 
 pub async fn gkv_arrow_word(
-    db: &SqlitePool,
+    db: &AnyPool,
     post: &ArrowWordRequest,
     info: &ConnectionInfo,
-    course_id: u32,
+    course_id: i32,
 ) -> Result<ArrowWordResponse, AWError> {
     arrow_word(
         db,
@@ -125,11 +125,11 @@ pub async fn gkv_arrow_word(
 }
 
 pub async fn gkv_update_gloss_id(
-    db: &SqlitePool,
-    gloss_id: u32,
-    text_word_id: u32,
+    db: &AnyPool,
+    gloss_id: i32,
+    text_word_id: i32,
     info: &ConnectionInfo,
-    course_id: u32,
+    course_id: i32,
 ) -> Result<UpdateGlossIdResponse, AWError> {
     let words = set_gloss_id(db, course_id, gloss_id, text_word_id, info)
         .await
@@ -144,7 +144,7 @@ pub async fn gkv_update_gloss_id(
 }
 
 pub async fn gkv_update_or_add_gloss(
-    db: &SqlitePool,
+    db: &AnyPool,
     post: &UpdateGlossRequest,
     info: &ConnectionInfo,
 ) -> Result<UpdateGlossResponse, AWError> {
@@ -224,7 +224,7 @@ pub async fn gkv_update_or_add_gloss(
 }
 
 pub async fn gkv_tet_gloss(
-    db: &SqlitePool,
+    db: &AnyPool,
     post: &GetGlossRequest,
 ) -> Result<GetGlossResponse, AWError> {
     let gloss = get_glossdb(db, post.lemmaid)
@@ -248,7 +248,7 @@ pub async fn gkv_tet_gloss(
 }
 
 pub async fn gkv_get_glosses(
-    db: &SqlitePool,
+    db: &AnyPool,
     info: &WordtreeQueryRequest,
 ) -> Result<WordtreeQueryResponse, AWError> {
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -287,7 +287,7 @@ pub async fn gkv_get_glosses(
 
     //strip any numbers from end of string
     //let re = Regex::new(r"[0-9]").unwrap();
-    let result_rows_stripped: Vec<(String, u32)> = result_rows
+    let result_rows_stripped: Vec<(String, i32)> = result_rows
         .into_iter()
         .map(|mut row| {
             row.0 = format!("<b>{}</b> {} <a class='listfrequency' href='javascript:showGlossOccurrencesList({})'>({})</a>", 
@@ -327,7 +327,7 @@ pub async fn gkv_get_glosses(
 }
 
 pub async fn gkv_get_occurrences(
-    db: &SqlitePool,
+    db: &AnyPool,
     info: &WordtreeQueryRequest,
 ) -> Result<WordtreeQueryResponse, AWError> {
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -348,7 +348,7 @@ pub async fn gkv_get_occurrences(
     let start_idx =
         usize::from(result_rows.is_empty() || !result_rows[0].name.starts_with("H&Q Unit"));
 
-    let result_rows_formatted: Vec<(String, u32)> = result_rows
+    let result_rows_formatted: Vec<(String, i32)> = result_rows
         .into_iter()
         .enumerate()
         .map(|(i, mut row)| {
@@ -390,7 +390,7 @@ pub async fn gkv_get_occurrences(
 }
 
 pub async fn gkv_update_log(
-    db: &SqlitePool,
+    db: &AnyPool,
     info: &WordtreeQueryRequest,
 ) -> Result<WordtreeQueryResponse, AWError> {
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -417,7 +417,7 @@ pub async fn gkv_update_log(
 }
 
 pub async fn gkv_get_texts(
-    db: &SqlitePool,
+    db: &AnyPool,
     info: &WordtreeQueryRequest,
 ) -> Result<WordtreeQueryResponse, AWError> {
     let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -447,7 +447,7 @@ pub async fn gkv_get_texts(
         if use_containers {
             if r.container_id.is_some()
                 && r.container.is_some()
-                && r.container_id.unwrap() != last_container_id as u32
+                && r.container_id.unwrap() != last_container_id as i32
             {
                 last_container_id = r.container_id.unwrap() as i64;
                 //add container
@@ -516,11 +516,11 @@ pub async fn gkv_get_texts(
 }
 
 pub async fn gkv_move_text(
-    db: &SqlitePool,
-    text_id: u32,
+    db: &AnyPool,
+    text_id: i32,
     step: i32,
     _info: &ConnectionInfo,
-    course_id: u32,
+    course_id: i32,
 ) -> Result<(), AWError> {
     Ok(db::update_text_order_db(db, course_id, text_id, step)
         .await
@@ -528,9 +528,9 @@ pub async fn gkv_move_text(
 }
 
 pub async fn gkv_get_text_words(
-    db: &SqlitePool,
+    db: &AnyPool,
     info: &QueryRequest,
-    selected_word_id: Option<u32>,
+    selected_word_id: Option<i32>,
 ) -> Result<MiscErrorResponse, AWError> {
     let course_id = 1;
 
@@ -573,9 +573,8 @@ pub async fn gkv_get_text_words(
     })
 }
 
-pub async fn gkv_create_db(db: &SqlitePool) -> Result<(), AWError> {
-    db::create_db(db).await.map_err(map_sqlx_error)?;
-    Ok(())
+pub async fn gkv_create_db(db: &AnyPool) -> Result<(), AWError> {
+    Ok(db::create_db(db).await.map_err(map_sqlx_error)?)
 }
 
 #[derive(Error, Debug)]
@@ -704,18 +703,22 @@ struct ErrorResponse {
 mod tests {
     use super::*;
 
-    async fn set_up() -> (SqlitePool, ConnectionInfo) {
-        let options = SqliteConnectOptions::from_str("sqlite::memory:")
-            .expect("Could not connect to db.")
-            .foreign_keys(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-            .read_only(false)
-            .collation("PolytonicGreek", |l, r| {
-                l.to_lowercase().cmp(&r.to_lowercase())
-            });
-        let db = SqlitePool::connect_with(options)
-            .await
-            .expect("Could not connect to db.");
+    async fn set_up() -> (AnyPool, ConnectionInfo) {
+        // let options = SqliteConnectOptions::from_str("sqlite::memory:")
+        //     .expect("Could not connect to db.")
+        //     .foreign_keys(true)
+        //     .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        //     .read_only(false)
+        //     .collation("PolytonicGreek", |l, r| {
+        //         l.to_lowercase().cmp(&r.to_lowercase())
+        //     });
+        //let db_string = "sqlite::memory:".to_string();
+        let db_string = "sqlite://aaa.db".to_string();
+        //let db_string = "sqlite://gkvocabnew.sqlite?mode=rwc".to_string();
+        //db_string = "postgres://jwm:1234@localhost/hc".to_string();
+        let db = get_db(&db_string).await.expect("Could not connect to db."); //AnyPool::connect_with(options)
+                                                                              // .await
+                                                                              // .expect("Could not connect to db.");
 
         gkv_create_db(&db).await.expect("Could not create db.");
         let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com")
@@ -731,8 +734,8 @@ mod tests {
     }
 
     async fn setup_text_test(
-        db: &SqlitePool,
-        course_id: u32,
+        db: &AnyPool,
+        course_id: i32,
         user_info: &ConnectionInfo,
     ) -> ImportResponse {
         let title = "testingtext";
@@ -767,8 +770,8 @@ mod tests {
     }
 
     async fn setup_small_text_test(
-        db: &SqlitePool,
-        course_id: u32,
+        db: &AnyPool,
+        course_id: i32,
         user_info: &ConnectionInfo,
     ) -> ImportResponse {
         let title = "testingtext2";
@@ -1007,7 +1010,7 @@ mod tests {
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
 
-        let gloss_id: u32 = res
+        let gloss_id: i32 = res
             .as_ref()
             .unwrap()
             .inserted_id
@@ -2317,7 +2320,7 @@ mod tests {
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
 
-        let gloss_id: u32 = res
+        let gloss_id: i32 = res
             .as_ref()
             .unwrap()
             .inserted_id

@@ -24,7 +24,7 @@ use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionT
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 struct Gloss {
-    id: u32,
+    id: i32,
     lemma: String,
     def: String,
     sort_alpha: String,
@@ -34,7 +34,7 @@ struct Gloss {
 pub async fn export_text(
     (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
     let bold_glosses = false;
     let course_id = 1;
 
@@ -45,8 +45,8 @@ pub async fn export_text(
             .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
         //info.text_ids is now a comma separated string of text_ids "133,134,135"
-        //let texts:Vec<u32> = vec![133,134,135,136,137];//vec![info.textid];
-        let texts: Vec<u32> = info
+        //let texts:Vec<i32> = vec![133,134,135,136,137];//vec![info.textid];
+        let texts: Vec<i32> = info
             .text_ids
             .split(',')
             .map(|s| s.parse().expect("parse error"))
@@ -78,7 +78,7 @@ pub async fn export_text(
                 let mut header = String::from("");
                 let mut prev_non_space = true;
                 let mut last_type = WordType::InvalidType;
-                let mut glosses: HashMap<u32, Gloss> = HashMap::new();
+                let mut glosses: HashMap<i32, Gloss> = HashMap::new();
 
                 let mut app_crits: Vec<String> = vec![]; //placeholder for now
 
@@ -112,7 +112,7 @@ pub async fn export_text(
                         app_crits.push(app_crit);
                     }
 
-                    match WordType::from_i32(w.word_type.into()) {
+                    match WordType::from_i32(w.word_type) {
                         WordType::WorkTitle => {
                             //7
                             title = word;
@@ -268,7 +268,7 @@ pub async fn export_text(
                         glosses.insert(w.hqid, gloss);
                     }
 
-                    last_type = WordType::from_i32(w.word_type.into());
+                    last_type = WordType::from_i32(w.word_type);
                 }
                 let mut sorted_glosses: Vec<Gloss> = glosses.values().cloned().collect();
                 sorted_glosses.sort_by(|a, b| {

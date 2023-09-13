@@ -30,8 +30,8 @@ use std::collections::HashMap;
 use super::*;
 
 pub async fn import(
-    db: &SqlitePool,
-    course_id: u32,
+    db: &AnyPool,
+    course_id: i32,
     info: &ConnectionInfo,
     title: &str,
     xml_string: &str,
@@ -74,7 +74,7 @@ pub async fn import(
 pub async fn import_text(
     (session, payload, req): (Session, Multipart, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     let course_id = 1;
 
@@ -191,7 +191,7 @@ fn split_words(
     in_speaker: bool,
     in_head: bool,
     in_desc: bool,
-    lemmatizer: &HashMap<String, u32>,
+    lemmatizer: &HashMap<String, i32>,
 ) -> Vec<TextWord> {
     let mut words: Vec<TextWord> = vec![];
     let mut last = 0;
@@ -199,17 +199,17 @@ fn split_words(
         WordType::Desc
     } else {
         WordType::Word
-    } as u32;
+    } as i32;
     if in_head {
         words.push(TextWord {
             word: text.to_string(),
-            word_type: WordType::WorkTitle as u32,
+            word_type: WordType::WorkTitle as i32,
             gloss_id: None,
         });
     } else if in_speaker {
         words.push(TextWord {
             word: text.to_string(),
-            word_type: WordType::Speaker as u32,
+            word_type: WordType::Speaker as i32,
             gloss_id: None,
         });
     } else {
@@ -229,7 +229,7 @@ fn split_words(
             if matched != " " {
                 words.push(TextWord {
                     word: matched.to_string(),
-                    word_type: WordType::Punctuation as u32,
+                    word_type: WordType::Punctuation as i32,
                     gloss_id: None,
                 });
             }
@@ -292,7 +292,7 @@ pub async fn get_xml_string(
 
 pub async fn process_imported_text(
     xml_string: &str,
-    lemmatizer: &HashMap<String, u32>,
+    lemmatizer: &HashMap<String, i32>,
 ) -> Result<Vec<TextWord>, quick_xml::Error> {
     let mut words: Vec<TextWord> = Vec::new();
 
@@ -329,13 +329,13 @@ pub async fn process_imported_text(
                     in_desc = true;
                     words.push(TextWord {
                         word: "".to_string(),
-                        word_type: WordType::ParaNoIndent as u32,
+                        word_type: WordType::ParaNoIndent as i32,
                         gloss_id: None,
                     });
                 } else if b"p" == e.name().as_ref() {
                     words.push(TextWord {
                         word: String::from(""),
-                        word_type: WordType::ParaWithIndent as u32,
+                        word_type: WordType::ParaWithIndent as i32,
                         gloss_id: None,
                     });
                 } else if b"l" == e.name().as_ref() {
@@ -349,7 +349,7 @@ pub async fn process_imported_text(
                     }
                     words.push(TextWord {
                         word: format!("[line]{}", line_num),
-                        word_type: WordType::VerseLine as u32,
+                        word_type: WordType::VerseLine as i32,
                         gloss_id: None,
                     });
                 }
@@ -383,14 +383,14 @@ pub async fn process_imported_text(
                     }
                     words.push(TextWord {
                         word: format!("[line]{}", line_num),
-                        word_type: WordType::VerseLine as u32,
+                        word_type: WordType::VerseLine as i32,
                         gloss_id: None,
                     });
                 } else if b"pb" == e.name().as_ref() {
                     //page beginning
                     words.push(TextWord {
                         word: "".to_string(),
-                        word_type: WordType::PageBreak as u32,
+                        word_type: WordType::PageBreak as i32,
                         gloss_id: None,
                     });
                 }
@@ -406,7 +406,7 @@ pub async fn process_imported_text(
                     in_desc = false;
                     words.push(TextWord {
                         word: "".to_string(),
-                        word_type: WordType::ParaNoIndent as u32,
+                        word_type: WordType::ParaNoIndent as i32,
                         gloss_id: None,
                     });
                 }
@@ -463,30 +463,30 @@ mod tests {
         //     println!("{:?}", a);
         // }
         assert_eq!(r.len(), 29);
-        assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as u32);
-        assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as u32);
-        assert_eq!(r[2].word_type, import_text_xml::WordType::VerseLine as u32);
+        assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as i32);
+        assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as i32);
+        assert_eq!(r[2].word_type, import_text_xml::WordType::VerseLine as i32);
         assert_eq!(r[2].word, "[line]5");
-        assert_eq!(r[3].word_type, import_text_xml::WordType::Word as u32);
+        assert_eq!(r[3].word_type, import_text_xml::WordType::Word as i32);
         assert_eq!(r[4].gloss_id, Some(30));
         assert_eq!(
             r[10].word_type,
-            import_text_xml::WordType::Punctuation as u32
+            import_text_xml::WordType::Punctuation as i32
         );
-        assert_eq!(r[14].word_type, WordType::PageBreak as u32);
-        assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as u32);
+        assert_eq!(r[14].word_type, WordType::PageBreak as i32);
+        assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as i32);
         assert_eq!(r[15].word, "[line]10");
         assert_eq!(r[22].word, "");
         assert_eq!(
             r[22].word_type,
-            import_text_xml::WordType::ParaNoIndent as u32
+            import_text_xml::WordType::ParaNoIndent as i32
         );
         assert_eq!(r[23].word, "This");
-        assert_eq!(r[23].word_type, import_text_xml::WordType::Desc as u32);
+        assert_eq!(r[23].word_type, import_text_xml::WordType::Desc as i32);
         assert_eq!(r[28].word, "");
         assert_eq!(
             r[28].word_type,
-            import_text_xml::WordType::ParaNoIndent as u32
+            import_text_xml::WordType::ParaNoIndent as i32
         );
     }
 

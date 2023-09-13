@@ -37,9 +37,8 @@ use serde::{Deserialize, Serialize};
 use std::io;
 //use std::time::{SystemTime, UNIX_EPOCH};
 //use mime;
-use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
-use std::str::FromStr;
+//use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::AnyPool;
 
 use crate::db::*;
 use crate::gkvocab::*;
@@ -58,7 +57,7 @@ const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct AssignmentTree {
-    pub i: u32,
+    pub i: i32,
     pub col: Vec<String>,
     pub c: Vec<AssignmentTree>,
     pub h: bool,
@@ -73,13 +72,13 @@ struct LoginRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct MoveTextRequest {
     qtype: String,
-    text_id: u32,
+    text_id: i32,
     step: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConnectionInfo {
-    pub user_id: u32,
+    pub user_id: i32,
     pub timestamp: i64,
     pub ip_address: String,
     pub user_agent: String,
@@ -88,10 +87,10 @@ pub struct ConnectionInfo {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GlossOccurrence {
     pub name: String,
-    pub word_id: u32,
+    pub word_id: i32,
     pub word: String,
-    pub arrowed: Option<u32>,
-    pub unit: Option<u32>,
+    pub arrowed: Option<i32>,
+    pub unit: Option<i32>,
     pub lemma: String,
 }
 
@@ -100,29 +99,29 @@ struct LoginResponse {
     success: bool,
 }
 
-//type TreeRow = (String, u32, Option<Vec<TreeRow>>)
+//type TreeRow = (String, i32, Option<Vec<TreeRow>>)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct TreeRow {
     v: String,
-    i: u32,
+    i: i32,
     c: Option<Vec<TreeRow>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct MiscErrorResponse {
     #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
-    pub this_text: u32,
+    pub this_text: i32,
     pub text_name: String,
     pub words: Vec<WordRow>,
     #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
-    pub selected_id: Option<u32>,
+    pub selected_id: Option<i32>,
     pub error: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponseTree {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
-    select_id: Option<u32>,
+    select_id: Option<i32>,
     error: String,
     wtprefix: String,
     nocache: u8,
@@ -147,37 +146,37 @@ pub struct ImportRequest {
 
 #[derive(Deserialize, Serialize)]
 pub struct QueryRequest {
-    pub text: u32,
-    pub wordid: u32,
+    pub text: i32,
+    pub wordid: i32,
 }
 
 #[derive(Deserialize)]
 pub struct ArrowWordRequest {
     pub qtype: String,
     #[serde(rename(serialize = "forLemmaID"), rename(deserialize = "forLemmaID"))]
-    pub for_lemma_id: Option<u32>,
+    pub for_lemma_id: Option<i32>,
     #[serde(
         rename(serialize = "setArrowedIDTo"),
         rename(deserialize = "setArrowedIDTo")
     )]
-    pub set_arrowed_id_to: Option<u32>,
+    pub set_arrowed_id_to: Option<i32>,
 
-    pub textwordid: Option<u32>,
-    pub lemmaid: Option<u32>,
+    pub textwordid: Option<i32>,
+    pub lemmaid: Option<i32>,
     pub lemmastr: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct SetGlossRequest {
     pub qtype: String,
-    pub word_id: u32,
-    pub gloss_id: u32,
+    pub word_id: i32,
+    pub gloss_id: i32,
 }
 
 #[derive(Deserialize)]
 pub struct UpdateGlossRequest {
     pub qtype: String,
-    pub hqid: Option<u32>,
+    pub hqid: Option<i32>,
     pub lemma: String,
     #[serde(
         rename(serialize = "strippedLemma"),
@@ -192,7 +191,7 @@ pub struct UpdateGlossRequest {
 #[derive(Deserialize)]
 pub struct GetGlossRequest {
     pub qtype: String,
-    pub lemmaid: u32,
+    pub lemmaid: i32,
 }
 
 /*
@@ -214,7 +213,7 @@ pub struct ExportRequest {
 
 #[derive(Deserialize)]
 pub struct WordtreeQueryRequest {
-    pub n: u32,
+    pub n: i32,
     pub idprefix: String,
     pub x: String,
     #[serde(rename(deserialize = "requestTime"))]
@@ -229,8 +228,8 @@ pub struct WordtreeQueryRequest {
 pub struct WordQuery {
     pub regex: Option<String>,
     pub lexicon: String,
-    pub tag_id: Option<u32>,
-    pub root_id: Option<u32>,
+    pub tag_id: Option<i32>,
+    pub root_id: Option<i32>,
     pub wordid: Option<String>,
     pub w: String,
 }
@@ -249,7 +248,7 @@ pub struct GetGlossResponse {
 #[derive(Debug, Serialize)]
 struct LoginCheckResponse {
     is_logged_in: bool,
-    user_id: u32,
+    user_id: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -262,7 +261,7 @@ pub struct ImportResponse {
 async fn update_or_add_gloss(
     (session, post, req): (Session, web::Form<UpdateGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let info = ConnectionInfo {
@@ -290,7 +289,7 @@ async fn update_or_add_gloss(
 async fn arrow_word_req(
     (session, post, req): (Session, web::Form<ArrowWordRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -319,7 +318,7 @@ async fn arrow_word_req(
 async fn set_gloss(
     (session, post, req): (Session, web::Form<SetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -348,7 +347,7 @@ async fn set_gloss(
 async fn move_text(
     (session, post, req): (Session, web::Form<MoveTextRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -384,7 +383,7 @@ async fn move_text(
 async fn get_gloss(
     (post, req): (web::Form<GetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     let res = gkv_tet_gloss(db, &post).await?;
 
@@ -394,7 +393,7 @@ async fn get_gloss(
 async fn get_glosses(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     let res = gkv_get_glosses(db, &info).await?;
 
@@ -404,7 +403,7 @@ async fn get_glosses(
 async fn gloss_occurrences(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     let res = gkv_get_occurrences(db, &info).await?;
 
@@ -414,7 +413,7 @@ async fn gloss_occurrences(
 async fn update_log(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     let res = gkv_update_log(db, &info).await?;
 
@@ -424,7 +423,7 @@ async fn update_log(
 async fn get_texts(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
     let res = gkv_get_texts(db, &info).await?;
 
@@ -433,7 +432,7 @@ async fn get_texts(
 
 /*
 async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
     fix_assignments(db).await.map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().finish())
@@ -443,9 +442,9 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 async fn get_text_words(
     (session, info, req): (Session, web::Query<QueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
 
-    let selected_word_id: Option<u32> = Some(info.wordid);
+    let selected_word_id: Option<i32> = Some(info.wordid);
 
     if login::get_user_id(session).is_some() {
         let res = gkv_get_text_words(db, &info, selected_word_id).await?;
@@ -466,7 +465,7 @@ async fn get_text_words(
 
 /*
 async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<AnyPool>().unwrap();
     let course_id = 1;
     let w = get_assignment_rows(db, course_id).await.map_err(map_sqlx_error)?;
 
@@ -491,28 +490,36 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
+async fn get_db(conn: &str) -> Result<AnyPool, sqlx::Error> {
+    sqlx::any::install_default_drivers(); // https://docs.rs/sqlx/latest/sqlx/type.AnyPool.html
+    AnyPool::connect(conn).await
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc
-    let db_path = std::env::var("GKVOCABDB_DB_PATH").unwrap_or_else(|_| {
-        panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
-    });
+    //e.g. export GKVOCAB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc
+    // let db_path = std::env::var("GKVOCAB_DB_PATH").unwrap_or_else(|_| {
+    //     panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
+    // });
 
-    let options = SqliteConnectOptions::from_str(&db_path)
-        .expect("Could not connect to db.")
-        .foreign_keys(true)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        .read_only(false)
-        .collation("PolytonicGreek", |l, r| {
-            l.to_lowercase().cmp(&r.to_lowercase())
-        });
+    // let options = SqliteConnectOptions::from_str(&db_path)
+    //     .expect("Could not connect to db.")
+    //     .foreign_keys(true)
+    //     .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+    //     .read_only(false)
+    //     .collation("PolytonicGreek", |l, r| {
+    //         l.to_lowercase().cmp(&r.to_lowercase())
+    //     });
 
-    let db_pool = SqlitePool::connect_with(options)
-        .await
-        .expect("Could not connect to db.");
+    let db_string = std::env::var("GKVOCAB_DB_CONN")
+        .unwrap_or_else(|_| panic!("Environment variable for db string not set: GKVOCAB_DB_CONN."));
+    //let db_string = "sqlite://gkvocabnew.sqlite?mode=rwc".to_string();
+    //let db_string = "sqlite:memory:".to_string();
+    //db_string = "postgres://jwm:1234@localhost/hc".to_string();
+    let db_pool = get_db(&db_string).await.unwrap(); //AnyPool::connect_with(options)
 
     gkv_create_db(&db_pool).await.expect("Could not create db.");
 
@@ -668,7 +675,7 @@ mod tests {
                 l.to_lowercase().cmp(&r.to_lowercase())
             });
 
-        let db_pool = SqlitePool::connect_with(options)
+        let db_pool = AnyPool::connect_with(options)
             .await
             .expect("Could not connect to db.");
 
@@ -721,7 +728,7 @@ mod tests {
 
     //cargo test -- --nocapture
 
-    // async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    // async fn create_db(db: &AnyPool) -> Result<(), sqlx::Error> {
     //     let query =
     //         "CREATE TABLE users (user_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL);";
     //     sqlx::query(query).execute(db).await?;
@@ -735,11 +742,11 @@ mod tests {
             panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
         });
 
-        let db_pool = SqlitePool::connect(&db_path)
+        let db_pool = AnyPool::connect(&db_path)
             .await
             .expect("Could not connect to db.");
 
-        // let db_pool = SqlitePool::connect("sqlite::memory:").await.expect("Could not connect to db.");
+        // let db_pool = AnyPool::connect("sqlite::memory:").await.expect("Could not connect to db.");
         // create_db(&db_pool);
 
 

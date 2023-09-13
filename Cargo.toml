@@ -6,7 +6,7 @@ authors = ["Jeremy March <jmarch@gradcenter.cuny.edu>"]
 license = "AGPL-3.0"
 
 [dependencies]
-actix-web = { version = "4.3.1" }
+actix-web = { version = "4.4.0" }
 actix-files = "0.6.2"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
 actix-multipart = "0.6.1"
@@ -18,7 +18,7 @@ unicode-normalization = { version = "0.1.22", default-features = false }
 
 chrono = { version = "0.4.30", default-features = false, features=["clock"] }
 
-sqlx = { version = "0.7.1", features = ["sqlite", "runtime-tokio-rustls", "any", "macros"] }
+sqlx = { version = "0.7.1", features = ["sqlite", "postgres", "runtime-tokio-rustls", "any", "macros"] }
 
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.106"

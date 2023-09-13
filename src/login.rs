@@ -32,8 +32,8 @@ pub struct Credentials {
     pub password: Secret<String>,
 }
 
-pub fn get_user_id(session: Session) -> Option<u32> {
-    session.get::<u32>("user_id").unwrap_or(None)
+pub fn get_user_id(session: Session) -> Option<i32> {
+    session.get::<i32>("user_id").unwrap_or(None)
 }
 
 pub async fn login_get() -> Result<HttpResponse, AWError> {
@@ -100,7 +100,7 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 </html>"#))
 }
 
-fn validate_login(credentials: Credentials) -> Option<u32> {
+fn validate_login(credentials: Credentials) -> Option<i32> {
     if credentials.username.to_lowercase() == "jm"
         && credentials.password.expose_secret() == "clam1234"
     {
@@ -129,7 +129,7 @@ fn validate_login(credentials: Credentials) -> Option<u32> {
 pub async fn login_post(
     (session, form, req): (Session, web::Form<FormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let _db = req.app_data::<SqlitePool>().unwrap();
+    let _db = req.app_data::<AnyPool>().unwrap();
 
     let credentials = Credentials {
         username: form.0.username,
