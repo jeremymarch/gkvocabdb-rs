@@ -276,7 +276,7 @@ pub async fn arrow_word_trx<'a, 'b>(
     let old_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
         .bind(course_id)
         .bind(gloss_id)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await;
 
     let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
@@ -294,7 +294,7 @@ pub async fn arrow_word_trx<'a, 'b>(
     let history_id = sqlx::query(query)
         .bind(course_id)
         .bind(gloss_id)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?
         .last_insert_rowid();
 
@@ -311,7 +311,7 @@ pub async fn arrow_word_trx<'a, 'b>(
         sqlx::query(query)
             .bind(course_id)
             .bind(gloss_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
         let query = "INSERT INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
@@ -322,7 +322,7 @@ pub async fn arrow_word_trx<'a, 'b>(
             .bind(info.timestamp)
             .bind(info.user_id)
             //.bind(comment)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
         update_log_trx(
@@ -345,7 +345,7 @@ pub async fn arrow_word_trx<'a, 'b>(
         sqlx::query(query)
             .bind(course_id)
             .bind(gloss_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
         //add to history now, since can't later
@@ -356,7 +356,7 @@ pub async fn arrow_word_trx<'a, 'b>(
             .bind(info.timestamp)
             .bind(info.user_id)
             //.bind(comment)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
         update_log_trx(
@@ -396,7 +396,7 @@ pub async fn set_gloss_id(
         .bind(course_id)
         .bind(gloss_id)
         .bind(word_id)
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await;
 
     //1b. unarrow word if it is arrowed
@@ -414,7 +414,7 @@ pub async fn set_gloss_id(
     let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
     let history_id = sqlx::query(query)
         .bind(word_id)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?
         .last_insert_rowid();
 
@@ -422,7 +422,7 @@ pub async fn set_gloss_id(
     let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
     let old_gloss_id: (Option<u32>,) = sqlx::query_as(query)
         .bind(word_id)
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
     //2b. update gloss_id
@@ -430,7 +430,7 @@ pub async fn set_gloss_id(
     sqlx::query(query)
         .bind(gloss_id)
         .bind(word_id)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     //this requests all the places this word shows up, so we can update them in the displayed page.
@@ -472,7 +472,7 @@ pub async fn set_gloss_id(
             word_text_seq: rec.get("text_order"),
             arrowed_text_seq: rec.get("arrowed_text_order"),
         })
-        .fetch_all(&mut tx)
+        .fetch_all(&mut *tx)
         .await;
 
     update_log_trx(
@@ -510,7 +510,7 @@ pub async fn add_text(
     let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
     let text_id = sqlx::query(query)
         .bind(text_name)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?
         .last_insert_rowid();
 
@@ -534,7 +534,7 @@ pub async fn add_text(
             .bind(w.word_type)
             .bind(info.timestamp)
             .bind(info.user_id)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
 
         if let Some(g_id) = w.gloss_id {
@@ -554,7 +554,7 @@ pub async fn add_text(
     let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = ?;";
     let max_text_order: (u32,) = sqlx::query_as(query)
         .bind(course_id)
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
     let query = "INSERT INTO course_x_text VALUES (?, ?, ?);";
@@ -562,7 +562,7 @@ pub async fn add_text(
         .bind(course_id)
         .bind(text_id)
         .bind(max_text_order.0 + 1)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     update_log_trx(
@@ -613,7 +613,7 @@ pub async fn insert_gloss(
         .bind(note)
         .bind(info.timestamp)
         .bind(info.user_id)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     let new_gloss_id = res.last_insert_rowid();
@@ -654,7 +654,7 @@ pub async fn update_log_trx<'a, 'b>(
         .bind(info.user_id)
         .bind(&info.ip_address)
         .bind(&info.user_agent)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
 
     Ok(())
@@ -686,7 +686,7 @@ pub async fn delete_gloss(
         .await?;
 
         let query = "UPDATE glosses SET status = 0 WHERE gloss_id = ?;";
-        let res = sqlx::query(query).bind(gloss_id).execute(&mut tx).await?;
+        let res = sqlx::query(query).bind(gloss_id).execute(&mut *tx).await?;
 
         tx.commit().await?;
 
@@ -712,7 +712,7 @@ pub async fn update_gloss(
     let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
     let history_id = sqlx::query(query)
         .bind(gloss_id)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?
         .last_insert_rowid();
 
@@ -758,7 +758,7 @@ pub async fn update_gloss(
         .bind(info.timestamp)
         .bind(info.user_id)
         .bind(gloss_id)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     tx.commit().await?;
@@ -1194,7 +1194,7 @@ pub async fn update_text_order_db(
     let text_order: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
     // get number of texts
@@ -1202,7 +1202,7 @@ pub async fn update_text_order_db(
     let text_count: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?;
 
     if step == 0
@@ -1219,7 +1219,7 @@ pub async fn update_text_order_db(
             .bind(text_order.0)
             .bind(step)
             .bind(course_id)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
     } else {
         //make room by moving other texts down/later in sequence
@@ -1230,7 +1230,7 @@ pub async fn update_text_order_db(
             .bind(text_order.0)
             .bind(step) //step will be negative here
             .bind(course_id)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
     }
     //set new text order
@@ -1240,7 +1240,7 @@ pub async fn update_text_order_db(
         .bind(step)
         .bind(course_id)
         .bind(text_id)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
     tx.commit().await?;
@@ -1501,7 +1501,7 @@ pub async fn insert_user(
         .bind(user_type)
         .bind(password)
         .bind(email)
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?
         .last_insert_rowid();
 
@@ -1539,11 +1539,11 @@ pub async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
         CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);
         "#;
 
-    let _res = sqlx::query(query).execute(&mut tx).await?;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
 
     //create default course
     let query = r#"REPLACE INTO courses VALUES (1,'Greek');"#;
-    sqlx::query(query).execute(&mut tx).await?;
+    sqlx::query(query).execute(&mut *tx).await?;
 
     //insert update types
     let query = r#"REPLACE INTO update_types VALUES (?,?);"#;
@@ -1560,7 +1560,7 @@ pub async fn create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
         sqlx::query(query)
             .bind(t.0)
             .bind(t.1)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
     }
 
