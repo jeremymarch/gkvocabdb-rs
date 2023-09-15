@@ -196,7 +196,7 @@ pub async fn load_lemmatizer(db: &AnyPool) {
 }
 
 pub async fn insert_lemmatizer_form(db: &AnyPool, form: &str, gloss_id: i32) {
-    let query = r#"INSERT INTO lemmatizer VALUES (?, ?);"#;
+    let query = r#"INSERT INTO lemmatizer VALUES ($1, $2);"#;
     let _ = sqlx::query(query)
         .bind(form)
         .bind(gloss_id)
@@ -272,7 +272,7 @@ pub async fn arrow_word_trx<'a, 'b>(
 ) -> Result<(), sqlx::Error> {
     let query = "SELECT word_id \
   FROM arrowed_words \
-  WHERE course_id = ? AND gloss_id = ?;";
+  WHERE course_id = $1 AND gloss_id = $2;";
     let old_word_id: Result<(i32,), sqlx::Error> = sqlx::query_as(query)
         .bind(course_id)
         .bind(gloss_id)
@@ -290,7 +290,7 @@ pub async fn arrow_word_trx<'a, 'b>(
     let query = "INSERT INTO arrowed_words_history \
     SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
     FROM arrowed_words \
-    WHERE course_id = ? AND gloss_id = ?;";
+    WHERE course_id = $1 AND gloss_id = $2;";
     if let Some(history_id) = sqlx::query(query)
         .bind(course_id)
         .bind(gloss_id)
@@ -307,14 +307,14 @@ pub async fn arrow_word_trx<'a, 'b>(
 
         if word_id > 0 {
             //first delete old arrowed location
-            let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+            let query = "DELETE FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2;";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
                 .execute(&mut **tx)
                 .await?;
 
-            let query = "INSERT INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
+            let query = "INSERT INTO arrowed_words VALUES ($1, $2, $3, $4, $5, NULL);";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
@@ -341,7 +341,7 @@ pub async fn arrow_word_trx<'a, 'b>(
             .await?;
         } else {
             //delete row to remove arrow
-            let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+            let query = "DELETE FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2;";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
@@ -349,7 +349,8 @@ pub async fn arrow_word_trx<'a, 'b>(
                 .await?;
 
             //add to history now, since can't later
-            let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
+            let query =
+                "INSERT INTO arrowed_words_history VALUES (NULL, $1, $2, NULL, $3, $4, NULL);";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
@@ -394,7 +395,7 @@ pub async fn set_gloss_id(
 
     //1a check if the word whose gloss is being changed is arrowed
     let query =
-        "SELECT gloss_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
+        "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
     let arrowed_word_id: Result<(i32,), sqlx::Error> = sqlx::query_as(query)
         .bind(course_id)
         .bind(gloss_id)
@@ -414,7 +415,7 @@ pub async fn set_gloss_id(
 
     //2a. save word row into history before updating gloss_id
     //or could have separate history table just for gloss_id changes
-    let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
+    let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = $1;";
     if let Some(history_id) = sqlx::query(query)
         .bind(word_id)
         .execute(&mut *tx)
@@ -422,14 +423,14 @@ pub async fn set_gloss_id(
         .last_insert_id()
     {
         //0. get old gloss_id before changing it so we can update its counts in step 3b
-        let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
+        let query = "SELECT gloss_id FROM words WHERE word_id = $1;";
         let old_gloss_id: (Option<i32>,) = sqlx::query_as(query)
             .bind(word_id)
             .fetch_one(&mut *tx)
             .await?;
 
         //2b. update gloss_id
-        let query = "UPDATE words SET gloss_id = ? WHERE word_id = ?;";
+        let query = "UPDATE words SET gloss_id = $1 WHERE word_id = $2;";
         sqlx::query(query)
             .bind(gloss_id)
             .bind(word_id)
@@ -514,7 +515,7 @@ pub async fn add_text(
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
+    let query = "INSERT INTO texts VALUES (NULL, $1, NULL, 1);";
     if let Some(text_id) = sqlx::query(query)
         .bind(text_name)
         .execute(&mut *tx)
@@ -529,7 +530,7 @@ pub async fn add_text(
 
         let query = "INSERT INTO words (word_id, seq, text_id, word, gloss_id, \
         type, updated, updatedUser, isFlagged, note) \
-        VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0, '');";
+        VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, 0, '');";
         let mut count = 0;
         let mut gloss_ids: HashSet<i32> = HashSet::new();
         for w in words {
@@ -558,13 +559,13 @@ pub async fn add_text(
             count += affected_rows;
         }
 
-        let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = ?;";
+        let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = $1;";
         let max_text_order: (i32,) = sqlx::query_as(query)
             .bind(course_id)
             .fetch_one(&mut *tx)
             .await?;
 
-        let query = "INSERT INTO course_x_text VALUES (?, ?, ?);";
+        let query = "INSERT INTO course_x_text VALUES ($1, $2, $3);";
         sqlx::query(query)
             .bind(course_id)
             .bind(text_id)
@@ -607,7 +608,7 @@ pub async fn insert_gloss(
 
     let query = "INSERT INTO glosses (gloss_id, unit, lemma, sortalpha, \
     def, pos, note, updated, status, updatedUser) \
-    VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, 1, ?);";
+    VALUES (NULL, 0, $1, $2, $3, $4, $5, $6, 1, $7);";
 
     //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
     let sl = stripped_lemma
@@ -657,7 +658,7 @@ pub async fn update_log_trx<'a, 'b>(
     update_desc: &str,
     info: &ConnectionInfo,
 ) -> Result<(), sqlx::Error> {
-    let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9);";
     sqlx::query(query)
         .bind(update_type.value())
         .bind(object_id)
@@ -681,7 +682,7 @@ pub async fn delete_gloss(
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = ?;";
+    let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = $1;";
     let count: (i32,) = sqlx::query_as(query)
         .bind(gloss_id)
         .fetch_one(&mut *tx)
@@ -699,7 +700,7 @@ pub async fn delete_gloss(
         )
         .await?;
 
-        let query = "UPDATE glosses SET status = 0 WHERE gloss_id = ?;";
+        let query = "UPDATE glosses SET status = 0 WHERE gloss_id = $1;";
         let res = sqlx::query(query).bind(gloss_id).execute(&mut *tx).await?;
 
         tx.commit().await?;
@@ -723,7 +724,7 @@ pub async fn update_gloss(
 ) -> Result<u64, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
+    let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = $1;";
     if let Some(history_id) = sqlx::query(query)
         .bind(gloss_id)
         .execute(&mut *tx)
@@ -754,14 +755,14 @@ pub async fn update_gloss(
             .to_lowercase();
 
         let query = "UPDATE glosses SET \
-        lemma = ?, \
-        sortalpha = ?, \
-        def = ?, \
-        pos = ?, \
-        note = ?, \
-        updated = ?, \
-        updatedUser = ? \
-        WHERE gloss_id = ?;";
+        lemma = $1, \
+        sortalpha = $2, \
+        def = $3, \
+        pos = $4, \
+        note = $5, \
+        updated = $6, \
+        updatedUser = $7 \
+        WHERE gloss_id = $8;";
 
         let res = sqlx::query(query)
             .bind(gloss)
@@ -989,7 +990,7 @@ pub async fn get_text_name(pool: &AnyPool, text_id: i32) -> Result<String, sqlx:
     //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
     let query = "SELECT name \
   FROM texts \
-  WHERE text_id = ?";
+  WHERE text_id = $1";
     let res: (String,) = sqlx::query_as(query).bind(text_id).fetch_one(pool).await?;
 
     Ok(res.0)
@@ -1208,7 +1209,7 @@ pub async fn update_text_order_db(
     */
 
     // get text order int
-    let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
+    let query = "SELECT text_order FROM course_x_text WHERE course_id = $1 AND text_id = $2;";
     let text_order: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
@@ -1216,7 +1217,7 @@ pub async fn update_text_order_db(
         .await?;
 
     // get number of texts
-    let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
+    let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = $1;";
     let text_count: (i32,) = sqlx::query_as(query)
         .bind(course_id)
         .bind(text_id)
@@ -1231,7 +1232,7 @@ pub async fn update_text_order_db(
     } else if step > 0 {
         //make room by moving other texts up/earlier in sequence
         let query = "UPDATE course_x_text SET text_order = text_order - 1 \
-            WHERE text_order > ? AND text_order < ? + ? + 1 AND course_id = ?;";
+            WHERE text_order > $1 AND text_order < $2 + $3 + 1 AND course_id = $4;";
         sqlx::query(query)
             .bind(text_order.0)
             .bind(text_order.0)
@@ -1242,7 +1243,7 @@ pub async fn update_text_order_db(
     } else {
         //make room by moving other texts down/later in sequence
         let query = "UPDATE course_x_text SET text_order = text_order + 1 \
-            WHERE text_order < ? AND text_order > ? + ? - 1 AND course_id = ?;";
+            WHERE text_order < $1 AND text_order > $2 + $3 - 1 AND course_id = $4;";
         sqlx::query(query)
             .bind(text_order.0)
             .bind(text_order.0)
@@ -1253,7 +1254,7 @@ pub async fn update_text_order_db(
     }
     //set new text order
     let query =
-        "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
+        "UPDATE course_x_text SET text_order = text_order + $1 WHERE course_id = $2 AND text_id = $3;";
     sqlx::query(query)
         .bind(step)
         .bind(course_id)
@@ -1271,7 +1272,7 @@ pub async fn get_texts_db(
 ) -> Result<Vec<AssignmentRow>, sqlx::Error> {
     let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id, C.name AS container \
     FROM texts A \
-    INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = ?) \
+    INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = $1) \
     LEFT JOIN containers C ON A.parent_id = C.container_id \
     WHERE display != 0 \
     ORDER BY B.text_order, A.text_id;";
@@ -1301,7 +1302,7 @@ pub async fn _get_titles(pool: &AnyPool) -> Result<Vec<(String,i32)>, sqlx::Erro
 }
 */
 pub async fn get_text_id_for_word_id(pool: &AnyPool, word_id: i32) -> Result<i32, sqlx::Error> {
-    let query = "SELECT text_id FROM words WHERE word_id = ?;";
+    let query = "SELECT text_id FROM words WHERE word_id = $1;";
 
     let rec: (i32,) = sqlx::query_as(query).bind(word_id).fetch_one(pool).await?;
 
@@ -1335,7 +1336,7 @@ pub async fn get_start_end(pool: &AnyPool, text_id:i32) -> Result<(i32,i32), sql
 */
 
 pub async fn get_glossdb(pool: &AnyPool, gloss_id: i32) -> Result<GlossEntry, sqlx::Error> {
-    let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
+    let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = $1;";
 
     sqlx::query(query)
         .bind(gloss_id)
@@ -1359,11 +1360,11 @@ pub async fn get_gloss_occurrences(
 ) -> Result<Vec<GlossOccurrence>, sqlx::Error> {
     let query = "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
     FROM words a \
-    INNER JOIN course_x_text b ON (a.text_id = b.text_id AND b.course_id = ?) \
+    INNER JOIN course_x_text b ON (a.text_id = b.text_id AND b.course_id = $1) \
     INNER JOIN texts c ON a.text_id = c.text_id \
     INNER JOIN glosses e ON e.gloss_id = a.gloss_id \
-    LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
-    WHERE a.gloss_id = ? \
+    LEFT JOIN arrowed_words d ON (d.course_id=$2 AND d.gloss_id=$3 AND d.word_id = a.word_id) \
+    WHERE a.gloss_id = $4 \
     ORDER BY b.text_order, a.seq \
     LIMIT 2000;"
         .to_string();
@@ -1512,8 +1513,8 @@ pub async fn insert_user(
 ) -> Result<i64, sqlx::Error> {
     let mut tx = db.begin().await?;
 
-    let query = r#"INSERT INTO users VALUES (NULL, ?, ?, ?, ?, ?);"#;
-    if let Some(user_id) = sqlx::query(query)
+    let query = r#"INSERT INTO users (name, initials, user_type, password, email) VALUES ($1, $2, $3, $4, $5);"#;
+    let user_id = sqlx::query(query) //Some(user_id) = sqlx::query(query)
         .bind(name)
         .bind(initials)
         .bind(user_type)
@@ -1521,52 +1522,82 @@ pub async fn insert_user(
         .bind(email)
         .execute(&mut *tx)
         .await?
-        .last_insert_id()
-    {
-        tx.commit().await?;
-        Ok(user_id)
-    } else {
-        tx.rollback().await?;
-        Err(sqlx::Error::RowNotFound)
+        .last_insert_id();
+    match user_id {
+        Some(id) => {
+            println!("ccc");
+            tx.commit().await?;
+            Ok(id)
+        }
+        _ => {
+            tx.rollback().await?;
+            Err(sqlx::Error::RowNotFound)
+        }
     }
 }
 
 pub async fn create_db(db: &AnyPool) -> Result<(), sqlx::Error> {
     let mut tx = db.begin().await?;
 
-    let query = r#"CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-        CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id));
-        CREATE TABLE IF NOT EXISTS glosses (gloss_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER NOT NULL REFERENCES words (word_id), updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text, PRIMARY KEY (course_id, gloss_id, word_id));
-        CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text);
-        CREATE TABLE IF NOT EXISTS appcrit (word_id integer NOT NULL, entry varchar (1024) DEFAULT NULL, PRIMARY KEY (word_id));
-        CREATE TABLE IF NOT EXISTS words (word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text_id integer NOT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), type integer DEFAULT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS words_history (word_history_id integer not null PRIMARY KEY AUTOINCREMENT, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), type integer DEFAULT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, gloss_id integer NOT NULL, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');
-        CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type text NOT NULL);
-        CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, parent_id integer references texts (text_id) default null, display integer default 1);
-        CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );
-        CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL, initials NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT "81237698562398", email TEXT);
-        CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id));
-        CREATE TABLE IF NOT EXISTS containers (container_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name text NOT NULL);
-        CREATE TABLE IF NOT EXISTS lemmatizer (form VARCHAR PRIMARY KEY NOT NULL, gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id));
-        
-        CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
-        CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
-        CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);
-        CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (course_id, gloss_id);
-        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemmaid ON words (gloss_id);
-        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_seq ON words (seq);
-        CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);"#;
+    let query = r#"CREATE TABLE IF NOT EXISTS courses (course_id SERIAL PRIMARY KEY NOT NULL, name text NOT NULL);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS "texts" (text_id SERIAL PRIMARY KEY NOT NULL, name text NOT NULL, parent_id integer references texts (text_id) default null, display integer default 1);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id));"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS glosses (gloss_id SERIAL NOT NULL PRIMARY KEY, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS words (word_id SERIAL NOT NULL PRIMARY KEY, seq integer NOT NULL, text_id integer NOT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), type integer DEFAULT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
 
+    let query = r#"CREATE TABLE IF NOT EXISTS users (user_id SERIAL PRIMARY KEY NOT NULL, name text NOT NULL, initials TEXT NOT NULL, user_type INTEGER NOT NULL, password text NOT NULL DEFAULT '81237698562398', email TEXT);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+
+    let query = r#"CREATE TABLE IF NOT EXISTS arrowed_words (course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER NOT NULL REFERENCES words (word_id), updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text, PRIMARY KEY (course_id, gloss_id, word_id));"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id SERIAL PRIMARY KEY NOT NULL, course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment text);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS appcrit (word_id integer NOT NULL, entry varchar (1024) DEFAULT NULL, PRIMARY KEY (word_id));"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+
+    let query = r#"CREATE TABLE IF NOT EXISTS words_history (word_history_id SERIAL not null PRIMARY KEY, word_id integer NOT NULL, seq integer NOT NULL, text integer NOT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), type integer DEFAULT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser varchar (255) NOT NULL DEFAULT '', isFlagged integer NOT NULL DEFAULT 0, note varchar (1024) NOT NULL DEFAULT '');"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+
+    let query = r#"CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id SERIAL NOT NULL PRIMARY KEY, gloss_id integer NOT NULL, unit integer NOT NULL, lemma varchar (256) NOT NULL, sortalpha varchar (255) NOT NULL DEFAULT '', def varchar (1024) NOT NULL, pos varchar (256) NOT NULL, note varchar (256) NOT NULL, updated timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, status integer NOT NULL DEFAULT 1, updatedUser varchar (255) NOT NULL DEFAULT '');"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS update_types (update_type_id SERIAL PRIMARY KEY NOT NULL, update_type text NOT NULL);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS update_log (update_id SERIAL PRIMARY KEY NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT );"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+
+    let query = r#"CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id));"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS containers (container_id SERIAL PRIMARY KEY NOT NULL, name text NOT NULL);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE TABLE IF NOT EXISTS lemmatizer (form VARCHAR PRIMARY KEY NOT NULL, gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id));"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+
+    let query = r#"CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE INDEX IF NOT EXISTS arrowed_words_history_idx ON arrowed_words (course_id, gloss_id);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE INDEX IF NOT EXISTS idx_gkvocabdb_lemmaid ON words (gloss_id);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE INDEX IF NOT EXISTS idx_gkvocabdb_seq ON words (seq);"#;
+    let _res = sqlx::query(query).execute(&mut *tx).await?;
+    let query = r#"CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);"#;
     let _res = sqlx::query(query).execute(&mut *tx).await?;
 
     //create default course
-    let query = r#"REPLACE INTO courses VALUES (1,'Greek');"#;
+    let query = r#"INSERT INTO courses VALUES (1,'Greek') ON CONFLICT DO NOTHING;"#;
     sqlx::query(query).execute(&mut *tx).await?;
 
     //insert update types
-    let query = r#"REPLACE INTO update_types VALUES (?,?);"#;
+    let query = r#"INSERT INTO update_types VALUES ($1,$2) ON CONFLICT DO NOTHING;"#;
     let update_types = vec![
         (1, "Arrow word"),
         (2, "Unarrow word"),
@@ -1583,7 +1614,8 @@ pub async fn create_db(db: &AnyPool) -> Result<(), sqlx::Error> {
             .execute(&mut *tx)
             .await?;
     }
-
+    println!("here1");
     tx.commit().await?;
+    println!("here2");
     Ok(())
 }

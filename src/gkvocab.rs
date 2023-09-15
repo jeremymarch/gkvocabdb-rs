@@ -713,17 +713,19 @@ mod tests {
         //         l.to_lowercase().cmp(&r.to_lowercase())
         //     });
         //let db_string = "sqlite::memory:".to_string();
-        let db_string = "sqlite://aaa.db".to_string();
+        //let db_string = "sqlite://aaa.db".to_string();
         //let db_string = "sqlite://gkvocabnew.sqlite?mode=rwc".to_string();
-        //db_string = "postgres://jwm:1234@localhost/hc".to_string();
+        let db_string = "postgres://jwm:1234@localhost/gk1".to_string();
         let db = get_db(&db_string).await.expect("Could not connect to db."); //AnyPool::connect_with(options)
                                                                               // .await
                                                                               // .expect("Could not connect to db.");
 
         gkv_create_db(&db).await.expect("Could not create db.");
+        println!("aaaa");
         let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com")
             .await
             .unwrap();
+        println!("bbb");
         let info = ConnectionInfo {
             user_id: user_id.try_into().unwrap(),
             timestamp: get_timestamp(),
