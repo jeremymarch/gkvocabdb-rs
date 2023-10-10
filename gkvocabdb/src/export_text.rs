@@ -20,11 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use super::*;
 use std::collections::HashMap;
 
-#[derive(Deserialize)]
-pub struct ExportRequest {
-    pub text_ids: String, //comma separated text_ids "133" or "133,134,135"
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 struct Gloss {
     id: u32,

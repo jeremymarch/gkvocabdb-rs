@@ -16,7 +16,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-use crate::export_text::ExportRequest;
 use actix_files as fs;
 use actix_multipart::Multipart;
 use actix_session::config::PersistentSession;
@@ -28,14 +27,12 @@ use actix_web::cookie::Key;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
 use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
-use actix_web::{http::StatusCode, ResponseError};
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use futures::{StreamExt, TryStreamExt};
-use thiserror::Error;
+use gkvocabdb::db::get_hqvocab_column;
 
-use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io;
 //use std::time::{SystemTime, UNIX_EPOCH};
@@ -44,28 +41,15 @@ use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use std::str::FromStr;
 
-use crate::db::*;
-use crate::gkvocab::*;
-
-mod db;
-mod export_text;
-mod gkvocab;
+use gkvocabdb::ExportRequest;
+use gkvocabdb::*;
 mod hqvocab;
-mod import_text_xml;
 mod login;
 
 const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 
 //https://stackoverflow.com/questions/64348528/how-can-i-pass-multi-variable-by-actix-web-appdata
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
-
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
-pub struct AssignmentTree {
-    pub i: u32,
-    pub col: Vec<String>,
-    pub c: Vec<AssignmentTree>,
-    pub h: bool,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginRequest {
@@ -81,24 +65,6 @@ struct MoveTextRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConnectionInfo {
-    pub user_id: u32,
-    pub timestamp: i64,
-    pub ip_address: String,
-    pub user_agent: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GlossOccurrence {
-    pub name: String,
-    pub word_id: u32,
-    pub word: String,
-    pub arrowed: Option<u32>,
-    pub unit: Option<u32>,
-    pub lemma: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginResponse {
     success: bool,
 }
@@ -109,17 +75,6 @@ struct TreeRow {
     v: String,
     i: u32,
     c: Option<Vec<TreeRow>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
-pub struct MiscErrorResponse {
-    #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
-    pub this_text: u32,
-    pub text_name: String,
-    pub words: Vec<WordRow>,
-    #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
-    pub selected_id: Option<u32>,
-    pub error: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -148,56 +103,6 @@ pub struct ImportRequest {
     pub title: String,
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct QueryRequest {
-    pub text: u32,
-    pub wordid: u32,
-}
-
-#[derive(Deserialize)]
-pub struct ArrowWordRequest {
-    pub qtype: String,
-    #[serde(rename(serialize = "forLemmaID"), rename(deserialize = "forLemmaID"))]
-    pub for_lemma_id: Option<u32>,
-    #[serde(
-        rename(serialize = "setArrowedIDTo"),
-        rename(deserialize = "setArrowedIDTo")
-    )]
-    pub set_arrowed_id_to: Option<u32>,
-
-    pub textwordid: Option<u32>,
-    pub lemmaid: Option<u32>,
-    pub lemmastr: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct SetGlossRequest {
-    pub qtype: String,
-    pub word_id: u32,
-    pub gloss_id: u32,
-}
-
-#[derive(Deserialize)]
-pub struct UpdateGlossRequest {
-    pub qtype: String,
-    pub hqid: Option<u32>,
-    pub lemma: String,
-    #[serde(
-        rename(serialize = "strippedLemma"),
-        rename(deserialize = "strippedLemma")
-    )]
-    pub stripped_lemma: String,
-    pub pos: String,
-    pub def: String,
-    pub note: String,
-}
-
-#[derive(Deserialize)]
-pub struct GetGlossRequest {
-    pub qtype: String,
-    pub lemmaid: u32,
-}
-
 /*
 #[derive(Deserialize)]
 pub struct WordQuery {
@@ -210,51 +115,10 @@ pub struct WordQuery {
 }
 */
 
-#[derive(Deserialize)]
-pub struct WordtreeQueryRequest {
-    pub n: u32,
-    pub idprefix: String,
-    pub x: String,
-    #[serde(rename(deserialize = "requestTime"))]
-    pub request_time: u64,
-    pub page: i32, //can be negative for pages before
-    pub mode: String,
-    pub query: String, //WordQuery,
-    pub lex: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct WordQuery {
-    pub regex: Option<String>,
-    pub lexicon: String,
-    pub tag_id: Option<u32>,
-    pub root_id: Option<u32>,
-    pub wordid: Option<String>,
-    pub w: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetGlossResponse {
-    pub success: bool,
-    #[serde(
-        rename(deserialize = "affectedRows"),
-        rename(serialize = "affectedRows")
-    )]
-    pub affected_rows: u64,
-    pub words: Vec<GlossEntry>,
-}
-
 #[derive(Debug, Serialize)]
 struct LoginCheckResponse {
     is_logged_in: bool,
     user_id: u32,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ImportResponse {
-    pub success: bool,
-    pub words_inserted: u64,
-    pub error: String,
 }
 
 async fn import_text(
@@ -627,11 +491,6 @@ fn get_user_agent(req: &HttpRequest) -> Option<&str> {
 
 fn get_ip(req: &HttpRequest) -> Option<String> {
     req.peer_addr().map(|addr| addr.ip().to_string())
-}
-
-fn get_timestamp() -> i64 {
-    let now = Utc::now();
-    now.timestamp()
 }
 
 async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {

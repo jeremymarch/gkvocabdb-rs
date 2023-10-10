@@ -1,4 +1,142 @@
-use super::*;
+pub mod db;
+pub mod export_text;
+pub mod import_text_xml;
+
+use crate::db::arrow_word;
+use crate::db::delete_gloss;
+use crate::db::get_before;
+use crate::db::get_equal_and_after;
+use crate::db::get_gloss_occurrences;
+use crate::db::get_glossdb;
+use crate::db::get_texts_db;
+use crate::db::get_update_log;
+use crate::db::insert_gloss;
+use crate::db::set_gloss_id;
+use crate::db::update_gloss;
+use crate::db::GlossEntry;
+use crate::db::SmallWord;
+use crate::db::TextWord;
+use crate::db::WordRow;
+use actix_web::HttpResponse;
+use actix_web::{http::StatusCode, ResponseError};
+use actix_web::{Error as AWError, Result};
+
+use crate::db::get_text_id_for_word_id;
+use chrono::Utc;
+use serde::Deserialize;
+use serde::Serialize;
+use sqlx::SqlitePool;
+use thiserror::Error;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GlossOccurrence {
+    pub name: String,
+    pub word_id: u32,
+    pub word: String,
+    pub arrowed: Option<u32>,
+    pub unit: Option<u32>,
+    pub lemma: String,
+}
+
+#[derive(Deserialize)]
+pub struct ExportRequest {
+    pub text_ids: String, //comma separated text_ids "133" or "133,134,135"
+}
+
+#[derive(Deserialize)]
+pub struct SetGlossRequest {
+    pub qtype: String,
+    pub word_id: u32,
+    pub gloss_id: u32,
+}
+
+#[derive(Deserialize)]
+pub struct GetGlossRequest {
+    pub qtype: String,
+    pub lemmaid: u32,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateGlossRequest {
+    pub qtype: String,
+    pub hqid: Option<u32>,
+    pub lemma: String,
+    #[serde(
+        rename(serialize = "strippedLemma"),
+        rename(deserialize = "strippedLemma")
+    )]
+    pub stripped_lemma: String,
+    pub pos: String,
+    pub def: String,
+    pub note: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConnectionInfo {
+    pub user_id: u32,
+    pub timestamp: i64,
+    pub ip_address: String,
+    pub user_agent: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct QueryRequest {
+    pub text: u32,
+    pub wordid: u32,
+}
+
+#[derive(Deserialize)]
+pub struct WordtreeQueryRequest {
+    pub n: u32,
+    pub idprefix: String,
+    pub x: String,
+    #[serde(rename(deserialize = "requestTime"))]
+    pub request_time: u64,
+    pub page: i32, //can be negative for pages before
+    pub mode: String,
+    pub query: String, //WordQuery,
+    pub lex: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetGlossResponse {
+    pub success: bool,
+    #[serde(
+        rename(deserialize = "affectedRows"),
+        rename(serialize = "affectedRows")
+    )]
+    pub affected_rows: u64,
+    pub words: Vec<GlossEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct MiscErrorResponse {
+    #[serde(rename(serialize = "thisText"), rename(deserialize = "thisText"))]
+    pub this_text: u32,
+    pub text_name: String,
+    pub words: Vec<WordRow>,
+    #[serde(rename(serialize = "selectedid"), rename(deserialize = "selectedid"))]
+    pub selected_id: Option<u32>,
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct AssignmentTree {
+    pub i: u32,
+    pub col: Vec<String>,
+    pub c: Vec<AssignmentTree>,
+    pub h: bool,
+}
+
+#[derive(Deserialize)]
+pub struct WordQuery {
+    pub regex: Option<String>,
+    pub lexicon: String,
+    pub tag_id: Option<u32>,
+    pub root_id: Option<u32>,
+    pub wordid: Option<String>,
+    pub w: String,
+}
 
 #[allow(dead_code)]
 #[derive(PartialEq)]
@@ -99,6 +237,34 @@ pub struct UpdateGlossIdResponse {
     pub words: Vec<SmallWord>,
     pub success: bool,
     pub affectedrows: u32,
+}
+
+#[derive(Deserialize)]
+pub struct ArrowWordRequest {
+    pub qtype: String,
+    #[serde(rename(serialize = "forLemmaID"), rename(deserialize = "forLemmaID"))]
+    pub for_lemma_id: Option<u32>,
+    #[serde(
+        rename(serialize = "setArrowedIDTo"),
+        rename(deserialize = "setArrowedIDTo")
+    )]
+    pub set_arrowed_id_to: Option<u32>,
+
+    pub textwordid: Option<u32>,
+    pub lemmaid: Option<u32>,
+    pub lemmastr: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ImportResponse {
+    pub success: bool,
+    pub words_inserted: u64,
+    pub error: String,
+}
+
+pub fn get_timestamp() -> i64 {
+    let now = Utc::now();
+    now.timestamp()
 }
 
 pub async fn gkv_arrow_word(
@@ -703,7 +869,8 @@ struct ErrorResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use sqlx::sqlite::SqliteConnectOptions;
+    use std::str::FromStr;
     async fn set_up() -> (SqlitePool, ConnectionInfo) {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")
             .expect("Could not connect to db.")

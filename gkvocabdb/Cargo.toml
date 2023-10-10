@@ -1,9 +1,14 @@
 [package]
-name = "gkvocabdb-rs"
+name = "gkvocabdb"
 version = "0.2.0"
 edition = "2021"
 authors = ["Jeremy March <jmarch@gradcenter.cuny.edu>"]
 license = "AGPL-3.0"
+
+[lib]
+name = "gkvocabdb"
+path = "src/lib.rs"
+doctest = false
 
 [dependencies]
 actix-web = { version = "4.4.0" }
