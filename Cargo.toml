@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "actix",
+    "gkvocabdb",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Jeremy March <jmarch@gradcenter.cuny.edu>"
+]
+
+[profile.release]
+opt-level = 3
+lto = true
