@@ -17,8 +17,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::AssignmentRow;
 use crate::ConnectionInfo;
 use crate::GlossOccurrence;
+use crate::UpdateType;
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{FromRow, Row, SqlitePool};
@@ -102,15 +104,6 @@ pub struct SmallWord {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
-pub struct AssignmentRow {
-    pub text_id: u32,
-    pub text: String,
-    pub container_id: Option<u32>,
-    pub course_id: Option<u32>,
-    pub container: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct DefRow {
     pub word: String,
     pub sortword: String,
@@ -155,30 +148,6 @@ pub struct GlossEntry {
     pub pos: String,
     pub g: String,
     pub n: String,
-}
-
-pub enum UpdateType {
-    ArrowWord,
-    UnarrowWord,
-    NewGloss,
-    EditGloss,
-    SetGlossId,
-    ImportText,
-    DeleteGloss,
-}
-
-impl UpdateType {
-    fn value(&self) -> u32 {
-        match *self {
-            UpdateType::ArrowWord => 1,
-            UpdateType::UnarrowWord => 2,
-            UpdateType::NewGloss => 3,
-            UpdateType::EditGloss => 4,
-            UpdateType::SetGlossId => 5,
-            UpdateType::ImportText => 6,
-            UpdateType::DeleteGloss => 7,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]

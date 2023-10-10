@@ -17,12 +17,47 @@ use crate::db::GlossEntry;
 use crate::db::SmallWord;
 use crate::db::TextWord;
 use crate::db::WordRow;
+use std::collections::HashMap;
 
 use crate::db::get_text_id_for_word_id;
 use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
+use sqlx::FromRow;
 use sqlx::SqlitePool;
+
+pub enum UpdateType {
+    ArrowWord,
+    UnarrowWord,
+    NewGloss,
+    EditGloss,
+    SetGlossId,
+    ImportText,
+    DeleteGloss,
+}
+
+impl UpdateType {
+    fn value(&self) -> u32 {
+        match *self {
+            UpdateType::ArrowWord => 1,
+            UpdateType::UnarrowWord => 2,
+            UpdateType::NewGloss => 3,
+            UpdateType::EditGloss => 4,
+            UpdateType::SetGlossId => 5,
+            UpdateType::ImportText => 6,
+            UpdateType::DeleteGloss => 7,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
+pub struct AssignmentRow {
+    pub text_id: u32,
+    pub text: String,
+    pub container_id: Option<u32>,
+    pub course_id: Option<u32>,
+    pub container: Option<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GlossOccurrence {
@@ -256,6 +291,146 @@ pub struct ImportResponse {
     pub success: bool,
     pub words_inserted: u64,
     pub error: String,
+}
+
+use async_trait::async_trait;
+#[async_trait]
+pub trait GlosserDb {
+    async fn begin_tx(&self) -> Result<Box<dyn GlosserDbTrx>, sqlx::Error>;
+}
+
+#[async_trait]
+pub trait GlosserDbTrx {
+    async fn commit_tx(self: Box<Self>) -> Result<(), sqlx::Error>;
+    async fn rollback_tx(self: Box<Self>) -> Result<(), sqlx::Error>;
+
+    async fn load_lemmatizer(&self);
+
+    async fn insert_lemmatizer_form(&self, form: &str, gloss_id: u32);
+
+    async fn get_lemmatizer(&self) -> HashMap<String, u32>;
+
+    async fn get_hqvocab_column(
+        &self,
+        pos: &str,
+        lower_unit: u32,
+        unit: u32,
+        sort: &str,
+    ) -> Result<Vec<(String, u32, String)>, sqlx::Error>;
+
+    async fn arrow_word_trx(
+        &self,
+        course_id: u32,
+        gloss_id: u32,
+        word_id: u32,
+        info: &ConnectionInfo,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn set_gloss_id(
+        &self,
+        course_id: u32,
+        gloss_id: u32,
+        word_id: u32,
+        info: &ConnectionInfo,
+    ) -> Result<Vec<SmallWord>, sqlx::Error>;
+
+    async fn add_text(
+        &self,
+        course_id: u32,
+        text_name: &str,
+        words: Vec<TextWord>,
+        info: &ConnectionInfo,
+    ) -> Result<u64, sqlx::Error>;
+
+    async fn insert_gloss(
+        &self,
+        gloss: &str,
+        pos: &str,
+        def: &str,
+        stripped_lemma: &str,
+        note: &str,
+        info: &ConnectionInfo,
+    ) -> Result<(i64, u64), sqlx::Error>;
+
+    async fn update_log_trx<'a, 'b>(
+        &self,
+        update_type: UpdateType,
+        object_id: Option<i64>,
+        history_id: Option<i64>,
+        course_id: Option<i64>,
+        update_desc: &str,
+        info: &ConnectionInfo,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn delete_gloss(&self, gloss_id: u32, info: &ConnectionInfo) -> Result<u64, sqlx::Error>;
+
+    #[allow(clippy::too_many_arguments)]
+    async fn update_gloss(
+        &self,
+        gloss_id: u32,
+        gloss: &str,
+        pos: &str,
+        def: &str,
+        stripped_gloss: &str,
+        note: &str,
+        info: &ConnectionInfo,
+    ) -> Result<u64, sqlx::Error>;
+
+    async fn get_words_for_export(
+        &self,
+        text_id: u32,
+        course_id: u32,
+    ) -> Result<Vec<WordRow>, sqlx::Error>;
+
+    async fn get_words(&self, text_id: u32, course_id: u32) -> Result<Vec<WordRow>, sqlx::Error>;
+
+    async fn get_text_name(&self, pool: &SqlitePool, text_id: u32) -> Result<String, sqlx::Error>;
+
+    async fn update_text_order_db(
+        &self,
+        course_id: u32,
+        text_id: u32,
+        step: i32,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn get_texts_db(&self, course_id: u32) -> Result<Vec<AssignmentRow>, sqlx::Error>;
+
+    async fn get_text_id_for_word_id(&self, word_id: u32) -> Result<u32, sqlx::Error>;
+
+    async fn get_glossdb(&self, gloss_id: u32) -> Result<GlossEntry, sqlx::Error>;
+
+    async fn get_gloss_occurrences(
+        &self,
+        course_id: u32,
+        gloss_id: u32,
+    ) -> Result<Vec<GlossOccurrence>, sqlx::Error>;
+
+    async fn get_update_log(&self, _course_id: u32) -> Result<Vec<AssignmentTree>, sqlx::Error>;
+
+    async fn get_before(
+        &self,
+        searchprefix: &str,
+        page: i32,
+        limit: u32,
+    ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error>;
+
+    async fn get_equal_and_after(
+        &self,
+        searchprefix: &str,
+        page: i32,
+        limit: u32,
+    ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error>;
+
+    async fn insert_user(
+        &self,
+        name: &str,
+        initials: &str,
+        user_type: u32,
+        password: &str,
+        email: &str,
+    ) -> Result<i64, sqlx::Error>;
+
+    async fn create_db(&self) -> Result<(), sqlx::Error>;
 }
 
 pub fn get_timestamp() -> i64 {
