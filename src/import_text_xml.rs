@@ -22,8 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use quick_xml::events::Event;
 use quick_xml::Reader;
 
-use actix_multipart::Multipart;
-use futures::{StreamExt, TryStreamExt};
 use quick_xml::name::QName;
 use std::collections::HashMap;
 
@@ -68,73 +66,6 @@ pub async fn import(
             words_inserted: 0,
             error: format!("Error importing text: XML parse error: {:?}.", e),
         },
-    }
-}
-
-pub async fn import_text(
-    (session, payload, req): (Session, Multipart, HttpRequest),
-) -> Result<HttpResponse> {
-    let db = req.app_data::<SqlitePool>().unwrap();
-
-    let course_id = 1;
-
-    // let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com").await.unwrap();
-    // let user_info = ConnectionInfo {
-    //     user_id: user_id.try_into().unwrap(),
-    //     timestamp: get_timestamp(),
-    //     ip_address: "0.0.0.0".to_string(),
-    //     user_agent: "test_agent".to_string(),
-    // };
-    // for _n in 1..100 {
-    //     let post = UpdateGlossRequest {
-    //         qtype: "newlemma".to_string(),
-    //         hqid: None,
-    //         lemma: "newword".to_string(),
-    //         stripped_lemma: "newword".to_string(),
-    //         pos: "newpos".to_string(),
-    //         def: "newdef".to_string(),
-    //         note: "newnote".to_string(),
-    //     };
-    //     let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
-    // }
-
-    if let Some(user_id) = login::get_user_id(session) {
-        let info = ConnectionInfo {
-            user_id,
-            timestamp: get_timestamp(),
-            ip_address: get_ip(&req).unwrap_or_default(),
-            user_agent: get_user_agent(&req).unwrap_or("").to_string(),
-        };
-
-        match import_text_xml::get_xml_string(payload).await {
-            Ok((xml_string, title)) => {
-                let res = import(db, course_id, &info, &title, &xml_string).await;
-                Ok(HttpResponse::Ok().json(res))
-            }
-            Err(e) => {
-                let res = ImportResponse {
-                    success: false,
-                    words_inserted: 0,
-                    error: format!(
-                        "Error importing text: invalid utf8. Valid up to position: {}.",
-                        e.valid_up_to()
-                    ),
-                };
-                Ok(HttpResponse::Ok().json(res))
-            }
-        }
-    } else {
-        let res = ImportResponse {
-            success: false,
-            words_inserted: 0,
-            error: "Import failed: not logged in".to_string(),
-        };
-        Ok(HttpResponse::Ok().json(res))
-        /*
-        Ok(HttpResponse::BadRequest()
-                .content_type("text/plain")
-                .body("update_failed: not logged in"))
-        */
     }
 }
 
@@ -246,48 +177,6 @@ fn split_words(
         }
     }
     words
-}
-
-pub async fn get_xml_string(
-    mut payload: Multipart,
-) -> Result<(String, String), std::str::Utf8Error> {
-    let mut ttbytes = web::BytesMut::new();
-    let mut ddbytes = web::BytesMut::new();
-
-    //cf. https://stackoverflow.com/questions/65989077/how-do-i-pass-multipart-form-data-stream-from-client-to-third-party-server-usin
-
-    // iterate over multipart stream
-    while let Ok(Some(mut field)) = payload.try_next().await {
-        let content_type = field.content_disposition();
-        let name = content_type.get_name().unwrap_or("").to_string();
-
-        // Field in turn is stream of *Bytes* object
-        while let Some(chunk) = field.next().await {
-            let data = chunk.unwrap();
-
-            if name == "title" {
-                ttbytes.extend_from_slice(&data);
-            } else if name == "file" {
-                ddbytes.extend_from_slice(&data);
-            }
-        }
-    }
-
-    let title: String = match std::str::from_utf8(&ttbytes) {
-        Ok(xml_data) => xml_data.to_string(),
-        Err(e) => {
-            return Err(e); //utf8 error
-        }
-    };
-
-    let xml_string: String = match std::str::from_utf8(&ddbytes) {
-        Ok(xml_data) => xml_data.to_string(),
-        Err(e) => {
-            return Err(e); //utf8 error
-        }
-    };
-
-    Ok((xml_string, title))
 }
 
 pub async fn process_imported_text(
