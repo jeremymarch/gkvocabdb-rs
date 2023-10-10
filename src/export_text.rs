@@ -20,7 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use super::*;
 use std::collections::HashMap;
 
-use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
+#[derive(Deserialize)]
+pub struct ExportRequest {
+    pub text_ids: String, //comma separated text_ids "133" or "133,134,135"
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 struct Gloss {
@@ -31,281 +34,250 @@ struct Gloss {
     arrow: bool,
 }
 
-pub async fn export_text(
-    (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
-) -> Result<HttpResponse> {
-    let db = req.app_data::<SqlitePool>().unwrap();
-    let bold_glosses = false;
-    let course_id = 1;
+pub async fn get_latex(
+    db: &SqlitePool,
+    text_ids: &str,
+    course_id: u32,
+    bold_glosses: bool,
+) -> Result<String, sqlx::Error> {
+    let mut latex: String = include_str!("latex/doc_template.tex")
+        .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
-    //println!("host: {:?}", req.connection_info().host());
+    //info.text_ids is now a comma separated string of text_ids "133,134,135"
+    //let texts:Vec<u32> = vec![133,134,135,136,137];//vec![info.textid];
+    let texts: Vec<u32> = text_ids
+        .split(',')
+        .map(|s| s.parse().expect("parse error"))
+        .collect();
 
-    if let Some(_user_id) = login::get_user_id(session) {
-        let mut latex: String = include_str!("latex/doc_template.tex")
-            .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
+    for text_id in texts {
+        let words: Vec<WordRow> = db::get_words_for_export(db, text_id, course_id).await?;
 
-        //info.text_ids is now a comma separated string of text_ids "133,134,135"
-        //let texts:Vec<u32> = vec![133,134,135,136,137];//vec![info.textid];
-        let texts: Vec<u32> = info
-            .text_ids
-            .split(',')
-            .map(|s| s.parse().expect("parse error"))
-            .collect();
+        //divide words into seperate vectors of words per page
+        let mut words_divided_by_page: Vec<Vec<WordRow>> = vec![];
 
-        for text_id in texts {
-            let words: Vec<WordRow> = db::get_words_for_export(db, text_id, course_id)
-                .await
-                .map_err(map_sqlx_error)?;
-
-            //divide words into seperate vectors of words per page
-            let mut words_divided_by_page: Vec<Vec<WordRow>> = vec![];
-
-            let mut start = 0;
-            for (idx, ww) in words.iter().enumerate() {
-                if ww.last_word_of_page {
-                    words_divided_by_page.push(words[start..=idx].to_vec());
-                    start = idx + 1;
-                }
-            }
-            if start < words.len() - 1 {
-                words_divided_by_page.push(words[start..words.len()].to_vec());
-            }
-
-            for words_in_page in words_divided_by_page {
-                let mut res = String::from(""); //start fresh
-
-                let mut title = String::from("");
-                let mut header = String::from("");
-                let mut prev_non_space = true;
-                let mut last_type = WordType::InvalidType;
-                let mut glosses: HashMap<u32, Gloss> = HashMap::new();
-
-                let mut app_crits: Vec<String> = vec![]; //placeholder for now
-
-                for w in words_in_page {
-                    let word = w
-                        .word
-                        .trim()
-                        .replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
-                        .replace('\u{1FBB}', "\u{0386}")
-                        .replace('\u{1F73}', "\u{03AD}")
-                        .replace('\u{1FC9}', "\u{0388}")
-                        .replace('\u{1F75}', "\u{03AE}")
-                        .replace('\u{1FCB}', "\u{0389}")
-                        .replace('\u{1F77}', "\u{03AF}")
-                        .replace('\u{1FDB}', "\u{038A}")
-                        .replace('\u{1F79}', "\u{03CC}")
-                        .replace('\u{1FF9}', "\u{038C}")
-                        .replace('\u{1F7B}', "\u{03CD}")
-                        .replace('\u{1FEB}', "\u{038E}")
-                        .replace('\u{1F7D}', "\u{03CE}")
-                        .replace('\u{1FFB}', "\u{038F}")
-                        .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
-                        .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
-                        .replace('\u{037E}', "\u{003B}") //semicolon
-                        .replace('\u{0387}', "\u{00B7}") //middle dot
-                        .replace('\u{0344}', "\u{0308}\u{0301}"); //combining diaeresis with acute
-
-                    //assert!(!word.contains('\u{1F79}'));
-
-                    if let Some(app_crit) = w.app_crit {
-                        app_crits.push(app_crit);
-                    }
-
-                    match WordType::from_i32(w.word_type.into()) {
-                        WordType::WorkTitle => {
-                            //7
-                            title = word;
-                            header = title.clone();
-                        }
-                        WordType::Speaker => {
-                            //2
-                            res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
-                        }
-                        WordType::InlineSpeaker => {
-                            //9
-                            res.push_str(
-                                format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str(),
-                            );
-                        }
-                        WordType::Section => {
-                            //4
-
-                            // function fixSubsection($a) {
-
-                            //     $r = str_replace("[section]", "", $a);
-                            //     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
-                            //         if ($matches[2][0] == "1") {
-                            //             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
-                            //         }
-                            //         else {
-                            //             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
-                            //         }
-                            //         return $r;
-                            //     }
-                            //     else {
-                            //         return "%StartSubSection%" . $r . "%EndSubSection%";
-                            //     }
-                            // }
-
-                            //fixSubsection(word);
-                            res.push_str(
-                                format!("%StartSubSection%{}%EndSubSection%", word).as_str(),
-                            );
-                            if last_type == WordType::InvalidType
-                                || last_type == WordType::ParaWithIndent
-                            {
-                                //-1 || 6
-                                prev_non_space = true;
-                            } else {
-                                prev_non_space = false;
-                            }
-                        }
-                        WordType::ParaWithIndent => {
-                            //6
-                            res.push_str("%para%");
-                            prev_non_space = true;
-                        }
-                        WordType::ParaNoIndent => {
-                            //10
-                            res.push_str("%parnoindent%");
-                            prev_non_space = true;
-                        }
-                        WordType::Word | WordType::Punctuation => {
-                            //0 | 1
-                            let punc = vec![
-                                ".", ",", "·", "·", ";", ";", ">", "]", ")", ",\"", "·\"", "·\"",
-                                ".’",
-                            ];
-
-                            res.push_str(
-                                format!(
-                                    "{}{}",
-                                    if punc.contains(&word.as_str()) || prev_non_space {
-                                        ""
-                                    } else {
-                                        " "
-                                    },
-                                    word
-                                )
-                                .as_str(),
-                            ); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
-
-                            prev_non_space = word == "<" || word == "[" || word == "(";
-                        }
-                        WordType::VerseLine => {
-                            //5
-                            //need to skip "[line]" prefix
-                            res.push_str(
-                                format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str(),
-                            );
-                            prev_non_space = true;
-                        }
-                        _ => (),
-                    }
-                    //last_seq = w.seq as i64;
-                    //last_word_id = w.wordid as i64;
-
-                    if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
-                        // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
-                        //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
-                        //     continue; //skip
-                        // }
-                        // else if ((int)$row["seq"] == (int)$row["arrowedSeq"]) {
-                        //     $g->arrow = TRUE;
-                        //     $arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
-                        // }
-                        // else {
-                        //     $g->arrow = FALSE;
-                        // }
-
-                        let is_arrowed;
-                        if w.arrowed_text_seq == Some(w.word_text_seq)
-                            && w.arrowed_seq == Some(w.seq)
-                        {
-                            is_arrowed = true; //this instance is arrowed
-                        } else if (w.arrowed_text_seq.is_some()
-                            && w.arrowed_text_seq < Some(w.word_text_seq))
-                            || (w.arrowed_text_seq.is_some()
-                                && w.arrowed_text_seq == Some(w.word_text_seq)
-                                && w.arrowed_seq.is_some()
-                                && w.arrowed_seq < Some(w.seq))
-                        {
-                            //word was already arrowed, so hide it here
-                            continue;
-                        } else {
-                            //show word, not yet arrowed
-                            is_arrowed = false;
-                        }
-
-                        let gloss = Gloss {
-                            id: w.hqid,
-                            lemma: w
-                                .lemma
-                                .replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
-                                .replace('\u{1FBB}', "\u{0386}")
-                                .replace('\u{1F73}', "\u{03AD}")
-                                .replace('\u{1FC9}', "\u{0388}")
-                                .replace('\u{1F75}', "\u{03AE}")
-                                .replace('\u{1FCB}', "\u{0389}")
-                                .replace('\u{1F77}', "\u{03AF}")
-                                .replace('\u{1FDB}', "\u{038A}")
-                                .replace('\u{1F79}', "\u{03CC}")
-                                .replace('\u{1FF9}', "\u{038C}")
-                                .replace('\u{1F7B}', "\u{03CD}")
-                                .replace('\u{1FEB}', "\u{038E}")
-                                .replace('\u{1F7D}', "\u{03CE}")
-                                .replace('\u{1FFB}', "\u{038F}")
-                                .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
-                                .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
-                                .replace('\u{037E}', "\u{003B}") //semicolon
-                                .replace('\u{0387}', "\u{00B7}") //middle dot
-                                .replace('\u{0344}', "\u{0308}\u{0301}"), //combining diaeresis with acute,
-                            def: w.def,
-                            sort_alpha: w.sort_alpha,
-                            arrow: is_arrowed,
-                        };
-                        glosses.insert(w.hqid, gloss);
-                    }
-
-                    last_type = WordType::from_i32(w.word_type.into());
-                }
-                let mut sorted_glosses: Vec<Gloss> = glosses.values().cloned().collect();
-                sorted_glosses.sort_by(|a, b| {
-                    a.sort_alpha
-                        .to_lowercase()
-                        .cmp(&b.sort_alpha.to_lowercase())
-                });
-
-                latex = apply_latex_templates(
-                    &mut latex,
-                    &title,
-                    &mut res,
-                    &sorted_glosses,
-                    &header,
-                    &app_crits,
-                );
+        let mut start = 0;
+        for (idx, ww) in words.iter().enumerate() {
+            if ww.last_word_of_page {
+                words_divided_by_page.push(words[start..=idx].to_vec());
+                start = idx + 1;
             }
         }
-        latex.push_str("\\end{document}\n");
+        if start < words.len() - 1 {
+            words_divided_by_page.push(words[start..words.len()].to_vec());
+        }
 
-        let filename = "glosser_export.tex";
-        let cd_header = ContentDisposition {
-            disposition: DispositionType::Attachment,
-            parameters: vec![DispositionParam::Filename(String::from(filename))],
-        };
-        Ok(HttpResponse::Ok()
-            .content_type("application/x-latex")
-            .insert_header(cd_header)
-            .body(latex))
-    } else {
-        let res = ImportResponse {
-            success: false,
-            words_inserted: 0,
-            error: "Export failed: not logged in".to_string(),
-        };
-        Ok(HttpResponse::Ok().json(res))
+        for words_in_page in words_divided_by_page {
+            let mut res = String::from(""); //start fresh
+
+            let mut title = String::from("");
+            let mut header = String::from("");
+            let mut prev_non_space = true;
+            let mut last_type = WordType::InvalidType;
+            let mut glosses: HashMap<u32, Gloss> = HashMap::new();
+
+            let mut app_crits: Vec<String> = vec![]; //placeholder for now
+
+            for w in words_in_page {
+                let word = w
+                    .word
+                    .trim()
+                    .replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
+                    .replace('\u{1FBB}', "\u{0386}")
+                    .replace('\u{1F73}', "\u{03AD}")
+                    .replace('\u{1FC9}', "\u{0388}")
+                    .replace('\u{1F75}', "\u{03AE}")
+                    .replace('\u{1FCB}', "\u{0389}")
+                    .replace('\u{1F77}', "\u{03AF}")
+                    .replace('\u{1FDB}', "\u{038A}")
+                    .replace('\u{1F79}', "\u{03CC}")
+                    .replace('\u{1FF9}', "\u{038C}")
+                    .replace('\u{1F7B}', "\u{03CD}")
+                    .replace('\u{1FEB}', "\u{038E}")
+                    .replace('\u{1F7D}', "\u{03CE}")
+                    .replace('\u{1FFB}', "\u{038F}")
+                    .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
+                    .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
+                    .replace('\u{037E}', "\u{003B}") //semicolon
+                    .replace('\u{0387}', "\u{00B7}") //middle dot
+                    .replace('\u{0344}', "\u{0308}\u{0301}"); //combining diaeresis with acute
+
+                //assert!(!word.contains('\u{1F79}'));
+
+                if let Some(app_crit) = w.app_crit {
+                    app_crits.push(app_crit);
+                }
+
+                match WordType::from_i32(w.word_type.into()) {
+                    WordType::WorkTitle => {
+                        //7
+                        title = word;
+                        header = title.clone();
+                    }
+                    WordType::Speaker => {
+                        //2
+                        res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
+                    }
+                    WordType::InlineSpeaker => {
+                        //9
+                        res.push_str(
+                            format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str(),
+                        );
+                    }
+                    WordType::Section => {
+                        //4
+
+                        // function fixSubsection($a) {
+
+                        //     $r = str_replace("[section]", "", $a);
+                        //     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
+                        //         if ($matches[2][0] == "1") {
+                        //             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
+                        //         }
+                        //         else {
+                        //             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
+                        //         }
+                        //         return $r;
+                        //     }
+                        //     else {
+                        //         return "%StartSubSection%" . $r . "%EndSubSection%";
+                        //     }
+                        // }
+
+                        //fixSubsection(word);
+                        res.push_str(format!("%StartSubSection%{}%EndSubSection%", word).as_str());
+                        if last_type == WordType::InvalidType
+                            || last_type == WordType::ParaWithIndent
+                        {
+                            //-1 || 6
+                            prev_non_space = true;
+                        } else {
+                            prev_non_space = false;
+                        }
+                    }
+                    WordType::ParaWithIndent => {
+                        //6
+                        res.push_str("%para%");
+                        prev_non_space = true;
+                    }
+                    WordType::ParaNoIndent => {
+                        //10
+                        res.push_str("%parnoindent%");
+                        prev_non_space = true;
+                    }
+                    WordType::Word | WordType::Punctuation => {
+                        //0 | 1
+                        let punc = vec![
+                            ".", ",", "·", "·", ";", ";", ">", "]", ")", ",\"", "·\"", "·\"", ".’",
+                        ];
+
+                        res.push_str(
+                            format!(
+                                "{}{}",
+                                if punc.contains(&word.as_str()) || prev_non_space {
+                                    ""
+                                } else {
+                                    " "
+                                },
+                                word
+                            )
+                            .as_str(),
+                        ); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
+
+                        prev_non_space = word == "<" || word == "[" || word == "(";
+                    }
+                    WordType::VerseLine => {
+                        //5
+                        //need to skip "[line]" prefix
+                        res.push_str(format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str());
+                        prev_non_space = true;
+                    }
+                    _ => (),
+                }
+                //last_seq = w.seq as i64;
+                //last_word_id = w.wordid as i64;
+
+                if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
+                    // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
+                    //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
+                    //     continue; //skip
+                    // }
+                    // else if ((int)$row["seq"] == (int)$row["arrowedSeq"]) {
+                    //     $g->arrow = TRUE;
+                    //     $arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
+                    // }
+                    // else {
+                    //     $g->arrow = FALSE;
+                    // }
+
+                    let is_arrowed;
+                    if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
+                        is_arrowed = true; //this instance is arrowed
+                    } else if (w.arrowed_text_seq.is_some()
+                        && w.arrowed_text_seq < Some(w.word_text_seq))
+                        || (w.arrowed_text_seq.is_some()
+                            && w.arrowed_text_seq == Some(w.word_text_seq)
+                            && w.arrowed_seq.is_some()
+                            && w.arrowed_seq < Some(w.seq))
+                    {
+                        //word was already arrowed, so hide it here
+                        continue;
+                    } else {
+                        //show word, not yet arrowed
+                        is_arrowed = false;
+                    }
+
+                    let gloss = Gloss {
+                        id: w.hqid,
+                        lemma: w
+                            .lemma
+                            .replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
+                            .replace('\u{1FBB}', "\u{0386}")
+                            .replace('\u{1F73}', "\u{03AD}")
+                            .replace('\u{1FC9}', "\u{0388}")
+                            .replace('\u{1F75}', "\u{03AE}")
+                            .replace('\u{1FCB}', "\u{0389}")
+                            .replace('\u{1F77}', "\u{03AF}")
+                            .replace('\u{1FDB}', "\u{038A}")
+                            .replace('\u{1F79}', "\u{03CC}")
+                            .replace('\u{1FF9}', "\u{038C}")
+                            .replace('\u{1F7B}', "\u{03CD}")
+                            .replace('\u{1FEB}', "\u{038E}")
+                            .replace('\u{1F7D}', "\u{03CE}")
+                            .replace('\u{1FFB}', "\u{038F}")
+                            .replace('\u{1FD3}', "\u{0390}") //iota + diaeresis + acute
+                            .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
+                            .replace('\u{037E}', "\u{003B}") //semicolon
+                            .replace('\u{0387}', "\u{00B7}") //middle dot
+                            .replace('\u{0344}', "\u{0308}\u{0301}"), //combining diaeresis with acute,
+                        def: w.def,
+                        sort_alpha: w.sort_alpha,
+                        arrow: is_arrowed,
+                    };
+                    glosses.insert(w.hqid, gloss);
+                }
+
+                last_type = WordType::from_i32(w.word_type.into());
+            }
+            let mut sorted_glosses: Vec<Gloss> = glosses.values().cloned().collect();
+            sorted_glosses.sort_by(|a, b| {
+                a.sort_alpha
+                    .to_lowercase()
+                    .cmp(&b.sort_alpha.to_lowercase())
+            });
+
+            latex = apply_latex_templates(
+                &mut latex,
+                &title,
+                &mut res,
+                &sorted_glosses,
+                &header,
+                &app_crits,
+            );
+        }
     }
+    latex.push_str("\\end{document}\n");
+    Ok(latex)
 }
 
 fn apply_latex_templates(

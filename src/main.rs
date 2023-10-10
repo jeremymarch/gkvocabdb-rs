@@ -16,9 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-use actix_web::{http::StatusCode, ResponseError};
-use thiserror::Error;
-
+use crate::export_text::ExportRequest;
 use actix_files as fs;
 use actix_session::config::PersistentSession;
 use actix_session::storage::CookieSessionStore;
@@ -28,9 +26,12 @@ use actix_web::cookie::time::Duration;
 use actix_web::cookie::Key;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
+use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
+use actix_web::{http::StatusCode, ResponseError};
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
+use thiserror::Error;
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -208,11 +209,6 @@ pub struct WordQuery {
 */
 
 #[derive(Deserialize)]
-pub struct ExportRequest {
-    pub text_ids: String, //comma separated text_ids "133" or "133,134,135"
-}
-
-#[derive(Deserialize)]
 pub struct WordtreeQueryRequest {
     pub n: u32,
     pub idprefix: String,
@@ -257,6 +253,49 @@ pub struct ImportResponse {
     pub success: bool,
     pub words_inserted: u64,
     pub error: String,
+}
+
+async fn export_text(
+    (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
+) -> Result<HttpResponse> {
+    let db = req.app_data::<SqlitePool>().unwrap();
+    let bold_glosses = false;
+    let course_id = 1;
+
+    //println!("host: {:?}", req.connection_info().host());
+
+    if let Some(_user_id) = login::get_user_id(session) {
+        if let Ok(latex) =
+            export_text::get_latex(db, info.text_ids.as_str(), course_id, bold_glosses)
+                .await
+                .map_err(map_sqlx_error)
+        {
+            let filename = "glosser_export.tex";
+            let cd_header = ContentDisposition {
+                disposition: DispositionType::Attachment,
+                parameters: vec![DispositionParam::Filename(String::from(filename))],
+            };
+
+            Ok(HttpResponse::Ok()
+                .content_type("application/x-latex")
+                .insert_header(cd_header)
+                .body(latex))
+        } else {
+            let res = ImportResponse {
+                success: false,
+                words_inserted: 0,
+                error: "Export failed: not logged in".to_string(),
+            };
+            Ok(HttpResponse::Ok().json(res))
+        }
+    } else {
+        let res = ImportResponse {
+            success: false,
+            words_inserted: 0,
+            error: "Export failed: not logged in".to_string(),
+        };
+        Ok(HttpResponse::Ok().json(res))
+    }
 }
 
 async fn update_or_add_gloss(
@@ -625,7 +664,7 @@ fn config(cfg: &mut web::ServiceConfig) {
         .service(web::resource("/setgloss").route(web::post().to(set_gloss)))
         .service(web::resource("/updategloss").route(web::post().to(update_or_add_gloss)))
         .service(web::resource("/importtext").route(web::post().to(import_text_xml::import_text)))
-        .service(web::resource("/exporttext").route(web::get().to(export_text::export_text)))
+        .service(web::resource("/exporttext").route(web::get().to(export_text)))
         .service(web::resource("/movetext").route(web::post().to(move_text)))
         .service(web::resource("/healthzzz").route(web::get().to(health_check)))
         .service(
