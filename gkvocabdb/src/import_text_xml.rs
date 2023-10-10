@@ -328,7 +328,7 @@ pub async fn process_imported_text(
 mod tests {
     use super::*;
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn test_import() {
         let mut lemmatizer = HashMap::new();
         lemmatizer.insert("δ".to_string(), 30);

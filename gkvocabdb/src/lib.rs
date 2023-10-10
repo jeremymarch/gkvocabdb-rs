@@ -17,16 +17,12 @@ use crate::db::GlossEntry;
 use crate::db::SmallWord;
 use crate::db::TextWord;
 use crate::db::WordRow;
-use actix_web::HttpResponse;
-use actix_web::{http::StatusCode, ResponseError};
-use actix_web::{Error as AWError, Result};
 
 use crate::db::get_text_id_for_word_id;
 use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 use sqlx::SqlitePool;
-use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GlossOccurrence {
@@ -272,7 +268,7 @@ pub async fn gkv_arrow_word(
     post: &ArrowWordRequest,
     info: &ConnectionInfo,
     course_id: u32,
-) -> Result<ArrowWordResponse, AWError> {
+) -> Result<ArrowWordResponse, sqlx::Error> {
     arrow_word(
         db,
         course_id,
@@ -280,8 +276,7 @@ pub async fn gkv_arrow_word(
         post.set_arrowed_id_to.unwrap(),
         info,
     )
-    .await
-    .map_err(map_sqlx_error)?;
+    .await?;
     Ok(ArrowWordResponse {
         success: true,
         affected_rows: 1,
@@ -296,10 +291,8 @@ pub async fn gkv_update_gloss_id(
     text_word_id: u32,
     info: &ConnectionInfo,
     course_id: u32,
-) -> Result<UpdateGlossIdResponse, AWError> {
-    let words = set_gloss_id(db, course_id, gloss_id, text_word_id, info)
-        .await
-        .map_err(map_sqlx_error)?;
+) -> Result<UpdateGlossIdResponse, sqlx::Error> {
+    let words = set_gloss_id(db, course_id, gloss_id, text_word_id, info).await?;
 
     Ok(UpdateGlossIdResponse {
         qtype: "set_gloss".to_string(),
@@ -313,7 +306,7 @@ pub async fn gkv_update_or_add_gloss(
     db: &SqlitePool,
     post: &UpdateGlossRequest,
     info: &ConnectionInfo,
-) -> Result<UpdateGlossResponse, AWError> {
+) -> Result<UpdateGlossResponse, sqlx::Error> {
     match post.qtype.as_str() {
         "newlemma" => {
             let (inserted_id, rows_affected) = insert_gloss(
@@ -325,8 +318,7 @@ pub async fn gkv_update_or_add_gloss(
                 &post.note,
                 info,
             )
-            .await
-            .map_err(map_sqlx_error)?;
+            .await?;
 
             return Ok(UpdateGlossResponse {
                 qtype: post.qtype.to_string(),
@@ -347,8 +339,7 @@ pub async fn gkv_update_or_add_gloss(
                     &post.note,
                     info,
                 )
-                .await
-                .map_err(map_sqlx_error)?;
+                .await?;
 
                 return Ok(UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
@@ -360,9 +351,7 @@ pub async fn gkv_update_or_add_gloss(
         }
         "deletegloss" => {
             if post.hqid.is_some() {
-                let rows_affected = delete_gloss(db, post.hqid.unwrap(), info)
-                    .await
-                    .map_err(map_sqlx_error)?;
+                let rows_affected = delete_gloss(db, post.hqid.unwrap(), info).await?;
 
                 return Ok(UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
@@ -392,10 +381,8 @@ pub async fn gkv_update_or_add_gloss(
 pub async fn gkv_tet_gloss(
     db: &SqlitePool,
     post: &GetGlossRequest,
-) -> Result<GetGlossResponse, AWError> {
-    let gloss = get_glossdb(db, post.lemmaid)
-        .await
-        .map_err(map_sqlx_error)?;
+) -> Result<GetGlossResponse, sqlx::Error> {
+    let gloss = get_glossdb(db, post.lemmaid).await?;
 
     /*
     $a = new \stdClass();
@@ -416,26 +403,22 @@ pub async fn gkv_tet_gloss(
 pub async fn gkv_get_glosses(
     db: &SqlitePool,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, AWError> {
-    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+) -> Result<WordtreeQueryResponse, sqlx::Error> {
+    let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
 
-    //let seq = get_seq_by_prefix(db, table, &query_params.w).await.map_err(map_sqlx_error)?;
+    //let seq = get_seq_by_prefix(db, table, &query_params.w).await?;
 
     let mut before_rows = vec![];
     let mut after_rows = vec![];
     if info.page <= 0 {
-        before_rows = get_before(db, &query_params.w, info.page, info.n)
-            .await
-            .map_err(map_sqlx_error)?;
+        before_rows = get_before(db, &query_params.w, info.page, info.n).await?;
         if info.page == 0 {
             //only reverse if page 0. if < 0, each row is inserted under top of container one-by-one in order
             before_rows.reverse();
         }
     }
     if info.page >= 0 {
-        after_rows = get_equal_and_after(db, &query_params.w, info.page, info.n)
-            .await
-            .map_err(map_sqlx_error)?;
+        after_rows = get_equal_and_after(db, &query_params.w, info.page, info.n).await?;
     }
 
     //only check page 0 or page less than 0
@@ -495,8 +478,8 @@ pub async fn gkv_get_glosses(
 pub async fn gkv_get_occurrences(
     db: &SqlitePool,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, AWError> {
-    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+) -> Result<WordtreeQueryResponse, sqlx::Error> {
+    let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
 
     //only check page 0 or page less than 0
     let vlast_page_up = 1;
@@ -506,9 +489,7 @@ pub async fn gkv_get_occurrences(
     let course_id = 1;
     let gloss_id = query_params.tag_id.unwrap_or(0);
 
-    let result_rows = get_gloss_occurrences(db, course_id, gloss_id)
-        .await
-        .map_err(map_sqlx_error)?;
+    let result_rows = get_gloss_occurrences(db, course_id, gloss_id).await?;
 
     //start numbering at 0 if H&Q, so running_count is correct
     let start_idx =
@@ -558,13 +539,11 @@ pub async fn gkv_get_occurrences(
 pub async fn gkv_update_log(
     db: &SqlitePool,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, AWError> {
-    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+) -> Result<WordtreeQueryResponse, sqlx::Error> {
+    let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
     let course_id = 1;
 
-    let log = get_update_log(db, course_id)
-        .await
-        .map_err(map_sqlx_error)?;
+    let log = get_update_log(db, course_id).await?;
 
     Ok(WordtreeQueryResponse {
         select_id: None,
@@ -585,10 +564,10 @@ pub async fn gkv_update_log(
 pub async fn gkv_get_texts(
     db: &SqlitePool,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, AWError> {
-    let query_params: WordQuery = serde_json::from_str(&info.query)?;
+) -> Result<WordtreeQueryResponse, sqlx::Error> {
+    let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
     let course_id = 1;
-    //let seq = get_seq_by_prefix(db, table, &query_params.w).await.map_err(map_sqlx_error)?;
+    //let seq = get_seq_by_prefix(db, table, &query_params.w).await?;
 
     //only check page 0 or page less than 0
     let vlast_page_up = 1;
@@ -603,7 +582,7 @@ pub async fn gkv_get_texts(
     //let re = Regex::new(r"[0-9]").unwrap();
     //let result_rows_stripped:Vec<TreeRow> = vec![TreeRow{v:"abc".to_string(), i:1, c:None}, TreeRow{v:"def".to_string(), i:2, c:Some(vec![TreeRow{v:"def2".to_string(), i:1, c:None}, TreeRow{v:"def3".to_string(), i:3, c:None}])}];
 
-    let w = get_texts_db(db, course_id).await.map_err(map_sqlx_error)?;
+    let w = get_texts_db(db, course_id).await?;
     let mut assignment_rows: Vec<AssignmentTree> = vec![];
     let mut last_container_id: i64 = -1;
 
@@ -687,35 +666,27 @@ pub async fn gkv_move_text(
     step: i32,
     _info: &ConnectionInfo,
     course_id: u32,
-) -> Result<(), AWError> {
-    Ok(db::update_text_order_db(db, course_id, text_id, step)
-        .await
-        .map_err(map_sqlx_error)?)
+) -> Result<(), sqlx::Error> {
+    db::update_text_order_db(db, course_id, text_id, step).await
 }
 
 pub async fn gkv_get_text_words(
     db: &SqlitePool,
     info: &QueryRequest,
     selected_word_id: Option<u32>,
-) -> Result<MiscErrorResponse, AWError> {
+) -> Result<MiscErrorResponse, sqlx::Error> {
     let course_id = 1;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
 
     let text_id = match info.wordid {
         0 => info.text,
-        _ => get_text_id_for_word_id(db, info.wordid)
-            .await
-            .map_err(map_sqlx_error)?,
+        _ => get_text_id_for_word_id(db, info.wordid).await?,
     };
 
-    let w = db::get_words(db, text_id, course_id)
-        .await
-        .map_err(map_sqlx_error)?;
+    let w = db::get_words(db, text_id, course_id).await?;
 
-    let text_name = db::get_text_name(db, text_id)
-        .await
-        .map_err(map_sqlx_error)?;
+    let text_name = db::get_text_name(db, text_id).await?;
 
     /*
         $j = new \stdClass();
@@ -739,131 +710,14 @@ pub async fn gkv_get_text_words(
     })
 }
 
-pub async fn gkv_create_db(db: &SqlitePool) -> Result<(), AWError> {
-    db::create_db(db).await.map_err(map_sqlx_error)?;
+//fix me: return a better error
+pub fn map_json_error(_e: serde_json::Error) -> sqlx::Error {
+    sqlx::Error::RowNotFound
+}
+
+pub async fn gkv_create_db(db: &SqlitePool) -> Result<(), sqlx::Error> {
+    db::create_db(db).await?;
     Ok(())
-}
-
-#[derive(Error, Debug)]
-pub struct PhilologusError {
-    code: StatusCode,
-    name: String,
-    error: String,
-}
-
-impl std::fmt::Display for PhilologusError {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(
-            fmt,
-            "PhilologusError: {} {}: {}.",
-            self.code.as_u16(),
-            self.name,
-            self.error
-        )
-    }
-}
-
-impl ResponseError for PhilologusError {
-    fn error_response(&self) -> HttpResponse {
-        let error_response = ErrorResponse {
-            code: self.code.as_u16(),
-            message: self.error.to_string(),
-            error: self.name.to_string(),
-        };
-        HttpResponse::build(self.code).json(error_response)
-    }
-}
-
-pub fn map_sqlx_error(e: sqlx::Error) -> PhilologusError {
-    match e {
-        sqlx::Error::Configuration(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Configuration: {}", e),
-        },
-        sqlx::Error::Database(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Database: {}", e),
-        },
-        sqlx::Error::Io(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Io: {}", e),
-        },
-        sqlx::Error::Tls(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Tls: {}", e),
-        },
-        sqlx::Error::Protocol(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Protocol: {}", e),
-        },
-        sqlx::Error::RowNotFound => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx RowNotFound".to_string(),
-        },
-        sqlx::Error::TypeNotFound { .. } => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx TypeNotFound".to_string(),
-        },
-        sqlx::Error::ColumnIndexOutOfBounds { .. } => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx ColumnIndexOutOfBounds".to_string(),
-        },
-        sqlx::Error::ColumnNotFound(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx ColumnNotFound: {}", e),
-        },
-        sqlx::Error::ColumnDecode { .. } => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx ColumnDecode".to_string(),
-        },
-        sqlx::Error::Decode(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Decode: {}", e),
-        },
-        sqlx::Error::PoolTimedOut => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx PoolTimeOut".to_string(),
-        },
-        sqlx::Error::PoolClosed => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx PoolClosed".to_string(),
-        },
-        sqlx::Error::WorkerCrashed => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx WorkerCrashed".to_string(),
-        },
-        sqlx::Error::Migrate(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Migrate: {}", e),
-        },
-        _ => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx Unknown error".to_string(),
-        },
-    }
-}
-
-#[derive(Serialize)]
-struct ErrorResponse {
-    code: u16,
-    error: String,
-    message: String,
 }
 
 #[cfg(test)]
@@ -963,7 +817,7 @@ mod tests {
         import_text_xml::import(db, course_id, user_info, title, xml_string).await
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn import_basic_text() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -1005,7 +859,7 @@ mod tests {
         assert!(res.success);
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn lemmatizer_test() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -1112,7 +966,7 @@ mod tests {
         );
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn arrow_word() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -1153,7 +1007,7 @@ mod tests {
         // println!("words: {:?}", res);
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn arrow_word2() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -2413,7 +2267,7 @@ mod tests {
         );
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn set_gloss() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -2468,7 +2322,7 @@ mod tests {
         // println!("words: {:?}", res);
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn insert_and_update_gloss() {
         let (db, user_info) = set_up().await;
 

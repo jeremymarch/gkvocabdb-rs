@@ -8,25 +8,17 @@ version = "0.2.0"
 dependencies = [
  "actix-files",
  "actix-multipart",
- "actix-rt",
  "actix-session",
  "actix-web",
  "actix-web-httpauth",
- "chrono",
- "csv",
  "env_logger",
  "futures",
  "gkvocabdb",
  "hex",
- "percent-encoding",
- "quick-xml",
- "regex",
  "secrecy",
  "serde",
- "serde_json",
  "sqlx",
  "thiserror",
- "unicode-normalization",
 ]
 
 [[package]]
@@ -176,7 +168,6 @@ version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28f32d40287d3f402ae0028a9d54bef51af15c8769492826a69d28f81893151d"
 dependencies = [
- "actix-macros",
  "futures-core",
  "tokio",
 ]
@@ -291,13 +282,13 @@ dependencies = [
 
 [[package]]
 name = "actix-web-httpauth"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dda62cf04bc3a9ad2ea8f314f721951cfdb4cdacec4e984d20e77c7bb170991"
+checksum = "1d613edf08a42ccc6864c941d30fe14e1b676a77d16f1dbadc1174d065a0a775"
 dependencies = [
  "actix-utils",
  "actix-web",
- "base64 0.13.0",
+ "base64 0.21.0",
  "futures-core",
  "futures-util",
  "log",
@@ -1133,25 +1124,14 @@ checksum = "6fb8d784f27acf97159b40fc4db5ecd8aa23b9ad5ef69cdd136d3bc80665f0c0"
 name = "gkvocabdb"
 version = "0.2.0"
 dependencies = [
- "actix-files",
- "actix-multipart",
- "actix-rt",
- "actix-session",
- "actix-web",
- "actix-web-httpauth",
  "chrono",
  "csv",
- "env_logger",
- "futures",
- "hex",
- "percent-encoding",
  "quick-xml",
  "regex",
- "secrecy",
  "serde",
  "serde_json",
  "sqlx",
- "thiserror",
+ "tokio",
  "unicode-normalization",
 ]
 
@@ -2541,7 +2521,19 @@ dependencies = [
  "pin-project-lite",
  "signal-hook-registry",
  "socket2 0.5.4",
+ "tokio-macros",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "630bdcf245f78637c13ec01ffae6187cca34625e8c63150d424b59e55af2675e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.32",
 ]
 
 [[package]]

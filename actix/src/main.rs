@@ -27,11 +27,14 @@ use actix_web::cookie::Key;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
 use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
+use actix_web::http::StatusCode;
+use actix_web::ResponseError;
 use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use futures::{StreamExt, TryStreamExt};
 use gkvocabdb::db::get_hqvocab_column;
+use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -284,7 +287,9 @@ async fn update_or_add_gloss(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        let res = gkv_update_or_add_gloss(db, &post, &info).await?;
+        let res = gkv_update_or_add_gloss(db, &post, &info)
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(HttpResponse::Ok().json(res))
     } else {
@@ -314,7 +319,9 @@ async fn arrow_word_req(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        let res = gkv_arrow_word(db, &post, &info, course_id).await?;
+        let res = gkv_arrow_word(db, &post, &info, course_id)
+            .await
+            .map_err(map_sqlx_error)?;
         return Ok(HttpResponse::Ok().json(res));
     }
 
@@ -343,7 +350,9 @@ async fn set_gloss(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id).await?;
+        let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id)
+            .await
+            .map_err(map_sqlx_error)?;
         return Ok(HttpResponse::Ok().json(res));
     }
     let res = MiscErrorResponse {
@@ -372,7 +381,9 @@ async fn move_text(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        gkv_move_text(db, post.text_id, post.step, &info, course_id).await?;
+        gkv_move_text(db, post.text_id, post.step, &info, course_id)
+            .await
+            .map_err(map_sqlx_error)?;
         let res = MiscErrorResponse {
             this_text: 1,
             text_name: "".to_string(),
@@ -398,7 +409,7 @@ async fn get_gloss(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let res = gkv_tet_gloss(db, &post).await?;
+    let res = gkv_tet_gloss(db, &post).await.map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -408,7 +419,7 @@ async fn get_glosses(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let res = gkv_get_glosses(db, &info).await?;
+    let res = gkv_get_glosses(db, &info).await.map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -418,7 +429,9 @@ async fn gloss_occurrences(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let res = gkv_get_occurrences(db, &info).await?;
+    let res = gkv_get_occurrences(db, &info)
+        .await
+        .map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -428,7 +441,7 @@ async fn update_log(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let res = gkv_update_log(db, &info).await?;
+    let res = gkv_update_log(db, &info).await.map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -438,7 +451,7 @@ async fn get_texts(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
 
-    let res = gkv_get_texts(db, &info).await?;
+    let res = gkv_get_texts(db, &info).await.map_err(map_sqlx_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -460,7 +473,9 @@ async fn get_text_words(
     let selected_word_id: Option<u32> = Some(info.wordid);
 
     if login::get_user_id(session).is_some() {
-        let res = gkv_get_text_words(db, &info, selected_word_id).await?;
+        let res = gkv_get_text_words(db, &info, selected_word_id)
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(HttpResponse::Ok().json(res))
     } else {
@@ -485,6 +500,129 @@ async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().json(w))
 }
 */
+
+#[derive(Error, Debug)]
+pub struct PhilologusError {
+    code: StatusCode,
+    name: String,
+    error: String,
+}
+
+impl std::fmt::Display for PhilologusError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(
+            fmt,
+            "PhilologusError: {} {}: {}.",
+            self.code.as_u16(),
+            self.name,
+            self.error
+        )
+    }
+}
+
+impl ResponseError for PhilologusError {
+    fn error_response(&self) -> HttpResponse {
+        let error_response = ErrorResponse {
+            code: self.code.as_u16(),
+            message: self.error.to_string(),
+            error: self.name.to_string(),
+        };
+        HttpResponse::build(self.code).json(error_response)
+    }
+}
+
+pub fn map_sqlx_error(e: sqlx::Error) -> PhilologusError {
+    match e {
+        sqlx::Error::Configuration(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Configuration: {}", e),
+        },
+        sqlx::Error::Database(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Database: {}", e),
+        },
+        sqlx::Error::Io(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Io: {}", e),
+        },
+        sqlx::Error::Tls(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Tls: {}", e),
+        },
+        sqlx::Error::Protocol(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Protocol: {}", e),
+        },
+        sqlx::Error::RowNotFound => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx RowNotFound".to_string(),
+        },
+        sqlx::Error::TypeNotFound { .. } => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx TypeNotFound".to_string(),
+        },
+        sqlx::Error::ColumnIndexOutOfBounds { .. } => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx ColumnIndexOutOfBounds".to_string(),
+        },
+        sqlx::Error::ColumnNotFound(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx ColumnNotFound: {}", e),
+        },
+        sqlx::Error::ColumnDecode { .. } => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx ColumnDecode".to_string(),
+        },
+        sqlx::Error::Decode(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Decode: {}", e),
+        },
+        sqlx::Error::PoolTimedOut => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx PoolTimeOut".to_string(),
+        },
+        sqlx::Error::PoolClosed => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx PoolClosed".to_string(),
+        },
+        sqlx::Error::WorkerCrashed => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx WorkerCrashed".to_string(),
+        },
+        sqlx::Error::Migrate(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: format!("sqlx Migrate: {}", e),
+        },
+        _ => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "sqlx error".to_string(),
+            error: "sqlx Unknown error".to_string(),
+        },
+    }
+}
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    code: u16,
+    error: String,
+    message: String,
+}
+
 fn get_user_agent(req: &HttpRequest) -> Option<&str> {
     req.headers().get("user-agent")?.to_str().ok()
 }
