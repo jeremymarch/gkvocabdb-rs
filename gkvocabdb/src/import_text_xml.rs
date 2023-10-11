@@ -40,20 +40,30 @@ pub async fn import(
     match import_text_xml::process_imported_text(xml_string, &lemmatizer).await {
         Ok(words) => {
             if !words.is_empty() && !title.is_empty() {
-                let affected_rows = tx
+                match tx
                     .add_text(course_id, title, words, info)
                     .await
                     .map_err(|e| ImportResponse {
                         success: false,
                         words_inserted: 0,
                         error: format!("sqlx error: {}", e),
-                    });
-                tx.commit_tx().await.unwrap();
-
-                ImportResponse {
-                    success: true,
-                    words_inserted: affected_rows.unwrap(),
-                    error: "".to_string(),
+                    }) {
+                    Ok(affected_rows) => {
+                        tx.commit_tx().await.unwrap();
+                        ImportResponse {
+                            success: true,
+                            words_inserted: affected_rows,
+                            error: "".to_string(),
+                        }
+                    }
+                    _ => {
+                        tx.rollback_tx().await.unwrap();
+                        ImportResponse {
+                            success: false,
+                            words_inserted: 0,
+                            error: "Error importing text.".to_string(),
+                        }
+                    }
                 }
             } else {
                 tx.rollback_tx().await.unwrap();

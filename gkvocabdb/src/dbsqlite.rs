@@ -454,8 +454,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
             let affected_rows = res.rows_affected();
             if affected_rows != 1 {
-                //fix me \self.rollback_tx().await?;
-                return Ok(0); //or panic?
+                return Err(sqlx::Error::RowNotFound);
             }
             count += affected_rows;
         }
