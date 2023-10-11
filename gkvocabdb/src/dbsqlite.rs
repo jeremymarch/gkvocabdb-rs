@@ -19,10 +19,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::AssignmentRow;
 use crate::AssignmentTree;
 use crate::ConnectionInfo;
+use crate::GlossEntry;
 use crate::GlossOccurrence;
 use crate::GlosserDb;
 use crate::GlosserDbTrx;
+use crate::SmallWord;
+use crate::TextWord;
 use crate::UpdateType;
+use crate::WordRow;
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqliteRow;
 use sqlx::Transaction;
@@ -46,66 +50,6 @@ pub struct DefRow {
 }
 */
 
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
-pub struct WordRow {
-    #[serde(rename(serialize = "i"), rename(deserialize = "i"))]
-    pub wordid: u32,
-    #[serde(rename(serialize = "w"), rename(deserialize = "w"))]
-    pub word: String,
-    #[serde(rename(serialize = "t"), rename(deserialize = "t"))]
-    pub word_type: u8,
-    #[serde(rename(serialize = "l"), rename(deserialize = "l"))]
-    pub lemma: String,
-    pub def: String,
-    #[serde(rename(serialize = "u"), rename(deserialize = "u"))]
-    pub unit: u8,
-    pub pos: String,
-    #[serde(rename(serialize = "a"), rename(deserialize = "a"))]
-    pub arrowed_id: Option<u32>,
-    pub hqid: u32,
-    #[serde(rename(serialize = "s"), rename(deserialize = "s"))]
-    pub seq: u32,
-    #[serde(rename(serialize = "s2"), rename(deserialize = "s2"))]
-    pub arrowed_seq: Option<u32>,
-    #[serde(rename(serialize = "c"), rename(deserialize = "c"))]
-    pub freq: u32,
-    #[serde(rename(serialize = "rc"), rename(deserialize = "rc"))]
-    pub runningcount: u32,
-    #[serde(rename(serialize = "if"), rename(deserialize = "if"))]
-    pub is_flagged: bool,
-    pub word_text_seq: u32,
-    pub arrowed_text_seq: Option<u32>,
-    pub sort_alpha: String,
-    pub last_word_of_page: bool,
-    pub app_crit: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow, Eq, PartialEq)]
-pub struct SmallWord {
-    #[serde(rename(serialize = "i"))]
-    pub wordid: u32,
-    pub hqid: u32,
-    #[serde(rename(serialize = "l"))]
-    pub lemma: String,
-    pub pos: String,
-    #[serde(rename(serialize = "g"))]
-    pub def: String,
-    #[serde(rename(serialize = "rc"))]
-    pub runningcount: Option<u32>,
-    #[serde(rename(serialize = "ls"))]
-    pub arrowed_seq: Option<u32>,
-    #[serde(rename(serialize = "fr"))]
-    pub total: Option<u32>,
-    #[serde(rename(serialize = "ws"))]
-    pub seq: u32,
-    #[serde(rename(serialize = "if"))]
-    pub is_flagged: bool,
-    #[serde(rename(serialize = "wtseq"))]
-    pub word_text_seq: u32,
-    #[serde(rename(serialize = "atseq"))]
-    pub arrowed_text_seq: Option<u32>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct DefRow {
     pub word: String,
@@ -114,12 +58,6 @@ pub struct DefRow {
     pub seq: u32,
 }
 
-#[derive(Debug, Clone)]
-pub struct TextWord {
-    pub word: String,
-    pub word_type: u32,
-    pub gloss_id: Option<u32>,
-}
 /*
 pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
   let query = format!("SELECT seq FROM {} WHERE sortalpha >= '{}' ORDER BY sortalpha LIMIT 1;", table, prefix);
@@ -144,14 +82,6 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 
 
 */
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GlossEntry {
-    pub hqid: u32,
-    pub l: String,
-    pub pos: String,
-    pub g: String,
-    pub n: String,
-}
 
 #[derive(Debug, Deserialize)]
 pub struct LemmatizerRecord {
@@ -251,22 +181,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         Ok(words)
     }
-    /*
-    async fn arrow_word(
-        pool: &SqlitePool,
-        course_id: u32,
-        gloss_id: u32,
-        word_id: u32,
-        info: &ConnectionInfo,
-    ) -> Result<(), sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
-        self.arrow_word_trx(course_id, gloss_id, word_id, info).await?;
-
-        //tx.commit().await?;
-
-        Ok(())
-    }*/
 
     async fn arrow_word_trx(
         &mut self,
@@ -392,8 +306,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         word_id: u32,
         info: &ConnectionInfo,
     ) -> Result<Vec<SmallWord>, sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
         //1a check if the word whose gloss is being changed is arrowed
         let query =
             "SELECT gloss_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
@@ -494,8 +406,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         )
         .await?;
 
-        //tx.commit().await?;
-
         res
     }
 
@@ -506,8 +416,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         words: Vec<TextWord>,
         info: &ConnectionInfo,
     ) -> Result<u64, sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
         let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
         let text_id = sqlx::query(query)
             .bind(text_name)
@@ -546,7 +454,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
             let affected_rows = res.rows_affected();
             if affected_rows != 1 {
-                //self.rollback_tx().await?;
+                //fix me \self.rollback_tx().await?;
                 return Ok(0); //or panic?
             }
             count += affected_rows;
@@ -579,8 +487,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         //println!("id: {}, count: {}", text_id, count);
 
-        //tx.commit().await?;
-
         Ok(count)
     }
 
@@ -593,8 +499,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         note: &str,
         info: &ConnectionInfo,
     ) -> Result<(i64, u64), sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
         let query = "INSERT INTO glosses (gloss_id, unit, lemma, sortalpha, \
         def, pos, note, updated, status, updatedUser) \
         VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, 1, ?);";
@@ -630,8 +534,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         )
         .await?;
 
-        //tx.commit().await?;
-
         Ok((new_gloss_id, res.rows_affected()))
     }
 
@@ -666,8 +568,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         gloss_id: u32,
         info: &ConnectionInfo,
     ) -> Result<u64, sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
         let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = ?;";
         let count: (u32,) = sqlx::query_as(query)
             .bind(gloss_id)
@@ -692,8 +592,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .execute(&mut *self.tx)
                 .await?;
 
-            //tx.commit().await?;
-
             Ok(res.rows_affected())
         } else {
             Err(sqlx::Error::RowNotFound) //for now
@@ -711,8 +609,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         note: &str,
         info: &ConnectionInfo,
     ) -> Result<u64, sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
         let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
         let history_id = sqlx::query(query)
             .bind(gloss_id)
@@ -764,8 +660,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(gloss_id)
             .execute(&mut *self.tx)
             .await?;
-
-        //tx.commit().await?;
 
         Ok(res.rows_affected())
     }
@@ -1165,8 +1059,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         text_id: u32,
         step: i32,
     ) -> Result<(), sqlx::Error> {
-        //let mut tx = pool.begin().await?;
-
         /*
         //has children? move children with parent
         let query = "SELECT a.text_id,b.text_order FROM texts a \
@@ -1250,7 +1142,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .execute(&mut *self.tx)
             .await?;
 
-        //tx.commit().await?;
         Ok(())
     }
 
@@ -1566,7 +1457,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .await?;
         }
 
-        //self.commit_tx().await?;
         Ok(())
     }
 }

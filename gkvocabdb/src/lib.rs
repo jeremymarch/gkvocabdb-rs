@@ -1,11 +1,7 @@
-pub mod db;
+pub mod dbsqlite;
 pub mod export_text;
 pub mod import_text_xml;
 
-use crate::db::GlossEntry;
-use crate::db::SmallWord;
-use crate::db::TextWord;
-use crate::db::WordRow;
 use std::collections::HashMap;
 
 use chrono::Utc;
@@ -34,6 +30,73 @@ impl UpdateType {
             UpdateType::DeleteGloss => 7,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct WordRow {
+    #[serde(rename(serialize = "i"), rename(deserialize = "i"))]
+    pub wordid: u32,
+    #[serde(rename(serialize = "w"), rename(deserialize = "w"))]
+    pub word: String,
+    #[serde(rename(serialize = "t"), rename(deserialize = "t"))]
+    pub word_type: u8,
+    #[serde(rename(serialize = "l"), rename(deserialize = "l"))]
+    pub lemma: String,
+    pub def: String,
+    #[serde(rename(serialize = "u"), rename(deserialize = "u"))]
+    pub unit: u8,
+    pub pos: String,
+    #[serde(rename(serialize = "a"), rename(deserialize = "a"))]
+    pub arrowed_id: Option<u32>,
+    pub hqid: u32,
+    #[serde(rename(serialize = "s"), rename(deserialize = "s"))]
+    pub seq: u32,
+    #[serde(rename(serialize = "s2"), rename(deserialize = "s2"))]
+    pub arrowed_seq: Option<u32>,
+    #[serde(rename(serialize = "c"), rename(deserialize = "c"))]
+    pub freq: u32,
+    #[serde(rename(serialize = "rc"), rename(deserialize = "rc"))]
+    pub runningcount: u32,
+    #[serde(rename(serialize = "if"), rename(deserialize = "if"))]
+    pub is_flagged: bool,
+    pub word_text_seq: u32,
+    pub arrowed_text_seq: Option<u32>,
+    pub sort_alpha: String,
+    pub last_word_of_page: bool,
+    pub app_crit: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TextWord {
+    pub word: String,
+    pub word_type: u32,
+    pub gloss_id: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct SmallWord {
+    #[serde(rename(serialize = "i"))]
+    pub wordid: u32,
+    pub hqid: u32,
+    #[serde(rename(serialize = "l"))]
+    pub lemma: String,
+    pub pos: String,
+    #[serde(rename(serialize = "g"))]
+    pub def: String,
+    #[serde(rename(serialize = "rc"))]
+    pub runningcount: Option<u32>,
+    #[serde(rename(serialize = "ls"))]
+    pub arrowed_seq: Option<u32>,
+    #[serde(rename(serialize = "fr"))]
+    pub total: Option<u32>,
+    #[serde(rename(serialize = "ws"))]
+    pub seq: u32,
+    #[serde(rename(serialize = "if"))]
+    pub is_flagged: bool,
+    #[serde(rename(serialize = "wtseq"))]
+    pub word_text_seq: u32,
+    #[serde(rename(serialize = "atseq"))]
+    pub arrowed_text_seq: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -113,6 +176,15 @@ pub struct WordtreeQueryRequest {
     pub mode: String,
     pub query: String, //WordQuery,
     pub lex: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlossEntry {
+    pub hqid: u32,
+    pub l: String,
+    pub pos: String,
+    pub g: String,
+    pub n: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -921,7 +993,7 @@ pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), sqlx::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::GlosserDbSqlite;
+    use crate::dbsqlite::GlosserDbSqlite;
     use sqlx::sqlite::SqliteConnectOptions;
     use sqlx::SqlitePool;
     use std::str::FromStr;

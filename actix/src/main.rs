@@ -33,7 +33,7 @@ use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use futures::{StreamExt, TryStreamExt};
-use gkvocabdb::db::GlosserDbSqlite;
+use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
