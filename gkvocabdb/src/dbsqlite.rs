@@ -27,36 +27,13 @@ use crate::SmallWord;
 use crate::TextWord;
 use crate::UpdateType;
 use crate::WordRow;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Transaction;
-use sqlx::{FromRow, Row, SqlitePool};
+use sqlx::{Row, SqlitePool};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use unicode_normalization::UnicodeNormalization;
-
-/*
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum PhilologusWords {
-    GreekDefs { seq: u32, def: String },
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
-pub struct DefRow {
-    pub word: String,
-    pub sortword: String,
-    pub def: String,
-    pub seq: u32
-}
-*/
-
-#[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
-pub struct DefRow {
-    pub word: String,
-    pub sortword: String,
-    pub def: String,
-    pub seq: u32,
-}
 
 /*
 pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
