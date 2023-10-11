@@ -375,25 +375,16 @@ mod tests {
         assert_eq!(r[2].word, "[line]5");
         assert_eq!(r[3].word_type, WordType::Word as u32);
         assert_eq!(r[4].gloss_id, Some(30));
-        assert_eq!(
-            r[10].word_type,
-            WordType::Punctuation as u32
-        );
+        assert_eq!(r[10].word_type, WordType::Punctuation as u32);
         assert_eq!(r[14].word_type, WordType::PageBreak as u32);
         assert_eq!(r[15].word_type, WordType::VerseLine as u32);
         assert_eq!(r[15].word, "[line]10");
         assert_eq!(r[22].word, "");
-        assert_eq!(
-            r[22].word_type,
-            WordType::ParaNoIndent as u32
-        );
+        assert_eq!(r[22].word_type, WordType::ParaNoIndent as u32);
         assert_eq!(r[23].word, "This");
         assert_eq!(r[23].word_type, WordType::Desc as u32);
         assert_eq!(r[28].word, "");
-        assert_eq!(
-            r[28].word_type,
-            WordType::ParaNoIndent as u32
-        );
+        assert_eq!(r[28].word_type, WordType::ParaNoIndent as u32);
     }
 
     #[test]
