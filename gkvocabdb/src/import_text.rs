@@ -37,7 +37,7 @@ pub async fn import(
     let mut tx = db.begin_tx().await.unwrap();
     let lemmatizer = tx.get_lemmatizer().await;
 
-    match import_text_xml::process_imported_text(xml_string, &lemmatizer).await {
+    match process_imported_text(xml_string, &lemmatizer).await {
         Ok(words) => {
             if !words.is_empty() && !title.is_empty() {
                 match tx
@@ -369,30 +369,30 @@ mod tests {
         //     println!("{:?}", a);
         // }
         assert_eq!(r.len(), 29);
-        assert_eq!(r[0].word_type, import_text_xml::WordType::WorkTitle as u32);
-        assert_eq!(r[1].word_type, import_text_xml::WordType::Speaker as u32);
-        assert_eq!(r[2].word_type, import_text_xml::WordType::VerseLine as u32);
+        assert_eq!(r[0].word_type, WordType::WorkTitle as u32);
+        assert_eq!(r[1].word_type, WordType::Speaker as u32);
+        assert_eq!(r[2].word_type, WordType::VerseLine as u32);
         assert_eq!(r[2].word, "[line]5");
-        assert_eq!(r[3].word_type, import_text_xml::WordType::Word as u32);
+        assert_eq!(r[3].word_type, WordType::Word as u32);
         assert_eq!(r[4].gloss_id, Some(30));
         assert_eq!(
             r[10].word_type,
-            import_text_xml::WordType::Punctuation as u32
+            WordType::Punctuation as u32
         );
         assert_eq!(r[14].word_type, WordType::PageBreak as u32);
-        assert_eq!(r[15].word_type, import_text_xml::WordType::VerseLine as u32);
+        assert_eq!(r[15].word_type, WordType::VerseLine as u32);
         assert_eq!(r[15].word, "[line]10");
         assert_eq!(r[22].word, "");
         assert_eq!(
             r[22].word_type,
-            import_text_xml::WordType::ParaNoIndent as u32
+            WordType::ParaNoIndent as u32
         );
         assert_eq!(r[23].word, "This");
-        assert_eq!(r[23].word_type, import_text_xml::WordType::Desc as u32);
+        assert_eq!(r[23].word_type, WordType::Desc as u32);
         assert_eq!(r[28].word, "");
         assert_eq!(
             r[28].word_type,
-            import_text_xml::WordType::ParaNoIndent as u32
+            WordType::ParaNoIndent as u32
         );
     }
 

@@ -161,7 +161,7 @@ async fn import_text(
 
         match get_xml_string(payload).await {
             Ok((xml_string, title)) => {
-                let res = import_text_xml::import(db, course_id, &info, &title, &xml_string).await;
+                let res = import_text::import(db, course_id, &info, &title, &xml_string).await;
                 Ok(HttpResponse::Ok().json(res))
             }
             Err(e) => {
