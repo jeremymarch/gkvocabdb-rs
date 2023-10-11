@@ -11,7 +11,7 @@ pub struct HQVocabRequest {
 pub async fn hqvocab(
     (info, req): (web::Query<HQVocabRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
     let mut template = include_str!("hqvocab.html").to_string();
 
     // let mut rows = String::from("");
@@ -63,12 +63,13 @@ pub async fn hqvocab(
     }
 
     let sort = info.sort.clone().unwrap_or_else(|| "unit".to_string());
-
+    let mut tx = db.begin_tx().await.map_err(map_sqlx_error)?;
     for p in ["noun", "verb", "adjective", "other"] {
         let mut res = String::from("");
         let mut last_unit = 0;
 
-        let hqv = get_hqvocab_column(db, p, lower, upper, &sort)
+        let hqv = tx
+            .get_hqvocab_column(p, lower, upper, &sort)
             .await
             .map_err(map_sqlx_error)?;
         for w in hqv {
@@ -117,6 +118,7 @@ pub async fn hqvocab(
 
         template = template.replacen(format!("%{}%", p).as_str(), &res, 1);
     }
+    tx.commit_tx().await.map_err(map_sqlx_error)?;
 
     template = template.replacen("%%upper%%", &upper.to_string(), 1);
     template = template.replacen("%%lower%%", &lower.to_string(), 1);

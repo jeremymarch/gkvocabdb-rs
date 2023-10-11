@@ -33,7 +33,7 @@ use actix_web::{
     middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use futures::{StreamExt, TryStreamExt};
-use gkvocabdb::db::get_hqvocab_column;
+use gkvocabdb::db::GlosserDbSqlite;
 use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
@@ -127,7 +127,7 @@ struct LoginCheckResponse {
 async fn import_text(
     (session, payload, req): (Session, Multipart, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let course_id = 1;
 
@@ -234,7 +234,7 @@ async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), std:
 async fn export_text(
     (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
     let bold_glosses = false;
     let course_id = 1;
 
@@ -277,7 +277,7 @@ async fn export_text(
 async fn update_or_add_gloss(
     (session, post, req): (Session, web::Form<UpdateGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let info = ConnectionInfo {
@@ -307,7 +307,7 @@ async fn update_or_add_gloss(
 async fn arrow_word_req(
     (session, post, req): (Session, web::Form<ArrowWordRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -338,7 +338,7 @@ async fn arrow_word_req(
 async fn set_gloss(
     (session, post, req): (Session, web::Form<SetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -369,7 +369,7 @@ async fn set_gloss(
 async fn move_text(
     (session, post, req): (Session, web::Form<MoveTextRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let course_id = 1;
@@ -407,7 +407,7 @@ async fn move_text(
 async fn get_gloss(
     (post, req): (web::Form<GetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let res = gkv_tet_gloss(db, &post).await.map_err(map_sqlx_error)?;
 
@@ -417,7 +417,7 @@ async fn get_gloss(
 async fn get_glosses(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let res = gkv_get_glosses(db, &info).await.map_err(map_sqlx_error)?;
 
@@ -427,7 +427,7 @@ async fn get_glosses(
 async fn gloss_occurrences(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let res = gkv_get_occurrences(db, &info)
         .await
@@ -439,7 +439,7 @@ async fn gloss_occurrences(
 async fn update_log(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let res = gkv_update_log(db, &info).await.map_err(map_sqlx_error)?;
 
@@ -449,7 +449,7 @@ async fn update_log(
 async fn get_texts(
     (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let res = gkv_get_texts(db, &info).await.map_err(map_sqlx_error)?;
 
@@ -468,7 +468,7 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 async fn get_text_words(
     (session, info, req): (Session, web::Query<QueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<SqlitePool>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let selected_word_id: Option<u32> = Some(info.wordid);
 
@@ -655,13 +655,16 @@ async fn main() -> io::Result<()> {
             l.to_lowercase().cmp(&r.to_lowercase())
         });
 
-    let db_pool = SqlitePool::connect_with(options)
-        .await
-        .expect("Could not connect to db.");
+    let db_pool = GlosserDbSqlite {
+        db: SqlitePool::connect_with(options)
+            .await
+            .expect("Could not connect to db."),
+    };
 
     gkv_create_db(&db_pool).await.expect("Could not create db.");
-
-    db::load_lemmatizer(&db_pool).await;
+    let mut tx = db_pool.begin_tx().await.unwrap();
+    tx.load_lemmatizer().await;
+    tx.commit_tx().await.unwrap();
 
     /*
     https://github.com/SergioBenitez/Rocket/discussions/1989

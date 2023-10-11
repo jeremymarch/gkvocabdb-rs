@@ -28,24 +28,27 @@ use std::collections::HashMap;
 use super::*;
 
 pub async fn import(
-    db: &SqlitePool,
+    db: &dyn GlosserDb,
     course_id: u32,
     info: &ConnectionInfo,
     title: &str,
     xml_string: &str,
 ) -> ImportResponse {
-    let lemmatizer = db::get_lemmatizer(db).await;
+    let mut tx = db.begin_tx().await.unwrap();
+    let lemmatizer = tx.get_lemmatizer().await;
 
     match import_text_xml::process_imported_text(xml_string, &lemmatizer).await {
         Ok(words) => {
             if !words.is_empty() && !title.is_empty() {
-                let affected_rows = db::add_text(db, course_id, title, words, info)
+                let affected_rows = tx
+                    .add_text(course_id, title, words, info)
                     .await
                     .map_err(|e| ImportResponse {
                         success: false,
                         words_inserted: 0,
                         error: format!("sqlx error: {}", e),
                     });
+                tx.commit_tx().await.unwrap();
 
                 ImportResponse {
                     success: true,
@@ -53,6 +56,7 @@ pub async fn import(
                     error: "".to_string(),
                 }
             } else {
+                tx.rollback_tx().await.unwrap();
                 ImportResponse {
                     success: false,
                     words_inserted: 0,
@@ -61,11 +65,14 @@ pub async fn import(
                 }
             }
         }
-        Err(e) => ImportResponse {
-            success: false,
-            words_inserted: 0,
-            error: format!("Error importing text: XML parse error: {:?}.", e),
-        },
+        Err(e) => {
+            tx.rollback_tx().await.unwrap();
+            ImportResponse {
+                success: false,
+                words_inserted: 0,
+                error: format!("Error importing text: XML parse error: {:?}.", e),
+            }
+        }
     }
 }
 

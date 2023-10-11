@@ -30,7 +30,7 @@ struct Gloss {
 }
 
 pub async fn get_latex(
-    db: &SqlitePool,
+    db: &dyn GlosserDb,
     text_ids: &str,
     course_id: u32,
     bold_glosses: bool,
@@ -46,7 +46,9 @@ pub async fn get_latex(
         .collect();
 
     for text_id in texts {
-        let words: Vec<WordRow> = db::get_words_for_export(db, text_id, course_id).await?;
+        let mut tx = db.begin_tx().await?;
+        let words: Vec<WordRow> = tx.get_words_for_export(text_id, course_id).await?;
+        tx.commit_tx().await?;
 
         //divide words into seperate vectors of words per page
         let mut words_divided_by_page: Vec<Vec<WordRow>> = vec![];
