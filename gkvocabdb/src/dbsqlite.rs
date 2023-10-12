@@ -107,7 +107,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     }
 
     async fn insert_lemmatizer_form(&mut self, form: &str, gloss_id: u32) {
-        let query = r#"INSERT INTO lemmatizer VALUES (?, ?);"#;
+        let query = r#"INSERT INTO lemmatizer (form, gloss_id) VALUES ($1, $2);"#;
         let _ = sqlx::query(query)
             .bind(form)
             .bind(gloss_id)
@@ -168,7 +168,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ) -> Result<(), sqlx::Error> {
         let query = "SELECT word_id \
     FROM arrowed_words \
-    WHERE course_id = ? AND gloss_id = ?;";
+    WHERE course_id = $1 AND gloss_id = $2;";
         let old_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
             .bind(course_id)
             .bind(gloss_id)
@@ -183,10 +183,10 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         }
 
         //add previous arrow to history, if it was arrowed before
-        let query = "INSERT INTO arrowed_words_history \
+        let query = "INSERT INTO arrowed_words_history (history_id, course_id, gloss_id, word_id, updated, user_id, comment) \
         SELECT NULL, course_id, gloss_id, word_id, updated, user_id, comment \
         FROM arrowed_words \
-        WHERE course_id = ? AND gloss_id = ?;";
+        WHERE course_id = $1 AND gloss_id = $2;";
         let history_id = sqlx::query(query)
             .bind(course_id)
             .bind(gloss_id)
@@ -203,14 +203,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         if word_id > 0 {
             //first delete old arrowed location
-            let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+            let query = "DELETE FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2;";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
                 .execute(&mut *self.tx)
                 .await?;
 
-            let query = "INSERT INTO arrowed_words VALUES (?, ?, ?, ?, ?, NULL);";
+            let query = "INSERT INTO arrowed_words (course_id, gloss_id, word_id, updated, user_id, comment) VALUES ($1, $2, $3, $4, $5, NULL);";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
@@ -237,7 +237,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .await?;
         } else {
             //delete row to remove arrow
-            let query = "DELETE FROM arrowed_words WHERE course_id = ? AND gloss_id = ?;";
+            let query = "DELETE FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2;";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
@@ -245,7 +245,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .await?;
 
             //add to history now, since can't later
-            let query = "INSERT INTO arrowed_words_history VALUES (NULL, ?, ?, NULL, ?, ?, NULL);";
+            let query = "INSERT INTO arrowed_words_history (history_id, course_id, gloss_id, word_id, updated, user_id, comment) VALUES (NULL, $1, $2, NULL, $3, $4, NULL);";
             sqlx::query(query)
                 .bind(course_id)
                 .bind(gloss_id)
@@ -285,7 +285,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ) -> Result<Vec<SmallWord>, sqlx::Error> {
         //1a check if the word whose gloss is being changed is arrowed
         let query =
-            "SELECT gloss_id FROM arrowed_words WHERE course_id = ? AND gloss_id = ? AND word_id = ?;";
+            "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
         let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
             .bind(course_id)
             .bind(gloss_id)
@@ -302,7 +302,11 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         //2a. save word row into history before updating gloss_id
         //or could have separate history table just for gloss_id changes
-        let query = "INSERT INTO words_history SELECT NULL,* FROM words WHERE word_id = ?;";
+        //word_history_id, word_id, seq, text, word, gloss_id, type,
+        let query = "INSERT INTO words_history \
+        (word_history_id, word_id, seq, text, word, gloss_id, type, updated, updatedUser, isFlagged, note) \
+        SELECT NULL, word_id, seq, text_id, word, gloss_id, type, updated, updatedUser, isFlagged, note FROM words \
+        WHERE word_id = $1;";
         let history_id = sqlx::query(query)
             .bind(word_id)
             .execute(&mut *self.tx)
@@ -310,14 +314,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .last_insert_rowid();
 
         //0. get old gloss_id before changing it so we can update its counts in step 3b
-        let query = "SELECT gloss_id FROM words WHERE word_id = ?;";
+        let query = "SELECT gloss_id FROM words WHERE word_id = $1;";
         let old_gloss_id: (Option<u32>,) = sqlx::query_as(query)
             .bind(word_id)
             .fetch_one(&mut *self.tx)
             .await?;
 
         //2b. update gloss_id
-        let query = "UPDATE words SET gloss_id = ? WHERE word_id = ?;";
+        let query = "UPDATE words SET gloss_id = $1 WHERE word_id = $2;";
         sqlx::query(query)
             .bind(gloss_id)
             .bind(word_id)
@@ -393,7 +397,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         words: Vec<TextWord>,
         info: &ConnectionInfo,
     ) -> Result<u64, sqlx::Error> {
-        let query = "INSERT INTO texts VALUES (NULL, ?, NULL, 1);";
+        let query =
+            "INSERT INTO texts (text_id, name, parent_id, display) VALUES (NULL, $1, NULL, 1);";
         let text_id = sqlx::query(query)
             .bind(text_name)
             .execute(&mut *self.tx)
@@ -408,7 +413,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         let query = "INSERT INTO words (word_id, seq, text_id, word, gloss_id, \
         type, updated, updatedUser, isFlagged, note) \
-        VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 0, '');";
+        VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, 0, '');";
         let mut count = 0;
         let mut gloss_ids: HashSet<u32> = HashSet::new();
         for w in words {
@@ -436,13 +441,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             count += affected_rows;
         }
 
-        let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = ?;";
+        let query = "SELECT MAX(text_order) FROM course_x_text WHERE course_id = $1;";
         let max_text_order: (u32,) = sqlx::query_as(query)
             .bind(course_id)
             .fetch_one(&mut *self.tx)
             .await?;
 
-        let query = "INSERT INTO course_x_text VALUES (?, ?, ?);";
+        let query =
+            "INSERT INTO course_x_text (course_id, text_id, text_order) VALUES ($1, $2, $3);";
         sqlx::query(query)
             .bind(course_id)
             .bind(text_id)
@@ -477,7 +483,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ) -> Result<(i64, u64), sqlx::Error> {
         let query = "INSERT INTO glosses (gloss_id, unit, lemma, sortalpha, \
         def, pos, note, updated, status, updatedUser) \
-        VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, 1, ?);";
+        VALUES (NULL, 0, $1, $2, $3, $4, $5, $6, 1, $7);";
 
         //double check that diacritics are stripped and word is lowercased; doesn't handle pua here yet
         let sl = stripped_lemma
@@ -522,7 +528,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         update_desc: &str,
         info: &ConnectionInfo,
     ) -> Result<(), sqlx::Error> {
-        let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9);";
         sqlx::query(query)
             .bind(update_type.value())
             .bind(object_id)
@@ -544,7 +550,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         gloss_id: u32,
         info: &ConnectionInfo,
     ) -> Result<u64, sqlx::Error> {
-        let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = ?;";
+        let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = $1;";
         let count: (u32,) = sqlx::query_as(query)
             .bind(gloss_id)
             .fetch_one(&mut *self.tx)
@@ -562,7 +568,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             )
             .await?;
 
-            let query = "UPDATE glosses SET status = 0 WHERE gloss_id = ?;";
+            let query = "UPDATE glosses SET status = 0 WHERE gloss_id = $1;";
             let res = sqlx::query(query)
                 .bind(gloss_id)
                 .execute(&mut *self.tx)
@@ -585,7 +591,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         note: &str,
         info: &ConnectionInfo,
     ) -> Result<u64, sqlx::Error> {
-        let query = "INSERT INTO glosses_history SELECT NULL,* FROM glosses WHERE gloss_id = ?;";
+        let query = "INSERT INTO glosses_history (gloss_history_id, gloss_id, unit, lemma, sortalpha, def, pos, note, updated, status, updatedUser) SELECT NULL,* FROM glosses WHERE gloss_id = $1;";
         let history_id = sqlx::query(query)
             .bind(gloss_id)
             .execute(&mut *self.tx)
@@ -616,14 +622,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .to_lowercase();
 
         let query = "UPDATE glosses SET \
-        lemma = ?, \
-        sortalpha = ?, \
-        def = ?, \
-        pos = ?, \
-        note = ?, \
-        updated = ?, \
-        updatedUser = ? \
-        WHERE gloss_id = ?;";
+        lemma = $1, \
+        sortalpha = $2, \
+        def = $3, \
+        pos = $4, \
+        note = $5, \
+        updated = $6, \
+        updatedUser = $7 \
+        WHERE gloss_id = $8;";
 
         let res = sqlx::query(query)
             .bind(gloss)
@@ -644,7 +650,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     async fn fix_assignments(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
     /*
-    INSERT INTO texts (SELECT NULL,title,6,1 from assignments where id=28;
+    INSERT INTO texts (text_id, name, parent_id, display) (SELECT NULL,title,6,1 from assignments where id=28;
 
     update words set text=129
     where seq >= (select seq from words where word_id=22463)
@@ -664,7 +670,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         _ => 8
         };
 
-        let query = "INSERT INTO texts VALUES (NULL,?,?,1); ";
+        let query = "INSERT INTO texts (text_id, name, parent_id, display) VALUES (NULL,?,?,1); ";
         let text_id = sqlx::query(query)
         .bind(assignment.0) //title
         .bind(parent_id)
@@ -681,7 +687,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         .bind(assignment.2) //end
         .execute(&mut *tx).await?;
         }
-        let query = "INSERT INTO course_x_text VALUES (1,?,?); ";
+        let query = "INSERT INTO course_x_text (course_id, text_id, text_order) VALUES (1,?,?); ";
         sqlx::query(query)
         .bind(text_id)
         .bind(text_order)
@@ -845,7 +851,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
         let query = "SELECT name \
     FROM texts \
-    WHERE text_id = ?";
+    WHERE text_id = $1";
         let res: (String,) = sqlx::query_as(query)
             .bind(text_id)
             .fetch_one(&mut *self.tx)
@@ -938,7 +944,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         // container moving up: container and its children get - 1, text above gets + num_children + 1
         // text where moving is child and moving up?
 
-        // container_id: move all items in container: select * items in container
+        // container_id: move all items in container: select all items in container
         // text_id: move single item, if moving one text check if in container and limit to container bounds
 
         // text_seq_start, text_seq_end, step
@@ -1065,7 +1071,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         */
 
         // get text order int
-        let query = "SELECT text_order FROM course_x_text WHERE course_id = ? AND text_id = ?;";
+        let query = "SELECT text_order FROM course_x_text WHERE course_id = $1 AND text_id = $2;";
         let text_order: (i32,) = sqlx::query_as(query)
             .bind(course_id)
             .bind(text_id)
@@ -1073,7 +1079,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .await?;
 
         // get number of texts
-        let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = ?;";
+        let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = $1;";
         let text_count: (i32,) = sqlx::query_as(query)
             .bind(course_id)
             .bind(text_id)
@@ -1088,7 +1094,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         } else if step > 0 {
             //make room by moving other texts up/earlier in sequence
             let query = "UPDATE course_x_text SET text_order = text_order - 1 \
-                WHERE text_order > ? AND text_order < ? + ? + 1 AND course_id = ?;";
+                WHERE text_order > $1 AND text_order < $2 + $3 + 1 AND course_id = $4;";
             sqlx::query(query)
                 .bind(text_order.0)
                 .bind(text_order.0)
@@ -1099,7 +1105,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         } else {
             //make room by moving other texts down/later in sequence
             let query = "UPDATE course_x_text SET text_order = text_order + 1 \
-                WHERE text_order < ? AND text_order > ? + ? - 1 AND course_id = ?;";
+                WHERE text_order < $1 AND text_order > $2 + $3 - 1 AND course_id = $4;";
             sqlx::query(query)
                 .bind(text_order.0)
                 .bind(text_order.0)
@@ -1110,7 +1116,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         }
         //set new text order
         let query =
-            "UPDATE course_x_text SET text_order = text_order + ? WHERE course_id = ? AND text_id = ?;";
+            "UPDATE course_x_text SET text_order = text_order + $1 WHERE course_id = $2 AND text_id = $3;";
         sqlx::query(query)
             .bind(step)
             .bind(course_id)
@@ -1124,7 +1130,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     async fn get_texts_db(&mut self, course_id: u32) -> Result<Vec<AssignmentRow>, sqlx::Error> {
         let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id, C.name AS container \
         FROM texts A \
-        INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = ?) \
+        INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = $1) \
         LEFT JOIN containers C ON A.parent_id = C.container_id \
         WHERE display != 0 \
         ORDER BY B.text_order, A.text_id;";
@@ -1154,7 +1160,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     }
     */
     async fn get_text_id_for_word_id(&mut self, word_id: u32) -> Result<u32, sqlx::Error> {
-        let query = "SELECT text_id FROM words WHERE word_id = ?;";
+        let query = "SELECT text_id FROM words WHERE word_id = $1;";
 
         let rec: (u32,) = sqlx::query_as(query)
             .bind(word_id)
@@ -1191,7 +1197,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     */
 
     async fn get_glossdb(&mut self, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
-        let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = ? ";
+        let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = $1;";
 
         sqlx::query(query)
             .bind(gloss_id)
@@ -1215,11 +1221,11 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ) -> Result<Vec<GlossOccurrence>, sqlx::Error> {
         let query = "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
         FROM words a \
-        INNER JOIN course_x_text b ON (a.text_id = b.text_id AND b.course_id = ?) \
+        INNER JOIN course_x_text b ON (a.text_id = b.text_id AND b.course_id = $1) \
         INNER JOIN texts c ON a.text_id = c.text_id \
         INNER JOIN glosses e ON e.gloss_id = a.gloss_id \
-        LEFT JOIN arrowed_words d ON (d.course_id=? AND d.gloss_id=? AND d.word_id = a.word_id) \
-        WHERE a.gloss_id = ? \
+        LEFT JOIN arrowed_words d ON (d.course_id = $2 AND d.gloss_id = $3 AND d.word_id = a.word_id) \
+        WHERE a.gloss_id = $4 \
         ORDER BY b.text_order, a.seq \
         LIMIT 2000;"
             .to_string();
@@ -1366,7 +1372,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         password: &str,
         email: &str,
     ) -> Result<i64, sqlx::Error> {
-        let query = r#"INSERT INTO users VALUES (NULL, ?, ?, ?, ?, ?);"#;
+        let query = r#"INSERT INTO users (user_id, name, initials, user_type, password, email) VALUES (NULL, $1, $2, $3, $4, $5);"#;
         let user_id = sqlx::query(query)
             .bind(name)
             .bind(initials)
@@ -1415,7 +1421,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         sqlx::query(query).execute(&mut *self.tx).await?;
 
         //insert update types
-        let query = r#"REPLACE INTO update_types VALUES (?,?);"#;
+        let query = r#"REPLACE INTO update_types VALUES ($1, $2);"#;
         let update_types = vec![
             (1, "Arrow word"),
             (2, "Unarrow word"),
