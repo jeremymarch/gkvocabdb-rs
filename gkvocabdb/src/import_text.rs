@@ -35,52 +35,53 @@ pub async fn import(
     xml_string: &str,
 ) -> ImportResponse {
     let mut tx = db.begin_tx().await.unwrap();
-    let lemmatizer = tx.get_lemmatizer().await;
-
-    match process_imported_text(xml_string, &lemmatizer).await {
-        Ok(words) => {
-            if !words.is_empty() && !title.is_empty() {
-                match tx
-                    .add_text(course_id, title, words, info)
-                    .await
-                    .map_err(|e| ImportResponse {
+    match tx.get_lemmatizer().await {
+        Ok(lemmatizer) => match process_imported_text(xml_string, &lemmatizer).await {
+            Ok(words) => {
+                if !words.is_empty() && !title.is_empty() {
+                    match tx.add_text(course_id, title, words, info).await {
+                        Ok(affected_rows) => {
+                            tx.commit_tx().await.unwrap();
+                            ImportResponse {
+                                success: true,
+                                words_inserted: affected_rows,
+                                error: "".to_string(),
+                            }
+                        }
+                        Err(e) => {
+                            tx.rollback_tx().await.unwrap();
+                            ImportResponse {
+                                success: false,
+                                words_inserted: 0,
+                                error: format!("Error importing text: {:?}", e),
+                            }
+                        }
+                    }
+                } else {
+                    tx.rollback_tx().await.unwrap();
+                    ImportResponse {
                         success: false,
                         words_inserted: 0,
-                        error: format!("sqlx error: {}", e),
-                    }) {
-                    Ok(affected_rows) => {
-                        tx.commit_tx().await.unwrap();
-                        ImportResponse {
-                            success: true,
-                            words_inserted: affected_rows,
-                            error: "".to_string(),
-                        }
-                    }
-                    _ => {
-                        tx.rollback_tx().await.unwrap();
-                        ImportResponse {
-                            success: false,
-                            words_inserted: 0,
-                            error: "Error importing text.".to_string(),
-                        }
+                        error: "Error importing text: File and/or Title field(s) is/are empty."
+                            .to_string(),
                     }
                 }
-            } else {
+            }
+            Err(e) => {
                 tx.rollback_tx().await.unwrap();
                 ImportResponse {
                     success: false,
                     words_inserted: 0,
-                    error: "Error importing text: File and/or Title field(s) is/are empty."
-                        .to_string(),
+                    error: format!("Error importing text: XML parse error: {:?}.", e),
                 }
             }
-        }
+        },
         Err(e) => {
             tx.rollback_tx().await.unwrap();
             ImportResponse {
                 success: false,
                 words_inserted: 0,
-                error: format!("Error importing text: XML parse error: {:?}.", e),
+                error: format!("Error: {:?}.", e),
             }
         }
     }

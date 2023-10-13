@@ -7,6 +7,25 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 
+#[derive(Debug, thiserror::Error)]
+pub enum GlosserError {
+    Database(String),
+    Xml(String),
+    JsonError(String),
+    UnknownError,
+}
+
+impl std::fmt::Display for GlosserError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            GlosserError::Database(s) => write!(fmt, "GlosserError: database: {}", s),
+            GlosserError::Xml(s) => write!(fmt, "GlosserError: xml: {}", s),
+            GlosserError::JsonError(s) => write!(fmt, "GlosserError: json error: {}", s),
+            GlosserError::UnknownError => write!(fmt, "GlosserError: unknown error"),
+        }
+    }
+}
+
 pub enum UpdateType {
     ArrowWord,
     UnarrowWord,
@@ -353,19 +372,19 @@ pub struct ImportResponse {
 use async_trait::async_trait;
 #[async_trait]
 pub trait GlosserDb {
-    async fn begin_tx(&self) -> Result<Box<dyn GlosserDbTrx>, sqlx::Error>;
+    async fn begin_tx(&self) -> Result<Box<dyn GlosserDbTrx>, GlosserError>;
 }
 
 #[async_trait]
 pub trait GlosserDbTrx {
-    async fn commit_tx(self: Box<Self>) -> Result<(), sqlx::Error>;
-    async fn rollback_tx(self: Box<Self>) -> Result<(), sqlx::Error>;
+    async fn commit_tx(self: Box<Self>) -> Result<(), GlosserError>;
+    async fn rollback_tx(self: Box<Self>) -> Result<(), GlosserError>;
 
     async fn load_lemmatizer(&mut self);
 
     async fn insert_lemmatizer_form(&mut self, form: &str, gloss_id: u32);
 
-    async fn get_lemmatizer(&mut self) -> HashMap<String, u32>;
+    async fn get_lemmatizer(&mut self) -> Result<HashMap<String, u32>, GlosserError>;
 
     async fn get_hqvocab_column(
         &mut self,
@@ -373,7 +392,7 @@ pub trait GlosserDbTrx {
         lower_unit: u32,
         unit: u32,
         sort: &str,
-    ) -> Result<Vec<(String, u32, String)>, sqlx::Error>;
+    ) -> Result<Vec<(String, u32, String)>, GlosserError>;
 
     async fn arrow_word_trx(
         &mut self,
@@ -381,7 +400,7 @@ pub trait GlosserDbTrx {
         gloss_id: u32,
         word_id: u32,
         info: &ConnectionInfo,
-    ) -> Result<(), sqlx::Error>;
+    ) -> Result<(), GlosserError>;
 
     async fn set_gloss_id(
         &mut self,
@@ -389,7 +408,7 @@ pub trait GlosserDbTrx {
         gloss_id: u32,
         word_id: u32,
         info: &ConnectionInfo,
-    ) -> Result<Vec<SmallWord>, sqlx::Error>;
+    ) -> Result<Vec<SmallWord>, GlosserError>;
 
     async fn add_text(
         &mut self,
@@ -397,7 +416,7 @@ pub trait GlosserDbTrx {
         text_name: &str,
         words: Vec<TextWord>,
         info: &ConnectionInfo,
-    ) -> Result<u64, sqlx::Error>;
+    ) -> Result<u64, GlosserError>;
 
     async fn insert_gloss(
         &mut self,
@@ -407,7 +426,7 @@ pub trait GlosserDbTrx {
         stripped_lemma: &str,
         note: &str,
         info: &ConnectionInfo,
-    ) -> Result<(i64, u64), sqlx::Error>;
+    ) -> Result<(i64, u64), GlosserError>;
 
     async fn update_log_trx(
         &mut self,
@@ -417,13 +436,13 @@ pub trait GlosserDbTrx {
         course_id: Option<i64>,
         update_desc: &str,
         info: &ConnectionInfo,
-    ) -> Result<(), sqlx::Error>;
+    ) -> Result<(), GlosserError>;
 
     async fn delete_gloss(
         &mut self,
         gloss_id: u32,
         info: &ConnectionInfo,
-    ) -> Result<u64, sqlx::Error>;
+    ) -> Result<u64, GlosserError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn update_gloss(
@@ -435,57 +454,59 @@ pub trait GlosserDbTrx {
         stripped_gloss: &str,
         note: &str,
         info: &ConnectionInfo,
-    ) -> Result<u64, sqlx::Error>;
+    ) -> Result<u64, GlosserError>;
 
     async fn get_words_for_export(
         &mut self,
         text_id: u32,
         course_id: u32,
-    ) -> Result<Vec<WordRow>, sqlx::Error>;
+    ) -> Result<Vec<WordRow>, GlosserError>;
 
     async fn get_words(
         &mut self,
         text_id: u32,
         course_id: u32,
-    ) -> Result<Vec<WordRow>, sqlx::Error>;
+    ) -> Result<Vec<WordRow>, GlosserError>;
 
-    async fn get_text_name(&mut self, text_id: u32) -> Result<String, sqlx::Error>;
+    async fn get_text_name(&mut self, text_id: u32) -> Result<String, GlosserError>;
 
     async fn update_text_order_db(
         &mut self,
         course_id: u32,
         text_id: u32,
         step: i32,
-    ) -> Result<(), sqlx::Error>;
+    ) -> Result<(), GlosserError>;
 
-    async fn get_texts_db(&mut self, course_id: u32) -> Result<Vec<AssignmentRow>, sqlx::Error>;
+    async fn get_texts_db(&mut self, course_id: u32) -> Result<Vec<AssignmentRow>, GlosserError>;
 
-    async fn get_text_id_for_word_id(&mut self, word_id: u32) -> Result<u32, sqlx::Error>;
+    async fn get_text_id_for_word_id(&mut self, word_id: u32) -> Result<u32, GlosserError>;
 
-    async fn get_glossdb(&mut self, gloss_id: u32) -> Result<GlossEntry, sqlx::Error>;
+    async fn get_glossdb(&mut self, gloss_id: u32) -> Result<GlossEntry, GlosserError>;
 
     async fn get_gloss_occurrences(
         &mut self,
         course_id: u32,
         gloss_id: u32,
-    ) -> Result<Vec<GlossOccurrence>, sqlx::Error>;
+    ) -> Result<Vec<GlossOccurrence>, GlosserError>;
 
-    async fn get_update_log(&mut self, _course_id: u32)
-        -> Result<Vec<AssignmentTree>, sqlx::Error>;
+    async fn get_update_log(
+        &mut self,
+        _course_id: u32,
+    ) -> Result<Vec<AssignmentTree>, GlosserError>;
 
     async fn get_before(
         &mut self,
         searchprefix: &str,
         page: i32,
         limit: u32,
-    ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error>;
+    ) -> Result<Vec<(String, u32, String, u32)>, GlosserError>;
 
     async fn get_equal_and_after(
         &mut self,
         searchprefix: &str,
         page: i32,
         limit: u32,
-    ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error>;
+    ) -> Result<Vec<(String, u32, String, u32)>, GlosserError>;
 
     async fn insert_user(
         &mut self,
@@ -494,9 +515,9 @@ pub trait GlosserDbTrx {
         user_type: u32,
         password: &str,
         email: &str,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64, GlosserError>;
 
-    async fn create_db(&mut self) -> Result<(), sqlx::Error>;
+    async fn create_db(&mut self) -> Result<(), GlosserError>;
 }
 
 pub fn get_timestamp() -> i64 {
@@ -509,7 +530,7 @@ pub async fn gkv_arrow_word(
     post: &ArrowWordRequest,
     info: &ConnectionInfo,
     course_id: u32,
-) -> Result<ArrowWordResponse, sqlx::Error> {
+) -> Result<ArrowWordResponse, GlosserError> {
     let mut tx = db.begin_tx().await?;
     tx.arrow_word_trx(
         course_id,
@@ -533,7 +554,7 @@ pub async fn gkv_update_gloss_id(
     text_word_id: u32,
     info: &ConnectionInfo,
     course_id: u32,
-) -> Result<UpdateGlossIdResponse, sqlx::Error> {
+) -> Result<UpdateGlossIdResponse, GlosserError> {
     let mut tx = db.begin_tx().await?;
     let words = tx
         .set_gloss_id(course_id, gloss_id, text_word_id, info)
@@ -552,7 +573,7 @@ pub async fn gkv_update_or_add_gloss(
     db: &dyn GlosserDb,
     post: &UpdateGlossRequest,
     info: &ConnectionInfo,
-) -> Result<UpdateGlossResponse, sqlx::Error> {
+) -> Result<UpdateGlossResponse, GlosserError> {
     match post.qtype.as_str() {
         "newlemma" => {
             let mut tx = db.begin_tx().await?;
@@ -633,7 +654,7 @@ pub async fn gkv_update_or_add_gloss(
 pub async fn gkv_tet_gloss(
     db: &dyn GlosserDb,
     post: &GetGlossRequest,
-) -> Result<GetGlossResponse, sqlx::Error> {
+) -> Result<GetGlossResponse, GlosserError> {
     let mut tx = db.begin_tx().await?;
     let gloss = tx.get_glossdb(post.lemmaid).await?;
     tx.commit_tx().await?;
@@ -657,7 +678,7 @@ pub async fn gkv_tet_gloss(
 pub async fn gkv_get_glosses(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, sqlx::Error> {
+) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
 
     //let seq = get_seq_by_prefix(db, table, &query_params.w).await?;
@@ -737,7 +758,7 @@ pub async fn gkv_get_glosses(
 pub async fn gkv_get_occurrences(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, sqlx::Error> {
+) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
 
     //only check page 0 or page less than 0
@@ -799,7 +820,7 @@ pub async fn gkv_get_occurrences(
 pub async fn gkv_update_log(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, sqlx::Error> {
+) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
     let course_id = 1;
     let mut tx = db.begin_tx().await?;
@@ -825,7 +846,7 @@ pub async fn gkv_update_log(
 pub async fn gkv_get_texts(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
-) -> Result<WordtreeQueryResponse, sqlx::Error> {
+) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
     let course_id = 1;
     //let seq = get_seq_by_prefix(db, table, &query_params.w).await?;
@@ -929,7 +950,7 @@ pub async fn gkv_move_text(
     step: i32,
     _info: &ConnectionInfo,
     course_id: u32,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), GlosserError> {
     let mut tx = db.begin_tx().await?;
     let res = tx.update_text_order_db(course_id, text_id, step).await;
     tx.commit_tx().await?;
@@ -940,7 +961,7 @@ pub async fn gkv_get_text_words(
     db: &dyn GlosserDb,
     info: &QueryRequest,
     selected_word_id: Option<u32>,
-) -> Result<MiscErrorResponse, sqlx::Error> {
+) -> Result<MiscErrorResponse, GlosserError> {
     let course_id = 1;
     let mut tx = db.begin_tx().await?;
 
@@ -978,11 +999,11 @@ pub async fn gkv_get_text_words(
 }
 
 //fix me: return a better error
-pub fn map_json_error(_e: serde_json::Error) -> sqlx::Error {
-    sqlx::Error::RowNotFound
+pub fn map_json_error(e: serde_json::Error) -> GlosserError {
+    GlosserError::JsonError(e.to_string())
 }
 
-pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), sqlx::Error> {
+pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), GlosserError> {
     let mut tx = db.begin_tx().await?;
     tx.create_db().await?;
     tx.commit_tx().await?;

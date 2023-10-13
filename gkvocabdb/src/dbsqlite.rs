@@ -23,6 +23,7 @@ use crate::GlossEntry;
 use crate::GlossOccurrence;
 use crate::GlosserDb;
 use crate::GlosserDbTrx;
+use crate::GlosserError;
 use crate::SmallWord;
 use crate::TextWord;
 use crate::UpdateType;
@@ -36,16 +37,16 @@ use std::collections::HashSet;
 use unicode_normalization::UnicodeNormalization;
 
 /*
-pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, sqlx::Error> {
+pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Result<u32, GlosserError> {
   let query = format!("SELECT seq FROM {} WHERE sortalpha >= '{}' ORDER BY sortalpha LIMIT 1;", table, prefix);
 
-  let rec:Result<(u32,), sqlx::Error> = sqlx::query_as(&query)
+  let rec:Result<(u32,), GlosserError> = sqlx::query_as(&query)
   .fetch_one(pool)
   .await;
 
   match rec {
       Ok(r) => Ok(r.0),
-      Err(sqlx::Error::RowNotFound) => { //not found, return seq of last word
+      Err(GlosserError::UnknownError) => { //not found, return seq of last word
           let max_query = format!("SELECT MAX(seq) as seq,sortalpha FROM {} LIMIT 1;", table);
           let max_rec:(u32,) = sqlx::query_as(&max_query)  //fake it by loading it into DefRow for now
           .fetch_one(pool)
@@ -59,6 +60,37 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 
 
 */
+
+fn map_sqlx_error(e: sqlx::Error) -> GlosserError {
+    match e {
+        sqlx::Error::Configuration(e) => {
+            GlosserError::Database(format!("sqlx Configuration: {}", e))
+        }
+        sqlx::Error::Database(e) => GlosserError::Database(format!("sqlx Database: {}", e)),
+        sqlx::Error::Io(e) => GlosserError::Database(format!("sqlx Io: {}", e)),
+        sqlx::Error::Tls(e) => GlosserError::Database(format!("sqlx Tls: {}", e)),
+        sqlx::Error::Protocol(e) => GlosserError::Database(format!("sqlx Protocol: {}", e)),
+        sqlx::Error::RowNotFound => GlosserError::Database(format!("sqlx RowNotFound: {}", e)),
+        sqlx::Error::TypeNotFound { .. } => {
+            GlosserError::Database(format!("sqlx TypeNotFound: {}", e))
+        }
+        sqlx::Error::ColumnIndexOutOfBounds { .. } => {
+            GlosserError::Database(format!("sqlx ColumnIndexOutOfBounds: {}", e))
+        }
+        sqlx::Error::ColumnNotFound(e) => {
+            GlosserError::Database(format!("sqlx ColumnNotFound: {}", e))
+        }
+        sqlx::Error::ColumnDecode { .. } => {
+            GlosserError::Database(format!("sqlx ColumnDecode: {}", e))
+        }
+        sqlx::Error::Decode(e) => GlosserError::Database(format!("sqlx Decode: {}", e)),
+        sqlx::Error::PoolTimedOut => GlosserError::Database(format!("sqlx PoolTimedOut: {}", e)),
+        sqlx::Error::PoolClosed => GlosserError::Database(format!("sqlx PoolClosed: {}", e)),
+        sqlx::Error::WorkerCrashed => GlosserError::Database(format!("sqlx WorkerCrashed: {}", e)),
+        sqlx::Error::Migrate(e) => GlosserError::Database(format!("sqlx Migrate: {}", e)),
+        _ => GlosserError::Database(String::from("sqlx unknown error")),
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct LemmatizerRecord {
@@ -79,21 +111,21 @@ use async_trait::async_trait;
 
 #[async_trait]
 impl GlosserDb for GlosserDbSqlite {
-    async fn begin_tx(&self) -> Result<Box<dyn GlosserDbTrx>, sqlx::Error> {
+    async fn begin_tx(&self) -> Result<Box<dyn GlosserDbTrx>, GlosserError> {
         Ok(Box::new(GlosserDbSqliteTrx {
-            tx: self.db.begin().await?,
+            tx: self.db.begin().await.map_err(map_sqlx_error)?,
         }))
     }
 }
 
 #[async_trait]
 impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
-    async fn commit_tx(self: Box<Self>) -> Result<(), sqlx::Error> {
-        let res = self.tx.commit().await?;
+    async fn commit_tx(self: Box<Self>) -> Result<(), GlosserError> {
+        let res = self.tx.commit().await.map_err(map_sqlx_error)?;
         Ok(res)
     }
-    async fn rollback_tx(self: Box<Self>) -> Result<(), sqlx::Error> {
-        let res = self.tx.rollback().await?;
+    async fn rollback_tx(self: Box<Self>) -> Result<(), GlosserError> {
+        let res = self.tx.rollback().await.map_err(map_sqlx_error)?;
         Ok(res)
     }
 
@@ -115,24 +147,27 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .await;
     }
 
-    async fn get_lemmatizer(&mut self) -> HashMap<String, u32> {
+    async fn get_lemmatizer(&mut self) -> Result<HashMap<String, u32>, GlosserError> {
         let mut lemmatizer = HashMap::new();
 
-        let query = "SELECT form,gloss_id FROM lemmatizer;";
-        let res: Result<Vec<LemmatizerRecord>, sqlx::Error> = sqlx::query(query)
+        let query = "SELECT form, gloss_id FROM lemmatizer;";
+        match sqlx::query(query)
             .map(|rec: SqliteRow| LemmatizerRecord {
                 form: rec.get("form"),
                 gloss_id: rec.get("gloss_id"),
             })
             .fetch_all(&mut *self.tx)
-            .await;
-
-        if let Ok(res) = res {
-            for r in res {
-                lemmatizer.insert(r.form, r.gloss_id);
+            .await
+            .map_err(map_sqlx_error)
+        {
+            Ok(res) => {
+                for r in res {
+                    lemmatizer.insert(r.form, r.gloss_id);
+                }
+                Ok(lemmatizer)
             }
+            Err(e) => Err(e),
         }
-        lemmatizer
     }
 
     async fn get_hqvocab_column(
@@ -141,7 +176,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         lower_unit: u32,
         unit: u32,
         sort: &str,
-    ) -> Result<Vec<(String, u32, String)>, sqlx::Error> {
+    ) -> Result<Vec<(String, u32, String)>, GlosserError> {
         let s = match sort {
             "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
             _ => "unit,sortalpha COLLATE PolytonicGreek ASC",
@@ -153,8 +188,10 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
         let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit >= {} AND unit <= {} AND status=1 ORDER BY {};", p, lower_unit, unit, s);
-        let words: Vec<(String, u32, String)> =
-            sqlx::query_as(&query).fetch_all(&mut *self.tx).await?;
+        let words: Vec<(String, u32, String)> = sqlx::query_as(&query)
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(words)
     }
@@ -165,21 +202,22 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         gloss_id: u32,
         word_id: u32,
         info: &ConnectionInfo,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), GlosserError> {
         let query = "SELECT word_id \
     FROM arrowed_words \
     WHERE course_id = $1 AND gloss_id = $2;";
-        let old_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+        let old_word_id: Result<(u32,), GlosserError> = sqlx::query_as(query)
             .bind(course_id)
             .bind(gloss_id)
             .fetch_one(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error); //fix me
 
         let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
 
         if unwrapped_old_word_id == 1 {
             //don't allow arrow/unarrow h&q words which are set to word_id 1
-            return Err(sqlx::Error::RowNotFound); //for now
+            return Err(GlosserError::UnknownError); //for now
         }
 
         //add previous arrow to history, if it was arrowed before
@@ -191,7 +229,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(course_id)
             .bind(gloss_id)
             .execute(&mut *self.tx)
-            .await?
+            .await
+            .map_err(map_sqlx_error)?
             .last_insert_rowid();
 
         //println!("rows: {}",r.rows_affected());
@@ -208,7 +247,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(course_id)
                 .bind(gloss_id)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
 
             let query = "INSERT INTO arrowed_words (course_id, gloss_id, word_id, updated, user_id, comment) VALUES ($1, $2, $3, $4, $5, NULL);";
             sqlx::query(query)
@@ -219,7 +259,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(info.user_id)
                 //.bind(comment)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
 
             //jwm2
             self.update_log_trx(
@@ -242,7 +283,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(course_id)
                 .bind(gloss_id)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
 
             //add to history now, since can't later
             let query = "INSERT INTO arrowed_words_history (history_id, course_id, gloss_id, word_id, updated, user_id, comment) VALUES (NULL, $1, $2, NULL, $3, $4, NULL);";
@@ -253,7 +295,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(info.user_id)
                 //.bind(comment)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
 
             //jwm2
             self.update_log_trx(
@@ -282,16 +325,17 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         gloss_id: u32,
         word_id: u32,
         info: &ConnectionInfo,
-    ) -> Result<Vec<SmallWord>, sqlx::Error> {
+    ) -> Result<Vec<SmallWord>, GlosserError> {
         //1a check if the word whose gloss is being changed is arrowed
         let query =
             "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
-        let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
+        let arrowed_word_id: Result<(u32,), GlosserError> = sqlx::query_as(query)
             .bind(course_id)
             .bind(gloss_id)
             .bind(word_id)
             .fetch_one(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
 
         //1b. unarrow word if it is arrowed
         if arrowed_word_id.is_ok() {
@@ -310,7 +354,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         let history_id = sqlx::query(query)
             .bind(word_id)
             .execute(&mut *self.tx)
-            .await?
+            .await
+            .map_err(map_sqlx_error)?
             .last_insert_rowid();
 
         //0. get old gloss_id before changing it so we can update its counts in step 3b
@@ -318,7 +363,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         let old_gloss_id: (Option<u32>,) = sqlx::query_as(query)
             .bind(word_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         //2b. update gloss_id
         let query = "UPDATE words SET gloss_id = $1 WHERE word_id = $2;";
@@ -326,7 +372,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(gloss_id)
             .bind(word_id)
             .execute(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         //this requests all the places this word shows up, so we can update them in the displayed page.
         //fix me: need to limit this by course_id
@@ -352,7 +399,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ORDER BY G.text_order,A.seq \
     LIMIT 400;", gloss_id = gloss_id, course_id = course_id);
 
-        let res: Result<Vec<SmallWord>, sqlx::Error> = sqlx::query(&query)
+        let res: Result<Vec<SmallWord>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| SmallWord {
                 wordid: rec.get("word_id"),
                 hqid: rec.get("gloss_id"),
@@ -368,7 +415,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 arrowed_text_seq: rec.get("arrowed_text_order"),
             })
             .fetch_all(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
         //jwm2
         self.update_log_trx(
             UpdateType::SetGlossId,
@@ -396,13 +444,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         text_name: &str,
         words: Vec<TextWord>,
         info: &ConnectionInfo,
-    ) -> Result<u64, sqlx::Error> {
+    ) -> Result<u64, GlosserError> {
         let query =
             "INSERT INTO texts (text_id, name, parent_id, display) VALUES (NULL, $1, NULL, 1);";
         let text_id = sqlx::query(query)
             .bind(text_name)
             .execute(&mut *self.tx)
-            .await?
+            .await
+            .map_err(map_sqlx_error)?
             .last_insert_rowid();
 
         //(word_id integer NOT NULL PRIMARY KEY AUTOINCREMENT, seq integer NOT NULL, text integer NOT NULL, section varchar (255) DEFAULT NULL, line varchar (255) DEFAULT NULL, word varchar (255) NOT NULL, gloss_id integer DEFAULT NULL REFERENCES glosses (gloss_id), lemma1 varchar (255) NOT NULL, lemma2 varchar (255) NOT NULL, o varchar (255) NOT NULL, runningcount integer NOT NULL, type integer DEFAULT NULL,
@@ -426,7 +475,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(info.timestamp)
                 .bind(info.user_id)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
 
             if let Some(g_id) = w.gloss_id {
                 gloss_ids.insert(g_id);
@@ -436,7 +486,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
             let affected_rows = res.rows_affected();
             if affected_rows != 1 {
-                return Err(sqlx::Error::RowNotFound);
+                return Err(GlosserError::UnknownError);
             }
             count += affected_rows;
         }
@@ -445,7 +495,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         let max_text_order: (u32,) = sqlx::query_as(query)
             .bind(course_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         let query =
             "INSERT INTO course_x_text (course_id, text_id, text_order) VALUES ($1, $2, $3);";
@@ -454,7 +505,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(text_id)
             .bind(max_text_order.0 + 1)
             .execute(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         //jwm2
         self.update_log_trx(
@@ -480,7 +532,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         stripped_lemma: &str,
         note: &str,
         info: &ConnectionInfo,
-    ) -> Result<(i64, u64), sqlx::Error> {
+    ) -> Result<(i64, u64), GlosserError> {
         let query = "INSERT INTO glosses (gloss_id, unit, lemma, sortalpha, \
         def, pos, note, updated, status, updatedUser) \
         VALUES (NULL, 0, $1, $2, $3, $4, $5, $6, 1, $7);";
@@ -501,7 +553,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(info.timestamp)
             .bind(info.user_id)
             .execute(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         let new_gloss_id = res.last_insert_rowid();
 
@@ -527,7 +580,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         course_id: Option<i64>,
         update_desc: &str,
         info: &ConnectionInfo,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), GlosserError> {
         let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9);";
         sqlx::query(query)
             .bind(update_type.value())
@@ -540,7 +593,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(&info.ip_address)
             .bind(&info.user_agent)
             .execute(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(())
     }
@@ -549,12 +603,13 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         &mut self,
         gloss_id: u32,
         info: &ConnectionInfo,
-    ) -> Result<u64, sqlx::Error> {
+    ) -> Result<u64, GlosserError> {
         let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = $1;";
         let count: (u32,) = sqlx::query_as(query)
             .bind(gloss_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         if count.0 == 0 {
             //jwm2
@@ -572,11 +627,12 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             let res = sqlx::query(query)
                 .bind(gloss_id)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
 
             Ok(res.rows_affected())
         } else {
-            Err(sqlx::Error::RowNotFound) //for now
+            Err(GlosserError::UnknownError) //for now
         }
     }
 
@@ -590,12 +646,13 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         stripped_gloss: &str,
         note: &str,
         info: &ConnectionInfo,
-    ) -> Result<u64, sqlx::Error> {
+    ) -> Result<u64, GlosserError> {
         let query = "INSERT INTO glosses_history (gloss_history_id, gloss_id, unit, lemma, sortalpha, def, pos, note, updated, status, updatedUser) SELECT NULL,* FROM glosses WHERE gloss_id = $1;";
         let history_id = sqlx::query(query)
             .bind(gloss_id)
             .execute(&mut *self.tx)
-            .await?
+            .await
+            .map_err(map_sqlx_error)?
             .last_insert_rowid();
 
         //let _ = update_log_trx(&mut tx, UpdateType::ArrowWord, "Arrowed word x from y to z.", timestamp, user_id, updated_ip, user_agent).await?;
@@ -641,13 +698,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(info.user_id)
             .bind(gloss_id)
             .execute(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(res.rows_affected())
     }
 
     /*
-    async fn fix_assignments(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    async fn fix_assignments(pool: &SqlitePool) -> Result<(), GlosserError> {
     let mut tx = pool.begin().await?;
     /*
     INSERT INTO texts (text_id, name, parent_id, display) (SELECT NULL,title,6,1 from assignments where id=28;
@@ -706,7 +764,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     }
     */
     /*
-    async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option<u32>, sqlx::Error> {
+    async fn get_parent_text_id(pool: &SqlitePool, text_id:u32) -> Result<Option<u32>, GlosserError> {
     let query = "SELECT parent_id FROM texts WHERE text_id = ?;";
     let rec: (Option<u32>,) = sqlx::query_as(query)
     .bind(text_id)
@@ -721,7 +779,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         &mut self,
         text_id: u32,
         course_id: u32,
-    ) -> Result<Vec<WordRow>, sqlx::Error> {
+    ) -> Result<Vec<WordRow>, GlosserError> {
         let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
         b.gloss_id,a.seq,e.seq AS arrowedSeq,
         a.isFlagged,g.text_order,f.text_order AS arrowed_text_order,c.word_id as page_break,h.entry AS appcrit_entry
@@ -737,7 +795,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         ORDER BY a.seq
         LIMIT 55000;", text_id = text_id, course_id = course_id);
 
-        let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
+        let res: Result<Vec<WordRow>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| WordRow {
                 wordid: rec.get("word_id"),
                 word: rec.get("word"),
@@ -760,7 +818,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 app_crit: rec.get("appcrit_entry"),
             })
             .fetch_all(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
 
         res
     }
@@ -782,7 +841,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         &mut self,
         text_id: u32,
         course_id: u32,
-    ) -> Result<Vec<WordRow>, sqlx::Error> {
+    ) -> Result<Vec<WordRow>, GlosserError> {
         let query = format!("WITH gloss_basis AS (
             SELECT gloss_id, COUNT(gloss_id) AS running_basis
             FROM words a1
@@ -813,7 +872,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         ORDER BY a.seq
         LIMIT 55000;", text_id = text_id, course_id = course_id);
 
-        let res: Result<Vec<WordRow>, sqlx::Error> = sqlx::query(&query)
+        let res: Result<Vec<WordRow>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| WordRow {
                 wordid: rec.get("word_id"),
                 word: rec.get("word"),
@@ -836,7 +895,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 app_crit: None,
             })
             .fetch_all(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
 
         res
     }
@@ -847,7 +907,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     //change get_words to use subtext id
     //order of assignments will be by id?  or word_seq?
 
-    async fn get_text_name(&mut self, text_id: u32) -> Result<String, sqlx::Error> {
+    async fn get_text_name(&mut self, text_id: u32) -> Result<String, GlosserError> {
         //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
         let query = "SELECT name \
     FROM texts \
@@ -855,7 +915,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         let res: (String,) = sqlx::query_as(query)
             .bind(text_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(res.0)
     }
@@ -864,7 +925,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     //     tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
     //     course_id: u32,
     //     text_id: u32,
-    // ) -> Result<(), sqlx::Error> {
+    // ) -> Result<(), GlosserError> {
 
     //     let query = "SELECT hqid FROM words where text_id = ?;";
     //     let gloss_ids: Vec<(u32,)> = sqlx::query_as(&query)
@@ -904,7 +965,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         course_id: u32,
         text_id: u32,
         step: i32,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), GlosserError> {
         let mut tx = pool.begin().await?;
 
 
@@ -991,7 +1052,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         let text_count = text_count_t.0;
 
         if step == 0 || (text_order + step < 1 && step < 0) || (text_order + step > text_count && step > 0) {
-            return Err(sqlx::Error::RowNotFound); //at no where to move: abort
+            return Err(GlosserError::UnknownError); //at no where to move: abort
         }
         else if step > 0 { //move down: make room by moving other texts up/earlier in sequence
             let query = "UPDATE course_x_text SET text_order = text_order - 1 - ? \
@@ -1040,7 +1101,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         course_id: u32,
         text_id: u32,
         step: i32,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), GlosserError> {
         /*
         //has children? move children with parent
         let query = "SELECT a.text_id,b.text_order FROM texts a \
@@ -1076,7 +1137,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(course_id)
             .bind(text_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         // get number of texts
         let query = "SELECT COUNT(*) FROM course_x_text WHERE course_id = $1;";
@@ -1084,13 +1146,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(course_id)
             .bind(text_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         if step == 0
             || (text_order.0 + step < 1 && step < 0)
             || (text_order.0 + step > text_count.0 && step > 0)
         {
-            return Err(sqlx::Error::RowNotFound); // no where to move: abort
+            return Err(GlosserError::UnknownError); // no where to move: abort
         } else if step > 0 {
             //make room by moving other texts up/earlier in sequence
             let query = "UPDATE course_x_text SET text_order = text_order - 1 \
@@ -1101,7 +1164,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(step)
                 .bind(course_id)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
         } else {
             //make room by moving other texts down/later in sequence
             let query = "UPDATE course_x_text SET text_order = text_order + 1 \
@@ -1112,7 +1176,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(step) //step will be negative here
                 .bind(course_id)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
         }
         //set new text order
         let query =
@@ -1122,19 +1187,20 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(course_id)
             .bind(text_id)
             .execute(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(())
     }
 
-    async fn get_texts_db(&mut self, course_id: u32) -> Result<Vec<AssignmentRow>, sqlx::Error> {
+    async fn get_texts_db(&mut self, course_id: u32) -> Result<Vec<AssignmentRow>, GlosserError> {
         let query = "SELECT A.text_id, A.name, A.parent_id, B.course_id, C.name AS container \
         FROM texts A \
         INNER JOIN course_x_text B ON (A.text_id = B.text_id AND B.course_id = $1) \
         LEFT JOIN containers C ON A.parent_id = C.container_id \
         WHERE display != 0 \
         ORDER BY B.text_order, A.text_id;";
-        let res: Result<Vec<AssignmentRow>, sqlx::Error> = sqlx::query(query)
+        let res: Result<Vec<AssignmentRow>, GlosserError> = sqlx::query(query)
             .bind(course_id)
             .map(|rec: SqliteRow| AssignmentRow {
                 text_id: rec.get("text_id"),
@@ -1144,14 +1210,15 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 container: rec.get("container"),
             })
             .fetch_all(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
 
         res
     }
     /*
-    async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, sqlx::Error> {
+    async fn _get_titles(pool: &SqlitePool) -> Result<Vec<(String,u32)>, GlosserError> {
         let query = "SELECT id,title FROM titles ORDER BY title;";
-        let res: Result<Vec<(String,u32)>, sqlx::Error> = sqlx::query(query)
+        let res: Result<Vec<(String,u32)>, GlosserError> = sqlx::query(query)
         .map(|rec: SqliteRow| (rec.get("id"),rec.get("title")) )
         .fetch_all(pool)
         .await;
@@ -1159,18 +1226,19 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         res
     }
     */
-    async fn get_text_id_for_word_id(&mut self, word_id: u32) -> Result<u32, sqlx::Error> {
+    async fn get_text_id_for_word_id(&mut self, word_id: u32) -> Result<u32, GlosserError> {
         let query = "SELECT text_id FROM words WHERE word_id = $1;";
 
         let rec: (u32,) = sqlx::query_as(query)
             .bind(word_id)
             .fetch_one(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         Ok(rec.0)
     }
     /*
-    async fn old_get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, sqlx::Error> {
+    async fn old_get_text_id_for_word_id(pool: &SqlitePool, word_id:u32) -> Result<u32, GlosserError> {
     let query = "SELECT A.id FROM assignments A INNER JOIN words B ON A.start = B.word_id INNER JOIN words C ON A.end = C.word_id WHERE B.seq <= (SELECT seq FROM words WHERE word_id = ?) AND C.seq >= (SELECT seq FROM words WHERE word_id = ?) LIMIT 1;";
 
     let rec: (u32,) = sqlx::query_as(query)
@@ -1184,7 +1252,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     */
 
     /*
-    async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), sqlx::Error> {
+    async fn get_start_end(pool: &SqlitePool, text_id:u32) -> Result<(u32,u32), GlosserError> {
     let query = "SELECT b.seq, c.seq FROM assignments a INNER JOIN words b ON a.start = b.word_id INNER JOIN words c ON a.end = c.word_id WHERE a.id = ?;";
 
     let rec: (u32,u32) = sqlx::query_as(query)
@@ -1196,7 +1264,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     }
     */
 
-    async fn get_glossdb(&mut self, gloss_id: u32) -> Result<GlossEntry, sqlx::Error> {
+    async fn get_glossdb(&mut self, gloss_id: u32) -> Result<GlossEntry, GlosserError> {
         let query = "SELECT gloss_id, lemma, pos, def, note FROM glosses WHERE gloss_id = $1;";
 
         sqlx::query(query)
@@ -1210,6 +1278,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             })
             .fetch_one(&mut *self.tx)
             .await
+            .map_err(map_sqlx_error)
     }
 
     //SELECT c.name, a.word_id, a.word, d.word_id as arrowed FROM words a INNER JOIN course_x_text b ON (a.text = b.text_id AND b.course_id = 1) INNER JOIN texts c ON a.text = c.text_id LEFT JOIN arrowed_words d ON (d.course_id=1 AND d.gloss_id=564 AND d.word_id = a.word_id) WHERE a.gloss_id = 564 ORDER BY b.text_order, a.seq LIMIT 20000;
@@ -1218,7 +1287,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         &mut self,
         course_id: u32,
         gloss_id: u32,
-    ) -> Result<Vec<GlossOccurrence>, sqlx::Error> {
+    ) -> Result<Vec<GlossOccurrence>, GlosserError> {
         let query = "SELECT c.name, a.word_id, a.word, d.word_id as arrowed, e.unit, e.lemma \
         FROM words a \
         INNER JOIN course_x_text b ON (a.text_id = b.text_id AND b.course_id = $1) \
@@ -1244,7 +1313,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 lemma: rec.get("lemma"),
             })
             .fetch_all(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         if !res.is_empty()
             && res[0].unit.is_some()
@@ -1270,7 +1340,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     async fn get_update_log(
         &mut self,
         _course_id: u32,
-    ) -> Result<Vec<AssignmentTree>, sqlx::Error> {
+    ) -> Result<Vec<AssignmentTree>, GlosserError> {
         let query = "SELECT strftime('%Y-%m-%d %H:%M:%S', DATETIME(updated, 'unixepoch')) as timestamp, a.update_id, \
         b.update_type, c.initials, update_desc \
         FROM update_log a \
@@ -1290,7 +1360,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 )
             })
             .fetch_all(&mut *self.tx)
-            .await?;
+            .await
+            .map_err(map_sqlx_error)?;
 
         let mut rows: Vec<AssignmentTree> = vec![];
         for r in &res {
@@ -1310,7 +1381,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         searchprefix: &str,
         page: i32,
         limit: u32,
-    ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
+    ) -> Result<Vec<(String, u32, String, u32)>, GlosserError> {
         let course_id = 1;
         let query = format!("WITH gloss_total AS (
             SELECT gloss_id, COUNT(gloss_id) AS total_count
@@ -1319,7 +1390,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             GROUP BY gloss_id
         )
         SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", course_id, searchprefix, -page * limit as i32, limit);
-        let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+        let res: Result<Vec<(String, u32, String, u32)>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| {
                 (
                     rec.get("lemma"),
@@ -1329,7 +1400,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 )
             })
             .fetch_all(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
 
         res
     }
@@ -1339,7 +1411,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         searchprefix: &str,
         page: i32,
         limit: u32,
-    ) -> Result<Vec<(String, u32, String, u32)>, sqlx::Error> {
+    ) -> Result<Vec<(String, u32, String, u32)>, GlosserError> {
         let course_id = 1;
         let query = format!("WITH gloss_total AS (
             SELECT gloss_id, COUNT(gloss_id) AS total_count
@@ -1348,7 +1420,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             GROUP BY gloss_id
         )
         SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", course_id, searchprefix, page * limit as i32, limit);
-        let res: Result<Vec<(String, u32, String, u32)>, sqlx::Error> = sqlx::query(&query)
+        let res: Result<Vec<(String, u32, String, u32)>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| {
                 (
                     rec.get("lemma"),
@@ -1358,7 +1430,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 )
             })
             .fetch_all(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error);
 
         res
     }
@@ -1371,7 +1444,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         user_type: u32,
         password: &str,
         email: &str,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64, GlosserError> {
         let query = r#"INSERT INTO users (user_id, name, initials, user_type, password, email) VALUES (NULL, $1, $2, $3, $4, $5);"#;
         let user_id = sqlx::query(query)
             .bind(name)
@@ -1380,13 +1453,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(password)
             .bind(email)
             .execute(&mut *self.tx)
-            .await?
+            .await
+            .map_err(map_sqlx_error)?
             .last_insert_rowid();
 
         Ok(user_id)
     }
 
-    async fn create_db(&mut self) -> Result<(), sqlx::Error> {
+    async fn create_db(&mut self) -> Result<(), GlosserError> {
         let query = r#"
             CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS course_x_text (course_id INTEGER NOT NULL REFERENCES courses (course_id), text_id INTEGER NOT NULL REFERENCES texts (text_id), text_order INTEGER NOT NULL, PRIMARY KEY (course_id, text_id)) STRICT;
@@ -1414,11 +1488,17 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             CREATE INDEX IF NOT EXISTS idx_gkvocabdb_text ON words (text_id);
             "#;
 
-        let _res = sqlx::query(query).execute(&mut *self.tx).await?;
+        let _res = sqlx::query(query)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
 
         //create default course
         let query = r#"REPLACE INTO courses VALUES (1,'Greek');"#;
-        sqlx::query(query).execute(&mut *self.tx).await?;
+        sqlx::query(query)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
 
         //insert update types
         let query = r#"REPLACE INTO update_types VALUES ($1, $2);"#;
@@ -1436,7 +1516,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .bind(t.0)
                 .bind(t.1)
                 .execute(&mut *self.tx)
-                .await?;
+                .await
+                .map_err(map_sqlx_error)?;
         }
 
         Ok(())

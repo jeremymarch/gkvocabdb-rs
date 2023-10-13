@@ -34,7 +34,7 @@ pub async fn get_latex(
     text_ids: &str,
     course_id: u32,
     bold_glosses: bool,
-) -> Result<String, sqlx::Error> {
+) -> Result<String, GlosserError> {
     let mut latex: String = include_str!("latex/doc_template.tex")
         .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 

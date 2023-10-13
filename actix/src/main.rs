@@ -531,87 +531,27 @@ impl ResponseError for PhilologusError {
     }
 }
 
-pub fn map_sqlx_error(e: sqlx::Error) -> PhilologusError {
+pub fn map_sqlx_error(e: GlosserError) -> PhilologusError {
     match e {
-        sqlx::Error::Configuration(e) => PhilologusError {
+        GlosserError::Database(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
             name: "sqlx error".to_string(),
             error: format!("sqlx Configuration: {}", e),
         },
-        sqlx::Error::Database(e) => PhilologusError {
+        GlosserError::Xml(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Database: {}", e),
+            name: "xml error".to_string(),
+            error: format!("xml error: {}", e),
         },
-        sqlx::Error::Io(e) => PhilologusError {
+        GlosserError::JsonError(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Io: {}", e),
+            name: "json error".to_string(),
+            error: format!("json error: {}", e),
         },
-        sqlx::Error::Tls(e) => PhilologusError {
+        GlosserError::UnknownError => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Tls: {}", e),
-        },
-        sqlx::Error::Protocol(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Protocol: {}", e),
-        },
-        sqlx::Error::RowNotFound => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx RowNotFound".to_string(),
-        },
-        sqlx::Error::TypeNotFound { .. } => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx TypeNotFound".to_string(),
-        },
-        sqlx::Error::ColumnIndexOutOfBounds { .. } => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx ColumnIndexOutOfBounds".to_string(),
-        },
-        sqlx::Error::ColumnNotFound(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx ColumnNotFound: {}", e),
-        },
-        sqlx::Error::ColumnDecode { .. } => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx ColumnDecode".to_string(),
-        },
-        sqlx::Error::Decode(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Decode: {}", e),
-        },
-        sqlx::Error::PoolTimedOut => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx PoolTimeOut".to_string(),
-        },
-        sqlx::Error::PoolClosed => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx PoolClosed".to_string(),
-        },
-        sqlx::Error::WorkerCrashed => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx WorkerCrashed".to_string(),
-        },
-        sqlx::Error::Migrate(e) => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: format!("sqlx Migrate: {}", e),
-        },
-        _ => PhilologusError {
-            code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
-            error: "sqlx Unknown error".to_string(),
+            name: "unknown error".to_string(),
+            error: String::from("unknown error"),
         },
     }
 }
