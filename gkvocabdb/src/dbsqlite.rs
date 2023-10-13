@@ -61,8 +61,8 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 
 */
 
-pub fn map_sqlx_error(e: sqlx::Error) -> GlosserError {
-    match e {
+pub fn map_sqlx_error(err: sqlx::Error) -> GlosserError {
+    match err {
         sqlx::Error::Configuration(e) => {
             GlosserError::Database(format!("sqlx Configuration: {}", e))
         }
@@ -70,23 +70,23 @@ pub fn map_sqlx_error(e: sqlx::Error) -> GlosserError {
         sqlx::Error::Io(e) => GlosserError::Database(format!("sqlx Io: {}", e)),
         sqlx::Error::Tls(e) => GlosserError::Database(format!("sqlx Tls: {}", e)),
         sqlx::Error::Protocol(e) => GlosserError::Database(format!("sqlx Protocol: {}", e)),
-        sqlx::Error::RowNotFound => GlosserError::Database(format!("sqlx RowNotFound: {}", e)),
+        sqlx::Error::RowNotFound => GlosserError::Database(String::from("sqlx RowNotFound")),
         sqlx::Error::TypeNotFound { .. } => {
-            GlosserError::Database(format!("sqlx TypeNotFound: {}", e))
+            GlosserError::Database(String::from("sqlx TypeNotFound"))
         }
         sqlx::Error::ColumnIndexOutOfBounds { .. } => {
-            GlosserError::Database(format!("sqlx ColumnIndexOutOfBounds: {}", e))
+            GlosserError::Database(String::from("sqlx ColumnIndexOutOfBounds"))
         }
         sqlx::Error::ColumnNotFound(e) => {
             GlosserError::Database(format!("sqlx ColumnNotFound: {}", e))
         }
         sqlx::Error::ColumnDecode { .. } => {
-            GlosserError::Database(format!("sqlx ColumnDecode: {}", e))
+            GlosserError::Database(String::from("sqlx ColumnDecode"))
         }
         sqlx::Error::Decode(e) => GlosserError::Database(format!("sqlx Decode: {}", e)),
-        sqlx::Error::PoolTimedOut => GlosserError::Database(format!("sqlx PoolTimedOut: {}", e)),
-        sqlx::Error::PoolClosed => GlosserError::Database(format!("sqlx PoolClosed: {}", e)),
-        sqlx::Error::WorkerCrashed => GlosserError::Database(format!("sqlx WorkerCrashed: {}", e)),
+        sqlx::Error::PoolTimedOut => GlosserError::Database(String::from("sqlx PoolTimedOut")),
+        sqlx::Error::PoolClosed => GlosserError::Database(String::from("sqlx PoolClosed")),
+        sqlx::Error::WorkerCrashed => GlosserError::Database(String::from("sqlx WorkerCrashed")),
         sqlx::Error::Migrate(e) => GlosserError::Database(format!("sqlx Migrate: {}", e)),
         _ => GlosserError::Database(String::from("sqlx unknown error")),
     }
