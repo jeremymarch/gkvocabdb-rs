@@ -29,7 +29,7 @@ use std::collections::HashMap;
 #[derive(Debug, thiserror::Error)]
 pub enum GlosserError {
     Database(String),
-    Xml(String),
+    XmlError(String),
     JsonError(String),
     ImportError(String),
     UnknownError,
@@ -39,7 +39,7 @@ impl std::fmt::Display for GlosserError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             GlosserError::Database(s) => write!(fmt, "GlosserError: database: {}", s),
-            GlosserError::Xml(s) => write!(fmt, "GlosserError: xml: {}", s),
+            GlosserError::XmlError(s) => write!(fmt, "GlosserError: xml: {}", s),
             GlosserError::JsonError(s) => write!(fmt, "GlosserError: json error: {}", s),
             GlosserError::ImportError(s) => write!(fmt, "GlosserError: import error: {}", s),
             GlosserError::UnknownError => write!(fmt, "GlosserError: unknown error"),
@@ -401,9 +401,13 @@ pub trait GlosserDbTrx {
     async fn commit_tx(self: Box<Self>) -> Result<(), GlosserError>;
     async fn rollback_tx(self: Box<Self>) -> Result<(), GlosserError>;
 
-    async fn load_lemmatizer(&mut self);
+    async fn load_lemmatizer(&mut self) -> Result<(), GlosserError>;
 
-    async fn insert_lemmatizer_form(&mut self, form: &str, gloss_id: u32);
+    async fn insert_lemmatizer_form(
+        &mut self,
+        form: &str,
+        gloss_id: u32,
+    ) -> Result<(), GlosserError>;
 
     async fn get_lemmatizer(&mut self) -> Result<HashMap<String, u32>, GlosserError>;
 
@@ -1019,7 +1023,7 @@ pub async fn gkv_get_text_words(
     })
 }
 
-pub fn map_json_error(e: serde_json::Error) -> GlosserError {
+fn map_json_error(e: serde_json::Error) -> GlosserError {
     GlosserError::JsonError(e.to_string())
 }
 
@@ -1206,7 +1210,7 @@ mod tests {
 
         //add to lemmatizer
         let mut tx = db.begin_tx().await.unwrap();
-        tx.insert_lemmatizer_form("ὥστε", 1).await;
+        tx.insert_lemmatizer_form("ὥστε", 1).await.unwrap();
         tx.commit_tx().await.unwrap();
 
         let title = "title";

@@ -31,7 +31,7 @@ use quick_xml::Reader;
 use std::collections::HashMap;
 
 fn map_xml_error(e: quick_xml::Error) -> GlosserError {
-    GlosserError::Xml(e.to_string())
+    GlosserError::XmlError(e.to_string())
 }
 
 pub async fn import(

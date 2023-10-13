@@ -129,22 +129,29 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         Ok(res)
     }
 
-    async fn load_lemmatizer(&mut self) {
+    async fn load_lemmatizer(&mut self) -> Result<(), GlosserError> {
         if let Ok(mut reader) = csv::Reader::from_path("lemmatizer.csv") {
             for row in reader.deserialize::<LemmatizerRecord>().flatten() {
                 self.insert_lemmatizer_form(row.form.as_str(), row.gloss_id)
-                    .await;
+                    .await?;
             }
         }
+        Ok(())
     }
 
-    async fn insert_lemmatizer_form(&mut self, form: &str, gloss_id: u32) {
+    async fn insert_lemmatizer_form(
+        &mut self,
+        form: &str,
+        gloss_id: u32,
+    ) -> Result<(), GlosserError> {
         let query = r#"INSERT INTO lemmatizer (form, gloss_id) VALUES ($1, $2);"#;
         let _ = sqlx::query(query)
             .bind(form)
             .bind(gloss_id)
             .execute(&mut *self.tx)
-            .await;
+            .await
+            .map_err(map_sqlx_error)?;
+        Ok(())
     }
 
     async fn get_lemmatizer(&mut self) -> Result<HashMap<String, u32>, GlosserError> {
@@ -179,7 +186,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ) -> Result<Vec<(String, u32, String)>, GlosserError> {
         let s = match sort {
             "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
-            _ => "unit,sortalpha COLLATE PolytonicGreek ASC",
+            _ => "unit, sortalpha COLLATE PolytonicGreek ASC",
         };
         let p = match pos {
             "noun" => "pos == 'noun'",
@@ -187,7 +194,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             "adjective" => "pos == 'adjective'",
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
-        let query = format!("SELECT lemma,unit,def FROM glosses where {} AND unit >= {} AND unit <= {} AND status=1 ORDER BY {};", p, lower_unit, unit, s);
+        let query = format!("SELECT lemma, unit, def FROM glosses WHERE {} AND unit >= {} AND unit <= {} AND status = 1 ORDER BY {};", p, lower_unit, unit, s);
         let words: Vec<(String, u32, String)> = sqlx::query_as(&query)
             .fetch_all(&mut *self.tx)
             .await
@@ -581,7 +588,9 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         update_desc: &str,
         info: &ConnectionInfo,
     ) -> Result<(), GlosserError> {
-        let query = "INSERT INTO update_log (update_id,update_type,object_id,history_id,course_id,update_desc,updated,user_id,ip,user_agent) VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9);";
+        let query = "INSERT INTO update_log \
+        (update_id, update_type, object_id, history_id, course_id, update_desc, updated, user_id, ip, user_agent) \
+        VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9);";
         sqlx::query(query)
             .bind(update_type.value())
             .bind(object_id)
@@ -604,7 +613,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         gloss_id: u32,
         info: &ConnectionInfo,
     ) -> Result<u64, GlosserError> {
-        let query = "select count(*) from glosses a inner join words b on a.gloss_id=b.gloss_id where a.gloss_id = $1;";
+        let query = "SELECT COUNT(*) FROM glosses a INNER JOIN words b ON a.gloss_id = b.gloss_id WHERE a.gloss_id = $1;";
         let count: (u32,) = sqlx::query_as(query)
             .bind(gloss_id)
             .fetch_one(&mut *self.tx)
@@ -647,7 +656,9 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         note: &str,
         info: &ConnectionInfo,
     ) -> Result<u64, GlosserError> {
-        let query = "INSERT INTO glosses_history (gloss_history_id, gloss_id, unit, lemma, sortalpha, def, pos, note, updated, status, updatedUser) SELECT NULL,* FROM glosses WHERE gloss_id = $1;";
+        let query = "INSERT INTO glosses_history \
+        (gloss_history_id, gloss_id, unit, lemma, sortalpha, def, pos, note, updated, status, updatedUser) \
+        SELECT NULL, * FROM glosses WHERE gloss_id = $1;";
         let history_id = sqlx::query(query)
             .bind(gloss_id)
             .execute(&mut *self.tx)
@@ -780,18 +791,18 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         text_id: u32,
         course_id: u32,
     ) -> Result<Vec<WordRow>, GlosserError> {
-        let query = format!("SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.sortalpha,b.unit,b.pos,d.word_id as arrowedID,
-        b.gloss_id,a.seq,e.seq AS arrowedSeq,
-        a.isFlagged,g.text_order,f.text_order AS arrowed_text_order,c.word_id as page_break,h.entry AS appcrit_entry
+        let query = format!("SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.sortalpha, b.unit, b.pos, d.word_id as arrowedID,
+        b.gloss_id, a.seq, e.seq AS arrowedSeq,
+        a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, c.word_id as page_break, h.entry AS appcrit_entry
         FROM words a 
-        LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
-        LEFT JOIN latex_page_breaks c ON a.word_id=c.word_id 
+        LEFT JOIN glosses b ON a.gloss_id = b.gloss_id 
+        LEFT JOIN latex_page_breaks c ON a.word_id = c.word_id 
         LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
         LEFT JOIN words e ON e.word_id = d.word_id  
         LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
         LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
         LEFT JOIN appCrit h on h.word_id = A.word_id 
-        WHERE a.text_id={text_id} AND a.type > -1
+        WHERE a.text_id = {text_id} AND a.type > -1
         ORDER BY a.seq
         LIMIT 55000;", text_id = text_id, course_id = course_id);
 
@@ -855,20 +866,20 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {course_id}
             GROUP BY gloss_id
         )
-        SELECT a.word_id,a.word,a.type,b.lemma,b.def,b.unit,b.pos,b.sortalpha,d.word_id as arrowedID,b.gloss_id,a.seq,e.seq AS arrowedSeq,
-        a.isFlagged,g.text_order,f.text_order AS arrowed_text_order, total_count, c.word_id as page_break, 
+        SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.unit, b.pos, b.sortalpha, d.word_id as arrowedID, b.gloss_id, a.seq, e.seq AS arrowedSeq,
+        a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, total_count, c.word_id as page_break, 
         COUNT(a.gloss_id) OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
-        + IFNULL(running_basis,0) AS running_count 
+        + IFNULL(running_basis, 0) AS running_count 
         FROM words a 
-        LEFT JOIN glosses b ON a.gloss_id=b.gloss_id 
-        LEFT JOIN latex_page_breaks c ON a.word_id=c.word_id 
+        LEFT JOIN glosses b ON a.gloss_id = b.gloss_id 
+        LEFT JOIN latex_page_breaks c ON a.word_id = c.word_id 
         LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
         LEFT JOIN words e ON e.word_id = d.word_id  
         LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
         LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
         LEFT JOIN gloss_basis ON a.gloss_id = gloss_basis.gloss_id
         LEFT JOIN gloss_total ON a.gloss_id = gloss_total.gloss_id
-        WHERE a.text_id={text_id} AND a.type > -1
+        WHERE a.text_id = {text_id} AND a.type > -1
         ORDER BY a.seq
         LIMIT 55000;", text_id = text_id, course_id = course_id);
 
@@ -1389,7 +1400,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {}
             GROUP BY gloss_id
         )
-        SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {},{};", course_id, searchprefix, -page * limit as i32, limit);
+        SELECT a.gloss_id, a.lemma, a.def, b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id = b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek < '{}' AND status > 0 AND pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek DESC LIMIT {}, {};", course_id, searchprefix, -page * limit as i32, limit);
         let res: Result<Vec<(String, u32, String, u32)>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| {
                 (
@@ -1419,7 +1430,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {}
             GROUP BY gloss_id
         )
-        SELECT a.gloss_id,a.lemma,a.def,b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id=b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' and status > 0 and pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {},{};", course_id, searchprefix, page * limit as i32, limit);
+        SELECT a.gloss_id, a.lemma, a.def, b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id = b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' AND status > 0 AND pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {}, {};", course_id, searchprefix, page * limit as i32, limit);
         let res: Result<Vec<(String, u32, String, u32)>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| {
                 (
@@ -1494,7 +1505,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .map_err(map_sqlx_error)?;
 
         //create default course
-        let query = r#"REPLACE INTO courses VALUES (1,'Greek');"#;
+        let query = r#"REPLACE INTO courses VALUES (1, 'Greek');"#;
         sqlx::query(query)
             .execute(&mut *self.tx)
             .await
@@ -1511,6 +1522,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             (6, "Import text"),
             (7, "Delete gloss"),
         ];
+
         for t in update_types {
             sqlx::query(query)
                 .bind(t.0)
@@ -1519,7 +1531,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 .await
                 .map_err(map_sqlx_error)?;
         }
-
         Ok(())
     }
 }
