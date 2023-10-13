@@ -24,8 +24,6 @@ use actix_session::Session;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::time::Duration;
 use actix_web::cookie::Key;
-use actix_web::http::header::ContentType;
-use actix_web::http::header::LOCATION;
 use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
 use actix_web::http::StatusCode;
 use actix_web::ResponseError;

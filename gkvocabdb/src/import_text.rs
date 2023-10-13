@@ -19,13 +19,20 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //https://users.rust-lang.org/t/file-upload-in-actix-web/64871/3
 
+use crate::ConnectionInfo;
+use crate::GlosserDb;
+use crate::GlosserError;
+use crate::ImportResponse;
+use crate::TextWord;
+use crate::WordType;
 use quick_xml::events::Event;
-use quick_xml::Reader;
-
 use quick_xml::name::QName;
+use quick_xml::Reader;
 use std::collections::HashMap;
 
-use super::*;
+fn map_xml_error(e: quick_xml::Error) -> GlosserError {
+    GlosserError::Xml(e.to_string())
+}
 
 pub async fn import(
     db: &dyn GlosserDb,

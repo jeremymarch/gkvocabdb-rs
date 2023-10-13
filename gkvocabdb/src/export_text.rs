@@ -17,7 +17,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::*;
+use crate::GlosserDb;
+use crate::GlosserError;
+use crate::WordRow;
+use crate::WordType;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]

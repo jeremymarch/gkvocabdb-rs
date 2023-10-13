@@ -1,4 +1,11 @@
-use super::*;
+use crate::map_glosser_error;
+use actix_web::web;
+use actix_web::Error as AWError;
+use actix_web::HttpRequest;
+use actix_web::HttpResponse;
+use gkvocabdb::dbsqlite::GlosserDbSqlite;
+use gkvocabdb::GlosserDb;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct HQVocabRequest {

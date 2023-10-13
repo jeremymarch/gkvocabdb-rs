@@ -1003,9 +1003,6 @@ pub async fn gkv_get_text_words(
 pub fn map_json_error(e: serde_json::Error) -> GlosserError {
     GlosserError::JsonError(e.to_string())
 }
-pub fn map_xml_error(e: quick_xml::Error) -> GlosserError {
-    GlosserError::Xml(e.to_string())
-}
 
 pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), GlosserError> {
     let mut tx = db.begin_tx().await?;

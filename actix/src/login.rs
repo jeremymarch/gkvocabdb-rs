@@ -16,11 +16,17 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-
-use super::*;
-
+use actix_session::Session;
+use actix_web::http::header::ContentType;
+use actix_web::http::header::LOCATION;
+use actix_web::web;
+use actix_web::Error as AWError;
+use actix_web::HttpRequest;
+use actix_web::HttpResponse;
+use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use secrecy::ExposeSecret;
 use secrecy::Secret;
+
 #[derive(serde::Deserialize)]
 pub struct FormData {
     username: String,
@@ -129,7 +135,7 @@ fn validate_login(credentials: Credentials) -> Option<u32> {
 pub async fn login_post(
     (session, form, req): (Session, web::Form<FormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let _db = req.app_data::<SqlitePool>().unwrap();
+    let _db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let credentials = Credentials {
         username: form.0.username,
