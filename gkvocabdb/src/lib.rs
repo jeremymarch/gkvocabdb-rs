@@ -545,11 +545,6 @@ pub trait GlosserDbTrx {
     async fn create_db(&mut self) -> Result<(), GlosserError>;
 }
 
-pub fn get_timestamp() -> i64 {
-    let now = Utc::now();
-    now.timestamp()
-}
-
 pub async fn gkv_arrow_word(
     db: &dyn GlosserDb,
     post: &ArrowWordRequest,
@@ -676,7 +671,7 @@ pub async fn gkv_update_or_add_gloss(
     })
 }
 
-pub async fn gkv_tet_gloss(
+pub async fn gkv_get_gloss(
     db: &dyn GlosserDb,
     post: &GetGlossRequest,
 ) -> Result<GetGlossResponse, GlosserError> {
@@ -1023,15 +1018,20 @@ pub async fn gkv_get_text_words(
     })
 }
 
-fn map_json_error(e: serde_json::Error) -> GlosserError {
-    GlosserError::JsonError(e.to_string())
-}
-
 pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), GlosserError> {
     let mut tx = db.begin_tx().await?;
     tx.create_db().await?;
     tx.commit_tx().await?;
     Ok(())
+}
+
+pub fn get_timestamp() -> i64 {
+    let now = Utc::now();
+    now.timestamp()
+}
+
+fn map_json_error(e: serde_json::Error) -> GlosserError {
+    GlosserError::JsonError(e.to_string())
 }
 
 #[cfg(test)]
@@ -1196,6 +1196,7 @@ mod tests {
         let (db, user_info) = set_up().await;
         let course_id = 1;
 
+        //test inserting gloss
         //insert gloss before adding it to the lemmatizer because of foreign key
         let post = UpdateGlossRequest {
             qtype: "newlemma".to_string(),
@@ -1206,7 +1207,22 @@ mod tests {
             def: "newdef".to_string(),
             note: "newnote".to_string(),
         };
-        let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        assert!(res.is_ok());
+
+        //test updating gloss
+        let inserted_id: u32 = res.unwrap().inserted_id.unwrap().try_into().unwrap();
+        let post = UpdateGlossRequest {
+            qtype: "newlemma".to_string(),
+            hqid: Some(inserted_id),
+            lemma: "newwordnew".to_string(),
+            stripped_lemma: "newword".to_string(),
+            pos: "newpos".to_string(),
+            def: "newdef".to_string(),
+            note: "newnote".to_string(),
+        };
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        assert!(res.is_ok());
 
         //add to lemmatizer
         let mut tx = db.begin_tx().await.unwrap();

@@ -409,7 +409,7 @@ async fn get_gloss(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_tet_gloss(db, &post).await.map_err(map_glosser_error)?;
+    let res = gkv_get_gloss(db, &post).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
