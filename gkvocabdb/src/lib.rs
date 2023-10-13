@@ -12,6 +12,7 @@ pub enum GlosserError {
     Database(String),
     Xml(String),
     JsonError(String),
+    ImportError(String),
     UnknownError,
 }
 
@@ -21,6 +22,7 @@ impl std::fmt::Display for GlosserError {
             GlosserError::Database(s) => write!(fmt, "GlosserError: database: {}", s),
             GlosserError::Xml(s) => write!(fmt, "GlosserError: xml: {}", s),
             GlosserError::JsonError(s) => write!(fmt, "GlosserError: json error: {}", s),
+            GlosserError::ImportError(s) => write!(fmt, "GlosserError: import error: {}", s),
             GlosserError::UnknownError => write!(fmt, "GlosserError: unknown error"),
         }
     }
@@ -998,9 +1000,11 @@ pub async fn gkv_get_text_words(
     })
 }
 
-//fix me: return a better error
 pub fn map_json_error(e: serde_json::Error) -> GlosserError {
     GlosserError::JsonError(e.to_string())
+}
+pub fn map_xml_error(e: quick_xml::Error) -> GlosserError {
+    GlosserError::Xml(e.to_string())
 }
 
 pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), GlosserError> {
@@ -1084,7 +1088,9 @@ mod tests {
             let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
 
-        import_text::import(db, course_id, user_info, title, xml_string).await
+        import_text::import(db, course_id, user_info, title, xml_string)
+            .await
+            .unwrap()
     }
 
     async fn setup_small_text_test(
@@ -1114,7 +1120,9 @@ mod tests {
             let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
 
-        import_text::import(db, course_id, user_info, title, xml_string).await
+        import_text::import(db, course_id, user_info, title, xml_string)
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -1126,33 +1134,37 @@ mod tests {
         let title = "";
         let xml_string = "<TEI.2><text>blahblah</text></TEI.2>";
         let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
-        assert!(!res.success);
+        assert!(res.is_err());
 
         //empty title xml fails
         let xml_string = "";
         let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
-        assert!(!res.success);
+        assert!(res.is_err());
 
         let title = "testtext";
 
         //no TEI or TEI.2 tags
         let xml_string = "<TE><text>blahblah</text></TE>";
         let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
-        assert!(!res.success);
+        assert!(res.is_err());
 
         //xml has tags, but no text fails
         let xml_string = "<TEI.2><text></text></TEI.2>";
         let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
-        assert!(!res.success);
+        assert!(res.is_err());
 
         //pass with TEI.2
         let xml_string = "<TEI.2><text>blahblah</text></TEI.2>";
-        let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
+        let res = import_text::import(&db, course_id, &user_info, title, xml_string)
+            .await
+            .unwrap();
         assert!(res.success);
 
         //pass with TEI
         let xml_string = "<TEI><text>blahblah</text></TEI>";
-        let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
+        let res = import_text::import(&db, course_id, &user_info, title, xml_string)
+            .await
+            .unwrap();
         assert!(res.success);
 
         let res = setup_text_test(&db, course_id, &user_info).await;
@@ -1183,7 +1195,9 @@ mod tests {
 
         let title = "title";
         let xml_string = "<TEI.2><text>blah ὥστε δὲ</text></TEI.2>";
-        let res = import_text::import(&db, course_id, &user_info, title, xml_string).await;
+        let res = import_text::import(&db, course_id, &user_info, title, xml_string)
+            .await
+            .unwrap();
         assert!(res.success);
 
         //check gkv_get_text_words

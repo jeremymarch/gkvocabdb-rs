@@ -33,57 +33,33 @@ pub async fn import(
     info: &ConnectionInfo,
     title: &str,
     xml_string: &str,
-) -> ImportResponse {
-    let mut tx = db.begin_tx().await.unwrap();
-    match tx.get_lemmatizer().await {
-        Ok(lemmatizer) => match process_imported_text(xml_string, &lemmatizer).await {
-            Ok(words) => {
-                if !words.is_empty() && !title.is_empty() {
-                    match tx.add_text(course_id, title, words, info).await {
-                        Ok(affected_rows) => {
-                            tx.commit_tx().await.unwrap();
-                            ImportResponse {
-                                success: true,
-                                words_inserted: affected_rows,
-                                error: "".to_string(),
-                            }
-                        }
-                        Err(e) => {
-                            tx.rollback_tx().await.unwrap();
-                            ImportResponse {
-                                success: false,
-                                words_inserted: 0,
-                                error: format!("Error importing text: {:?}", e),
-                            }
-                        }
-                    }
-                } else {
-                    tx.rollback_tx().await.unwrap();
-                    ImportResponse {
-                        success: false,
-                        words_inserted: 0,
-                        error: "Error importing text: File and/or Title field(s) is/are empty."
-                            .to_string(),
-                    }
-                }
-            }
-            Err(e) => {
-                tx.rollback_tx().await.unwrap();
-                ImportResponse {
-                    success: false,
-                    words_inserted: 0,
-                    error: format!("Error importing text: XML parse error: {:?}.", e),
-                }
-            }
-        },
-        Err(e) => {
-            tx.rollback_tx().await.unwrap();
-            ImportResponse {
-                success: false,
-                words_inserted: 0,
-                error: format!("Error: {:?}.", e),
-            }
-        }
+) -> Result<ImportResponse, GlosserError> {
+    if title.is_empty() {
+        return Err(GlosserError::ImportError(String::from(
+            "Error importing text: Title field is empty.",
+        )));
+    }
+
+    let mut tx = db.begin_tx().await?;
+    let lemmatizer = tx.get_lemmatizer().await?;
+    let words = process_imported_text(xml_string, &lemmatizer)
+        .await
+        .map_err(map_xml_error)?;
+
+    if words.is_empty() {
+        tx.rollback_tx().await?;
+        Err(GlosserError::ImportError(String::from(
+            "Error importing text: File is empty.",
+        )))
+    } else {
+        let affected_rows = tx.add_text(course_id, title, words, info).await?;
+        tx.commit_tx().await?;
+
+        Ok(ImportResponse {
+            success: true,
+            words_inserted: affected_rows,
+            error: "".to_string(),
+        })
     }
 }
 

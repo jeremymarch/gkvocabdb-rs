@@ -61,7 +61,7 @@ pub async fn get_seq_by_prefix(pool: &SqlitePool, table:&str, prefix:&str) -> Re
 
 */
 
-fn map_sqlx_error(e: sqlx::Error) -> GlosserError {
+pub fn map_sqlx_error(e: sqlx::Error) -> GlosserError {
     match e {
         sqlx::Error::Configuration(e) => {
             GlosserError::Database(format!("sqlx Configuration: {}", e))

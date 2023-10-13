@@ -161,7 +161,9 @@ async fn import_text(
 
         match get_xml_string(payload).await {
             Ok((xml_string, title)) => {
-                let res = import_text::import(db, course_id, &info, &title, &xml_string).await;
+                let res = import_text::import(db, course_id, &info, &title, &xml_string)
+                    .await
+                    .map_err(map_glosser_error)?;
                 Ok(HttpResponse::Ok().json(res))
             }
             Err(e) => {
@@ -244,7 +246,7 @@ async fn export_text(
         if let Ok(latex) =
             export_text::get_latex(db, info.text_ids.as_str(), course_id, bold_glosses)
                 .await
-                .map_err(map_sqlx_error)
+                .map_err(map_glosser_error)
         {
             let filename = "glosser_export.tex";
             let cd_header = ContentDisposition {
@@ -289,7 +291,7 @@ async fn update_or_add_gloss(
 
         let res = gkv_update_or_add_gloss(db, &post, &info)
             .await
-            .map_err(map_sqlx_error)?;
+            .map_err(map_glosser_error)?;
 
         Ok(HttpResponse::Ok().json(res))
     } else {
@@ -321,7 +323,7 @@ async fn arrow_word_req(
 
         let res = gkv_arrow_word(db, &post, &info, course_id)
             .await
-            .map_err(map_sqlx_error)?;
+            .map_err(map_glosser_error)?;
         return Ok(HttpResponse::Ok().json(res));
     }
 
@@ -352,7 +354,7 @@ async fn set_gloss(
 
         let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id)
             .await
-            .map_err(map_sqlx_error)?;
+            .map_err(map_glosser_error)?;
         return Ok(HttpResponse::Ok().json(res));
     }
     let res = MiscErrorResponse {
@@ -383,7 +385,7 @@ async fn move_text(
 
         gkv_move_text(db, post.text_id, post.step, &info, course_id)
             .await
-            .map_err(map_sqlx_error)?;
+            .map_err(map_glosser_error)?;
         let res = MiscErrorResponse {
             this_text: 1,
             text_name: "".to_string(),
@@ -409,7 +411,7 @@ async fn get_gloss(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_tet_gloss(db, &post).await.map_err(map_sqlx_error)?;
+    let res = gkv_tet_gloss(db, &post).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -419,7 +421,9 @@ async fn get_glosses(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_get_glosses(db, &info).await.map_err(map_sqlx_error)?;
+    let res = gkv_get_glosses(db, &info)
+        .await
+        .map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -431,7 +435,7 @@ async fn gloss_occurrences(
 
     let res = gkv_get_occurrences(db, &info)
         .await
-        .map_err(map_sqlx_error)?;
+        .map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -441,7 +445,7 @@ async fn update_log(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_update_log(db, &info).await.map_err(map_sqlx_error)?;
+    let res = gkv_update_log(db, &info).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -451,7 +455,7 @@ async fn get_texts(
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_get_texts(db, &info).await.map_err(map_sqlx_error)?;
+    let res = gkv_get_texts(db, &info).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -459,7 +463,7 @@ async fn get_texts(
 /*
 async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-    fix_assignments(db).await.map_err(map_sqlx_error)?;
+    fix_assignments(db).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -475,7 +479,7 @@ async fn get_text_words(
     if login::get_user_id(session).is_some() {
         let res = gkv_get_text_words(db, &info, selected_word_id)
             .await
-            .map_err(map_sqlx_error)?;
+            .map_err(map_glosser_error)?;
 
         Ok(HttpResponse::Ok().json(res))
     } else {
@@ -495,7 +499,7 @@ async fn get_text_words(
 async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
     let course_id = 1;
-    let w = get_assignment_rows(db, course_id).await.map_err(map_sqlx_error)?;
+    let w = get_assignment_rows(db, course_id).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(w))
 }
@@ -531,7 +535,7 @@ impl ResponseError for PhilologusError {
     }
 }
 
-pub fn map_sqlx_error(e: GlosserError) -> PhilologusError {
+pub fn map_glosser_error(e: GlosserError) -> PhilologusError {
     match e {
         GlosserError::Database(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
@@ -547,6 +551,11 @@ pub fn map_sqlx_error(e: GlosserError) -> PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
             name: "json error".to_string(),
             error: format!("json error: {}", e),
+        },
+        GlosserError::ImportError(e) => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: "import error".to_string(),
+            error: format!("import error: {}", e),
         },
         GlosserError::UnknownError => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,

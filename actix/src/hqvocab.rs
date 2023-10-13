@@ -63,7 +63,7 @@ pub async fn hqvocab(
     }
 
     let sort = info.sort.clone().unwrap_or_else(|| "unit".to_string());
-    let mut tx = db.begin_tx().await.map_err(map_sqlx_error)?;
+    let mut tx = db.begin_tx().await.map_err(map_glosser_error)?;
     for p in ["noun", "verb", "adjective", "other"] {
         let mut res = String::from("");
         let mut last_unit = 0;
@@ -71,7 +71,7 @@ pub async fn hqvocab(
         let hqv = tx
             .get_hqvocab_column(p, lower, upper, &sort)
             .await
-            .map_err(map_sqlx_error)?;
+            .map_err(map_glosser_error)?;
         for w in hqv {
             if sort != "alpha" && last_unit != w.1 {
                 res.push_str(
@@ -118,7 +118,7 @@ pub async fn hqvocab(
 
         template = template.replacen(format!("%{}%", p).as_str(), &res, 1);
     }
-    tx.commit_tx().await.map_err(map_sqlx_error)?;
+    tx.commit_tx().await.map_err(map_glosser_error)?;
 
     template = template.replacen("%%upper%%", &upper.to_string(), 1);
     template = template.replacen("%%lower%%", &lower.to_string(), 1);
