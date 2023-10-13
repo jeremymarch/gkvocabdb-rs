@@ -121,12 +121,10 @@ impl GlosserDb for GlosserDbSqlite {
 #[async_trait]
 impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     async fn commit_tx(self: Box<Self>) -> Result<(), GlosserError> {
-        let res = self.tx.commit().await.map_err(map_sqlx_error)?;
-        Ok(res)
+        self.tx.commit().await.map_err(map_sqlx_error)
     }
     async fn rollback_tx(self: Box<Self>) -> Result<(), GlosserError> {
-        let res = self.tx.rollback().await.map_err(map_sqlx_error)?;
-        Ok(res)
+        self.tx.rollback().await.map_err(map_sqlx_error)
     }
 
     async fn load_lemmatizer(&mut self) -> Result<(), GlosserError> {
@@ -144,7 +142,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         form: &str,
         gloss_id: u32,
     ) -> Result<(), GlosserError> {
-        let query = r#"INSERT INTO lemmatizer (form, gloss_id) VALUES ($1, $2);"#;
+        let query = r#"REPLACE INTO lemmatizer (form, gloss_id) VALUES ($1, $2);"#;
         let _ = sqlx::query(query)
             .bind(form)
             .bind(gloss_id)
@@ -194,8 +192,10 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             "adjective" => "pos == 'adjective'",
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
-        let query = format!("SELECT lemma, unit, def FROM glosses WHERE {} AND unit >= {} AND unit <= {} AND status = 1 ORDER BY {};", p, lower_unit, unit, s);
+        let query = format!("SELECT lemma, unit, def FROM glosses WHERE {} AND unit >= $1 AND unit <= $2 AND status = 1 ORDER BY {};", p, s);
         let words: Vec<(String, u32, String)> = sqlx::query_as(&query)
+            .bind(lower_unit)
+            .bind(unit)
             .fetch_all(&mut *self.tx)
             .await
             .map_err(map_sqlx_error)?;
@@ -218,9 +218,9 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(gloss_id)
             .fetch_one(&mut *self.tx)
             .await
-            .map_err(map_sqlx_error); //fix me
+            .map_err(map_sqlx_error);
 
-        let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; //0 if not exist
+        let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; // 0 if not exist
 
         if unwrapped_old_word_id == 1 {
             //don't allow arrow/unarrow h&q words which are set to word_id 1
