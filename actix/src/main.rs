@@ -241,10 +241,14 @@ async fn export_text(
     //println!("host: {:?}", req.connection_info().host());
 
     if let Some(_user_id) = login::get_user_id(session) {
-        if let Ok(latex) =
-            export_text::get_latex(db, info.text_ids.as_str(), course_id, bold_glosses)
-                .await
-                .map_err(map_glosser_error)
+        if let Ok(latex) = export_text::gkv_export_texts_as_latex(
+            db,
+            info.text_ids.as_str(),
+            course_id,
+            bold_glosses,
+        )
+        .await
+        .map_err(map_glosser_error)
         {
             let filename = "glosser_export.tex";
             let cd_header = ContentDisposition {

@@ -34,7 +34,7 @@ struct Gloss {
     arrow: bool,
 }
 
-pub async fn get_latex(
+pub async fn gkv_export_texts_as_latex(
     db: &dyn GlosserDb,
     text_ids: &str,
     course_id: u32,
