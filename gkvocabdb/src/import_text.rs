@@ -49,9 +49,7 @@ pub async fn import(
 
     let mut tx = db.begin_tx().await?;
     let lemmatizer = tx.get_lemmatizer().await?;
-    let words = process_imported_text(xml_string, &lemmatizer)
-        .await
-        .map_err(map_xml_error)?;
+    let words = process_imported_text(xml_string, &lemmatizer).map_err(map_xml_error)?;
 
     if words.is_empty() {
         tx.rollback_tx().await?;
@@ -180,7 +178,7 @@ fn split_words(
     words
 }
 
-pub async fn process_imported_text(
+fn process_imported_text(
     xml_string: &str,
     lemmatizer: &HashMap<String, u32>,
 ) -> Result<Vec<TextWord>, quick_xml::Error> {
@@ -345,9 +343,7 @@ mod tests {
                 <desc>This is a test.</desc>
             </text>
         </TEI.2>"#;
-        let r = process_imported_text(xml_string, &lemmatizer)
-            .await
-            .unwrap();
+        let r = process_imported_text(xml_string, &lemmatizer).unwrap();
         //to see this: cargo test -- --nocapture
         // for a in &r {
         //     println!("{:?}", a);

@@ -17,6 +17,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*
+vscode find/replace regex to change "...".to_string() to String::from("...")
+"([^"]*)".to_string[(][)]
+String::from("$1")
+*/
+
 pub mod dbsqlite;
 pub mod export_text;
 pub mod import_text;
