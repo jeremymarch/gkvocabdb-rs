@@ -213,19 +213,29 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         let query = "SELECT word_id \
     FROM arrowed_words \
     WHERE course_id = $1 AND gloss_id = $2;";
-        let old_word_id: Result<(u32,), GlosserError> = sqlx::query_as(query)
+
+        let res: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
             .bind(course_id)
             .bind(gloss_id)
             .fetch_one(&mut *self.tx)
-            .await
-            .map_err(map_sqlx_error);
+            .await;
 
-        let unwrapped_old_word_id = old_word_id.unwrap_or((0,)).0; // 0 if not exist
-
-        if unwrapped_old_word_id == 1 {
-            //don't allow arrow/unarrow h&q words which are set to word_id 1
-            return Err(GlosserError::UnknownError); //for now
-        }
+        let unwrapped_old_word_id: u32 = match res {
+            Ok(old_word_id) => {
+                if old_word_id.0 == 1 {
+                    //don't allow arrow/unarrow h&q words which are set to word_id 1
+                    return Err(GlosserError::UnknownError); //for now
+                } else {
+                    old_word_id.0
+                }
+            }
+            Err(sqlx::Error::RowNotFound) => {
+                0 // 0 if not exist
+            }
+            Err(e) => {
+                return Err(e).map_err(map_sqlx_error); // return sql error
+            }
+        };
 
         //add previous arrow to history, if it was arrowed before
         let query = "INSERT INTO arrowed_words_history (history_id, course_id, gloss_id, word_id, updated, user_id, comment) \
@@ -335,20 +345,28 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ) -> Result<Vec<SmallWord>, GlosserError> {
         //1a check if the word whose gloss is being changed is arrowed
         let query =
-            "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
-        let arrowed_word_id: Result<(u32,), GlosserError> = sqlx::query_as(query)
+        "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
+        let arrowed_word_id: Result<(u32,), sqlx::Error> = sqlx::query_as(query)
             .bind(course_id)
             .bind(gloss_id)
             .bind(word_id)
             .fetch_one(&mut *self.tx)
-            .await
-            .map_err(map_sqlx_error);
+            .await;
 
         //1b. unarrow word if it is arrowed
-        if arrowed_word_id.is_ok() {
-            //r.rows_affected() < 1 {
-            self.arrow_word_trx(course_id, gloss_id, 0 /*zero to unarrow*/, info)
-                .await?;
+        match arrowed_word_id {
+            Ok(_) => {
+                //unarrow word if it is arrowed
+                self.arrow_word_trx(course_id, gloss_id, 0 /*zero to unarrow*/, info)
+                    .await?;
+            }
+            Err(sqlx::Error::RowNotFound) => {
+                //continue if row not found
+            }
+            Err(e) => {
+                //return error
+                return Err(e).map_err(map_sqlx_error);
+            }
         }
 
         //2a. save word row into history before updating gloss_id
@@ -406,7 +424,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     ORDER BY G.text_order,A.seq \
     LIMIT 400;", gloss_id = gloss_id, course_id = course_id);
 
-        let res: Result<Vec<SmallWord>, GlosserError> = sqlx::query(&query)
+        let res: Vec<SmallWord> = sqlx::query(&query)
             .map(|rec: SqliteRow| SmallWord {
                 wordid: rec.get("word_id"),
                 hqid: rec.get("gloss_id"),
@@ -423,8 +441,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             })
             .fetch_all(&mut *self.tx)
             .await
-            .map_err(map_sqlx_error);
-        //jwm2
+            .map_err(map_sqlx_error)?;
+
         self.update_log_trx(
             UpdateType::SetGlossId,
             Some(word_id.into()),
@@ -442,7 +460,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         )
         .await?;
 
-        res
+        Ok(res)
     }
 
     async fn add_text(
@@ -565,7 +583,6 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         let new_gloss_id = res.last_insert_rowid();
 
-        //jwm2
         self.update_log_trx(
             UpdateType::NewGloss,
             Some(new_gloss_id),
