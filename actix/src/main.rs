@@ -133,18 +133,18 @@ async fn import_text(
     // let user_info = ConnectionInfo {
     //     user_id: user_id.try_into().unwrap(),
     //     timestamp: get_timestamp(),
-    //     ip_address: "0.0.0.0".to_string(),
-    //     user_agent: "test_agent".to_string(),
+    //     ip_address: String::from("0.0.0.0"),
+    //     user_agent: String::from("test_agent"),
     // };
     // for _n in 1..100 {
     //     let post = UpdateGlossRequest {
-    //         qtype: "newlemma".to_string(),
+    //         qtype: String::from("newlemma"),
     //         hqid: None,
-    //         lemma: "newword".to_string(),
-    //         stripped_lemma: "newword".to_string(),
-    //         pos: "newpos".to_string(),
-    //         def: "newdef".to_string(),
-    //         note: "newnote".to_string(),
+    //         lemma: String::from("newword"),
+    //         stripped_lemma: String::from("newword"),
+    //         pos: String::from("newpos"),
+    //         def: String::from("newdef"),
+    //         note: String::from("newnote"),
     //     };
     //     let _ = gkv_update_or_add_gloss(&db, &post, &user_info).await;
     // }
@@ -180,7 +180,7 @@ async fn import_text(
         let res = ImportResponse {
             success: false,
             words_inserted: 0,
-            error: "Import failed: not logged in".to_string(),
+            error: String::from("Import failed: not logged in"),
         };
         Ok(HttpResponse::Ok().json(res))
         /*
@@ -260,7 +260,7 @@ async fn export_text(
             let res = ImportResponse {
                 success: false,
                 words_inserted: 0,
-                error: "Export failed: not logged in".to_string(),
+                error: String::from("Export failed: not logged in"),
             };
             Ok(HttpResponse::Ok().json(res))
         }
@@ -268,7 +268,7 @@ async fn export_text(
         let res = ImportResponse {
             success: false,
             words_inserted: 0,
-            error: "Export failed: not logged in".to_string(),
+            error: String::from("Export failed: not logged in"),
         };
         Ok(HttpResponse::Ok().json(res))
     }
@@ -327,10 +327,10 @@ async fn arrow_word_req(
 
     let res = MiscErrorResponse {
         this_text: 1,
-        text_name: "".to_string(),
+        text_name: String::from(""),
         words: [].to_vec(),
         selected_id: None,
-        error: "Not logged in (update_words)".to_string(),
+        error: String::from("Not logged in (update_words)"),
     };
     Ok(HttpResponse::Ok().json(res))
 }
@@ -357,10 +357,10 @@ async fn set_gloss(
     }
     let res = MiscErrorResponse {
         this_text: 1,
-        text_name: "".to_string(),
+        text_name: String::from(""),
         words: [].to_vec(),
         selected_id: None,
-        error: "Not logged in (update_words)".to_string(),
+        error: String::from("Not logged in (update_words)"),
     };
 
     Ok(HttpResponse::Ok().json(res))
@@ -386,19 +386,19 @@ async fn move_text(
             .map_err(map_glosser_error)?;
         let res = MiscErrorResponse {
             this_text: 1,
-            text_name: "".to_string(),
+            text_name: String::from(""),
             words: [].to_vec(),
             selected_id: None,
-            error: "Success".to_string(),
+            error: String::from("Success"),
         };
         return Ok(HttpResponse::Ok().json(res));
     }
     let res = MiscErrorResponse {
         this_text: 1,
-        text_name: "".to_string(),
+        text_name: String::from(""),
         words: [].to_vec(),
         selected_id: None,
-        error: "Not logged in (update_words)".to_string(),
+        error: String::from("Not logged in (update_words)"),
     };
 
     Ok(HttpResponse::Ok().json(res))
@@ -483,10 +483,10 @@ async fn get_text_words(
     } else {
         let res = MiscErrorResponse {
             this_text: 1,
-            text_name: "".to_string(),
+            text_name: String::from(""),
             words: vec![],
             selected_id: selected_word_id,
-            error: "Not logged in".to_string(),
+            error: String::from("Not logged in"),
         };
 
         Ok(HttpResponse::Ok().json(res))
@@ -537,27 +537,27 @@ pub fn map_glosser_error(e: GlosserError) -> PhilologusError {
     match e {
         GlosserError::Database(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "sqlx error".to_string(),
+            name: String::from("sqlx error"),
             error: format!("sqlx Configuration: {}", e),
         },
         GlosserError::XmlError(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "xml error".to_string(),
+            name: String::from("xml error"),
             error: format!("xml error: {}", e),
         },
         GlosserError::JsonError(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "json error".to_string(),
+            name: String::from("json error"),
             error: format!("json error: {}", e),
         },
         GlosserError::ImportError(e) => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "import error".to_string(),
+            name: String::from("import error"),
             error: format!("import error: {}", e),
         },
         GlosserError::UnknownError => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
-            name: "unknown error".to_string(),
+            name: String::from("unknown error"),
             error: String::from("unknown error"),
         },
     }
@@ -811,7 +811,7 @@ mod tests {
         //println!("resp: {:?}", resp);
         let result: MiscErrorResponse = test::read_body_json(resp).await;
         //println!("res: {:?}", result);
-        assert_eq!(result.error, "Not logged in".to_string());
+        assert_eq!(result.error, String::from("Not logged in"));
     }
 
     //cargo test -- --nocapture

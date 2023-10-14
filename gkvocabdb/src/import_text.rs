@@ -65,7 +65,7 @@ pub async fn import(
         Ok(ImportResponse {
             success: true,
             words_inserted: affected_rows,
-            error: "".to_string(),
+            error: String::from(""),
         })
     }
 }
@@ -218,7 +218,7 @@ pub async fn process_imported_text(
                 } else if b"desc" == e.name().as_ref() {
                     in_desc = true;
                     words.push(TextWord {
-                        word: "".to_string(),
+                        word: String::from(""),
                         word_type: WordType::ParaNoIndent as u32,
                         gloss_id: None,
                     });
@@ -229,7 +229,7 @@ pub async fn process_imported_text(
                         gloss_id: None,
                     });
                 } else if b"l" == e.name().as_ref() {
-                    let mut line_num = "".to_string();
+                    let mut line_num = String::from("");
 
                     for a in e.attributes() {
                         //.next().unwrap().unwrap();
@@ -263,7 +263,7 @@ pub async fn process_imported_text(
             Ok(Event::Empty(ref e)) => {
                 if b"lb" == e.name().as_ref() {
                     //line beginning
-                    let mut line_num = "".to_string();
+                    let mut line_num = String::from("");
 
                     for a in e.attributes() {
                         //.next().unwrap().unwrap();
@@ -279,7 +279,7 @@ pub async fn process_imported_text(
                 } else if b"pb" == e.name().as_ref() {
                     //page beginning
                     words.push(TextWord {
-                        word: "".to_string(),
+                        word: String::from(""),
                         word_type: WordType::PageBreak as u32,
                         gloss_id: None,
                     });
@@ -295,7 +295,7 @@ pub async fn process_imported_text(
                 } else if b"desc" == e.name().as_ref() {
                     in_desc = false;
                     words.push(TextWord {
-                        word: "".to_string(),
+                        word: String::from(""),
                         word_type: WordType::ParaNoIndent as u32,
                         gloss_id: None,
                     });
@@ -314,9 +314,9 @@ pub async fn process_imported_text(
     }
     if !found_tei {
         //using this error for now, if doc does not even try to be tei
-        return Err(quick_xml::Error::UnexpectedToken(
-            "Missing TEI.2 tags".to_string(),
-        ));
+        return Err(quick_xml::Error::UnexpectedToken(String::from(
+            "Missing TEI.2 tags",
+        )));
     }
     /*
     for a in words {
@@ -332,7 +332,7 @@ mod tests {
     #[tokio::test]
     async fn test_import() {
         let mut lemmatizer = HashMap::new();
-        lemmatizer.insert("δ".to_string(), 30);
+        lemmatizer.insert(String::from("δ"), 30);
 
         //<?xml version="1.0" encoding="UTF-8"?> is optional
         let xml_string = r#"<TEI.2>

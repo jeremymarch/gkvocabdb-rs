@@ -582,7 +582,7 @@ pub async fn gkv_update_gloss_id(
     tx.commit_tx().await?;
 
     Ok(UpdateGlossIdResponse {
-        qtype: "set_gloss".to_string(),
+        qtype: String::from("set_gloss"),
         words,
         success: true,
         affectedrows: 1,
@@ -766,9 +766,9 @@ pub async fn gkv_get_glosses(
         last_page: vlast_page,
         lastpage_up: vlast_page_up,
         scroll: if query_params.w.is_empty() && info.page == 0 && seq == 1 {
-            "top".to_string()
+            String::from("top")
         } else {
-            "".to_string()
+            String::from("")
         }, //scroll really only needs to return top
         query: query_params.w.to_owned(),
         arr_options: gloss_rows, //result_rows_stripped//result_rows
@@ -831,7 +831,7 @@ pub async fn gkv_get_occurrences(
         page: info.page,
         last_page: vlast_page,
         lastpage_up: vlast_page_up,
-        scroll: "top".to_string(), //scroll really only needs to return top
+        scroll: String::from("top"), //scroll really only needs to return top
         query: query_params.w.to_owned(),
         arr_options: gloss_rows, //result_rows_stripped//result_rows
     })
@@ -857,7 +857,7 @@ pub async fn gkv_update_log(
         page: info.page,
         last_page: 1,
         lastpage_up: 1,
-        scroll: "top".to_string(),
+        scroll: String::from("top"),
         query: query_params.w.to_owned(),
         arr_options: log,
     })
@@ -882,7 +882,7 @@ pub async fn gkv_get_texts(
 
     //strip any numbers from end of string
     //let re = Regex::new(r"[0-9]").unwrap();
-    //let result_rows_stripped:Vec<TreeRow> = vec![TreeRow{v:"abc".to_string(), i:1, c:None}, TreeRow{v:"def".to_string(), i:2, c:Some(vec![TreeRow{v:"def2".to_string(), i:1, c:None}, TreeRow{v:"def3".to_string(), i:3, c:None}])}];
+    //let result_rows_stripped:Vec<TreeRow> = vec![TreeRow{v:String::from("abc"), i:1, c:None}, TreeRow{v:String::from("def"), i:2, c:Some(vec![TreeRow{v:String::from("def2"), i:1, c:None}, TreeRow{v:String::from("def3"), i:3, c:None}])}];
     let mut tx = db.begin_tx().await?;
     let w = tx.get_texts_db(course_id).await?;
     tx.commit_tx().await?;
@@ -955,9 +955,9 @@ pub async fn gkv_get_texts(
         last_page: vlast_page,
         lastpage_up: vlast_page_up,
         scroll: if query_params.w.is_empty() && info.page == 0 && seq == 1 {
-            "top".to_string()
+            String::from("top")
         } else {
-            "".to_string()
+            String::from("")
         }, //scroll really only needs to return top
         query: query_params.w.to_owned(),
         arr_options: assignment_rows, //result_rows_stripped//result_rows
@@ -1014,7 +1014,7 @@ pub async fn gkv_get_text_words(
         text_name,
         words: w,
         selected_id: selected_word_id,
-        error: "".to_string(),
+        error: String::from(""),
     })
 }
 
@@ -1069,8 +1069,8 @@ mod tests {
         let info = ConnectionInfo {
             user_id: user_id.try_into().unwrap(),
             timestamp: get_timestamp(),
-            ip_address: "0.0.0.0".to_string(),
-            user_agent: "test_agent".to_string(),
+            ip_address: String::from("0.0.0.0"),
+            user_agent: String::from("test_agent"),
         };
         (db, info)
     }
@@ -1097,13 +1097,13 @@ mod tests {
         //add fake glosses so the auto-glossing passes foreign key constraints
         for _n in 1..31 {
             let post = UpdateGlossRequest {
-                qtype: "newlemma".to_string(),
+                qtype: String::from("newlemma"),
                 hqid: None,
-                lemma: "newword".to_string(),
-                stripped_lemma: "newword".to_string(),
-                pos: "newpos".to_string(),
-                def: "newdef".to_string(),
-                note: "newnote".to_string(),
+                lemma: String::from("newword"),
+                stripped_lemma: String::from("newword"),
+                pos: String::from("newpos"),
+                def: String::from("newdef"),
+                note: String::from("newnote"),
             };
             let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
@@ -1129,13 +1129,13 @@ mod tests {
         //add fake glosses so the auto-glossing passes foreign key constraints
         for _n in 1..2 {
             let post = UpdateGlossRequest {
-                qtype: "newlemma".to_string(),
+                qtype: String::from("newlemma"),
                 hqid: None,
-                lemma: "newword".to_string(),
-                stripped_lemma: "newword".to_string(),
-                pos: "newpos".to_string(),
-                def: "newdef".to_string(),
-                note: "newnote".to_string(),
+                lemma: String::from("newword"),
+                stripped_lemma: String::from("newword"),
+                pos: String::from("newpos"),
+                def: String::from("newdef"),
+                note: String::from("newnote"),
             };
             let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
@@ -1199,13 +1199,13 @@ mod tests {
         //test inserting gloss
         //insert gloss before adding it to the lemmatizer because of foreign key
         let post = UpdateGlossRequest {
-            qtype: "newlemma".to_string(),
+            qtype: String::from("newlemma"),
             hqid: None,
-            lemma: "newword".to_string(),
-            stripped_lemma: "newword".to_string(),
-            pos: "newpos".to_string(),
-            def: "newdef".to_string(),
-            note: "newnote".to_string(),
+            lemma: String::from("newword"),
+            stripped_lemma: String::from("newword"),
+            pos: String::from("newpos"),
+            def: String::from("newdef"),
+            note: String::from("newnote"),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         assert!(res.is_ok());
@@ -1213,13 +1213,13 @@ mod tests {
         //test updating gloss
         let inserted_id: u32 = res.unwrap().inserted_id.unwrap().try_into().unwrap();
         let post = UpdateGlossRequest {
-            qtype: "newlemma".to_string(),
+            qtype: String::from("newlemma"),
             hqid: Some(inserted_id),
-            lemma: "newwordnew".to_string(),
-            stripped_lemma: "newword".to_string(),
-            pos: "newpos".to_string(),
-            def: "newdef".to_string(),
-            note: "newnote".to_string(),
+            lemma: String::from("newwordnew"),
+            stripped_lemma: String::from("newword"),
+            pos: String::from("newpos"),
+            def: String::from("newdef"),
+            note: String::from("newnote"),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         assert!(res.is_ok());
@@ -1245,16 +1245,16 @@ mod tests {
             res.unwrap(),
             MiscErrorResponse {
                 this_text: 1,
-                text_name: "title".to_string(),
+                text_name: String::from("title"),
                 words: [
                     WordRow {
                         wordid: 1,
-                        word: "blah".to_string(),
+                        word: String::from("blah"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 1,
@@ -1264,18 +1264,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 2,
-                        word: "ὥστε".to_string(),
+                        word: String::from("ὥστε"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: None,
                         hqid: 1,
                         seq: 2,
@@ -1285,18 +1285,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 3,
-                        word: "δὲ".to_string(),
+                        word: String::from("δὲ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 3,
@@ -1306,14 +1306,14 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     }
                 ]
                 .to_vec(),
                 selected_id: None,
-                error: "".to_string()
+                error: String::from("")
             }
         );
     }
@@ -1335,7 +1335,7 @@ mod tests {
         //println!("words: {:?}", res);
 
         let post = ArrowWordRequest {
-            qtype: "arrowWord".to_string(),
+            qtype: String::from("arrowWord"),
             for_lemma_id: Some(30),     //gloss_id
             set_arrowed_id_to: Some(5), //word_id
             textwordid: None,
@@ -1369,13 +1369,13 @@ mod tests {
 
         //insert gloss
         let post = UpdateGlossRequest {
-            qtype: "newlemma".to_string(),
+            qtype: String::from("newlemma"),
             hqid: None,
-            lemma: "newword".to_string(),
-            stripped_lemma: "newword".to_string(),
-            pos: "newpos".to_string(),
-            def: "newdef".to_string(),
-            note: "newnote".to_string(),
+            lemma: String::from("newword"),
+            stripped_lemma: String::from("newword"),
+            pos: String::from("newpos"),
+            def: String::from("newdef"),
+            note: String::from("newnote"),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
@@ -1390,7 +1390,7 @@ mod tests {
 
         //set_gloss on word
         let post = SetGlossRequest {
-            qtype: "set_gloss".to_string(),
+            qtype: String::from("set_gloss"),
             word_id: 17,
             gloss_id,
         };
@@ -1400,13 +1400,13 @@ mod tests {
         assert_eq!(
             res.unwrap(),
             UpdateGlossIdResponse {
-                qtype: "set_gloss".to_string(),
+                qtype: String::from("set_gloss"),
                 words: [SmallWord {
                     wordid: 17,
                     hqid: gloss_id,
-                    lemma: "newword".to_string(),
-                    pos: "newpos".to_string(),
-                    def: "newdef".to_string(),
+                    lemma: String::from("newword"),
+                    pos: String::from("newpos"),
+                    def: String::from("newdef"),
                     runningcount: Some(1),
                     arrowed_seq: None,
                     total: Some(1),
@@ -1422,7 +1422,7 @@ mod tests {
         );
 
         let post = SetGlossRequest {
-            qtype: "set_gloss".to_string(),
+            qtype: String::from("set_gloss"),
             word_id: 20,
             gloss_id,
         };
@@ -1432,14 +1432,14 @@ mod tests {
         assert_eq!(
             res.unwrap(),
             UpdateGlossIdResponse {
-                qtype: "set_gloss".to_string(),
+                qtype: String::from("set_gloss"),
                 words: [
                     SmallWord {
                         wordid: 17,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(1),
                         arrowed_seq: None,
                         total: Some(2),
@@ -1451,9 +1451,9 @@ mod tests {
                     SmallWord {
                         wordid: 20,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(2),
                         arrowed_seq: None,
                         total: Some(2),
@@ -1471,7 +1471,7 @@ mod tests {
 
         //arrow word
         let post = ArrowWordRequest {
-            qtype: "arrowWord".to_string(),
+            qtype: String::from("arrowWord"),
             for_lemma_id: Some(gloss_id), //gloss_id
             set_arrowed_id_to: Some(17),  //word_id
             textwordid: None,
@@ -1499,16 +1499,16 @@ mod tests {
             res.unwrap(),
             MiscErrorResponse {
                 this_text: 1,
-                text_name: "testingtext".to_string(),
+                text_name: String::from("testingtext"),
                 words: [
                     WordRow {
                         wordid: 1,
-                        word: "Θύρσις ἢ ᾠδή".to_string(),
+                        word: String::from("Θύρσις ἢ ᾠδή"),
                         word_type: 7,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 1,
@@ -1518,18 +1518,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 2,
-                        word: "Θύρσις".to_string(),
+                        word: String::from("Θύρσις"),
                         word_type: 2,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 2,
@@ -1539,18 +1539,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 3,
-                        word: "[line]5".to_string(),
+                        word: String::from("[line]5"),
                         word_type: 5,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 3,
@@ -1560,18 +1560,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 4,
-                        word: "αἴκα".to_string(),
+                        word: String::from("αἴκα"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 4,
@@ -1581,18 +1581,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 5,
-                        word: "δ".to_string(),
+                        word: String::from("δ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 5,
@@ -1602,18 +1602,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 6,
-                        word: "᾽".to_string(),
+                        word: String::from("᾽"),
                         word_type: 1,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 6,
@@ -1623,18 +1623,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 7,
-                        word: "αἶγα".to_string(),
+                        word: String::from("αἶγα"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 7,
@@ -1644,18 +1644,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 8,
-                        word: "λάβῃ".to_string(),
+                        word: String::from("λάβῃ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 8,
@@ -1665,18 +1665,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 9,
-                        word: "τῆνος".to_string(),
+                        word: String::from("τῆνος"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 9,
@@ -1686,18 +1686,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 10,
-                        word: "γέρας".to_string(),
+                        word: String::from("γέρας"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 10,
@@ -1707,18 +1707,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 11,
-                        word: ",".to_string(),
+                        word: String::from(","),
                         word_type: 1,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 11,
@@ -1728,18 +1728,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 12,
-                        word: "ἐς".to_string(),
+                        word: String::from("ἐς"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 12,
@@ -1749,18 +1749,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 13,
-                        word: "τὲ".to_string(),
+                        word: String::from("τὲ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 13,
@@ -1770,18 +1770,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 14,
-                        word: "καταρρεῖ".to_string(),
+                        word: String::from("καταρρεῖ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 14,
@@ -1791,18 +1791,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 15,
-                        word: "".to_string(),
+                        word: String::from(""),
                         word_type: 11,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 15,
@@ -1812,18 +1812,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 16,
-                        word: "[line]10".to_string(),
+                        word: String::from("[line]10"),
                         word_type: 5,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 16,
@@ -1833,18 +1833,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 17,
-                        word: "ὁσίου".to_string(),
+                        word: String::from("ὁσίου"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: Some(17),
                         hqid: 31,
                         seq: 17,
@@ -1854,18 +1854,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: Some(1),
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 18,
-                        word: "γὰρ".to_string(),
+                        word: String::from("γὰρ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 18,
@@ -1875,18 +1875,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 19,
-                        word: "ἀνδρὸς".to_string(),
+                        word: String::from("ἀνδρὸς"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 19,
@@ -1896,18 +1896,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 20,
-                        word: "ὅσιος".to_string(),
+                        word: String::from("ὅσιος"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: Some(17),
                         hqid: 31,
                         seq: 20,
@@ -1917,18 +1917,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: Some(1),
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 21,
-                        word: "ὢν".to_string(),
+                        word: String::from("ὢν"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 21,
@@ -1938,18 +1938,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 22,
-                        word: "ἐτύγχανον".to_string(),
+                        word: String::from("ἐτύγχανον"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 22,
@@ -1959,18 +1959,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 23,
-                        word: "".to_string(),
+                        word: String::from(""),
                         word_type: 10,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 23,
@@ -1980,18 +1980,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 24,
-                        word: "This".to_string(),
+                        word: String::from("This"),
                         word_type: 12,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 24,
@@ -2001,18 +2001,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 25,
-                        word: "is".to_string(),
+                        word: String::from("is"),
                         word_type: 12,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 25,
@@ -2022,18 +2022,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 26,
-                        word: "a".to_string(),
+                        word: String::from("a"),
                         word_type: 12,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 26,
@@ -2043,18 +2043,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 27,
-                        word: "test".to_string(),
+                        word: String::from("test"),
                         word_type: 12,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 27,
@@ -2064,18 +2064,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 28,
-                        word: ".".to_string(),
+                        word: String::from("."),
                         word_type: 1,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 28,
@@ -2085,18 +2085,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 29,
-                        word: "".to_string(),
+                        word: String::from(""),
                         word_type: 10,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 29,
@@ -2106,18 +2106,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 30,
-                        word: "γὰρ".to_string(),
+                        word: String::from("γὰρ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 30,
@@ -2127,14 +2127,14 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                 ]
                 .to_vec(),
                 selected_id: None,
-                error: "".to_string()
+                error: String::from("")
             }
         );
 
@@ -2149,16 +2149,16 @@ mod tests {
             *res.as_ref().unwrap(),
             MiscErrorResponse {
                 this_text: 2,
-                text_name: "testingtext2".to_string(),
+                text_name: String::from("testingtext2"),
                 words: [
                     WordRow {
                         wordid: 31,
-                        word: "ὁσίου".to_string(),
+                        word: String::from("ὁσίου"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 1,
@@ -2168,18 +2168,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 2,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 32,
-                        word: "γὰρ".to_string(),
+                        word: String::from("γὰρ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 2,
@@ -2189,18 +2189,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 2,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 33,
-                        word: "ὅσιος".to_string(),
+                        word: String::from("ὅσιος"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 3,
@@ -2210,21 +2210,21 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 2,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     }
                 ]
                 .to_vec(),
                 selected_id: None,
-                error: "".to_string()
+                error: String::from("")
             }
         );
         //println!("res {:?}", res);
 
         //set_gloss
         let post = SetGlossRequest {
-            qtype: "set_gloss".to_string(),
+            qtype: String::from("set_gloss"),
             word_id: 31,
             gloss_id,
         };
@@ -2234,14 +2234,14 @@ mod tests {
         assert_eq!(
             res.unwrap(),
             UpdateGlossIdResponse {
-                qtype: "set_gloss".to_string(),
+                qtype: String::from("set_gloss"),
                 words: [
                     SmallWord {
                         wordid: 17,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(1),
                         arrowed_seq: Some(17),
                         total: Some(3),
@@ -2253,9 +2253,9 @@ mod tests {
                     SmallWord {
                         wordid: 20,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(2),
                         arrowed_seq: Some(17),
                         total: Some(3),
@@ -2267,9 +2267,9 @@ mod tests {
                     SmallWord {
                         wordid: 31,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(3),
                         arrowed_seq: Some(17),
                         total: Some(3),
@@ -2286,7 +2286,7 @@ mod tests {
         );
 
         let post = SetGlossRequest {
-            qtype: "set_gloss".to_string(),
+            qtype: String::from("set_gloss"),
             word_id: 33,
             gloss_id,
         };
@@ -2296,14 +2296,14 @@ mod tests {
         assert_eq!(
             res.unwrap(),
             UpdateGlossIdResponse {
-                qtype: "set_gloss".to_string(),
+                qtype: String::from("set_gloss"),
                 words: [
                     SmallWord {
                         wordid: 17,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(1),
                         arrowed_seq: Some(17),
                         total: Some(4),
@@ -2315,9 +2315,9 @@ mod tests {
                     SmallWord {
                         wordid: 20,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(2),
                         arrowed_seq: Some(17),
                         total: Some(4),
@@ -2329,9 +2329,9 @@ mod tests {
                     SmallWord {
                         wordid: 31,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(3),
                         arrowed_seq: Some(17),
                         total: Some(4),
@@ -2343,9 +2343,9 @@ mod tests {
                     SmallWord {
                         wordid: 33,
                         hqid: gloss_id,
-                        lemma: "newword".to_string(),
-                        pos: "newpos".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        pos: String::from("newpos"),
+                        def: String::from("newdef"),
                         runningcount: Some(4),
                         arrowed_seq: Some(17),
                         total: Some(4),
@@ -2367,16 +2367,16 @@ mod tests {
             *res.as_ref().unwrap(),
             MiscErrorResponse {
                 this_text: 2,
-                text_name: "testingtext2".to_string(),
+                text_name: String::from("testingtext2"),
                 words: [
                     WordRow {
                         wordid: 31,
-                        word: "ὁσίου".to_string(),
+                        word: String::from("ὁσίου"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: Some(17),
                         hqid: 31,
                         seq: 1,
@@ -2386,18 +2386,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 2,
                         arrowed_text_seq: Some(1),
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 32,
-                        word: "γὰρ".to_string(),
+                        word: String::from("γὰρ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 2,
@@ -2407,18 +2407,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 2,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 33,
-                        word: "ὅσιος".to_string(),
+                        word: String::from("ὅσιος"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: Some(17),
                         hqid: 31,
                         seq: 3,
@@ -2428,27 +2428,27 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 2,
                         arrowed_text_seq: Some(1),
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     }
                 ]
                 .to_vec(),
                 selected_id: None,
-                error: "".to_string()
+                error: String::from("")
             }
         );
 
         let timestamp = 1667191605; //get_timestamp().try_into().unwrap(),
         let info = WordtreeQueryRequest {
             n: 101,
-            idprefix: "text".to_string(),
-            x: "0.2813670904164459".to_string(),
+            idprefix: String::from("text"),
+            x: String::from("0.2813670904164459"),
             request_time: timestamp,
             page: 0, //can be negative for pages before
-            mode: "context".to_string(),
+            mode: String::from("context"),
             query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
-            lex: Some("hqvocab".to_string()),
+            lex: Some(String::from("hqvocab")),
         };
 
         let res = gkv_get_texts(&db, &info).await;
@@ -2456,26 +2456,26 @@ mod tests {
             *res.as_ref().unwrap(),
             WordtreeQueryResponse {
                 select_id: Some(0),
-                error: "".to_string(),
-                wtprefix: "text".to_string(),
+                error: String::from(""),
+                wtprefix: String::from("text"),
                 nocache: 0,
-                container: "textContainer".to_string(),
+                container: String::from("textContainer"),
                 request_time: 1667191605,
                 page: 0,
                 last_page: 1,
                 lastpage_up: 1,
-                scroll: "".to_string(),
-                query: "".to_string(),
+                scroll: String::from(""),
+                query: String::from(""),
                 arr_options: [
                     AssignmentTree {
                         i: 1,
-                        col: ["testingtext".to_string(), "1".to_string()].to_vec(),
+                        col: [String::from("testingtext"), String::from("1")].to_vec(),
                         c: [].to_vec(),
                         h: false
                     },
                     AssignmentTree {
                         i: 2,
-                        col: ["testingtext2".to_string(), "2".to_string()].to_vec(),
+                        col: [String::from("testingtext2"), String::from("2")].to_vec(),
                         c: [].to_vec(),
                         h: false
                     }
@@ -2498,13 +2498,13 @@ mod tests {
 
         let info = WordtreeQueryRequest {
             n: 101,
-            idprefix: "text".to_string(),
-            x: "0.2813670904164459".to_string(),
+            idprefix: String::from("text"),
+            x: String::from("0.2813670904164459"),
             request_time: timestamp,
             page: 0, //can be negative for pages before
-            mode: "context".to_string(),
+            mode: String::from("context"),
             query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
-            lex: Some("hqvocab".to_string()),
+            lex: Some(String::from("hqvocab")),
         };
 
         let res = gkv_get_texts(&db, &info).await;
@@ -2512,26 +2512,26 @@ mod tests {
             *res.as_ref().unwrap(),
             WordtreeQueryResponse {
                 select_id: Some(0),
-                error: "".to_string(),
-                wtprefix: "text".to_string(),
+                error: String::from(""),
+                wtprefix: String::from("text"),
                 nocache: 0,
-                container: "textContainer".to_string(),
+                container: String::from("textContainer"),
                 request_time: 1667191605,
                 page: 0,
                 last_page: 1,
                 lastpage_up: 1,
-                scroll: "".to_string(),
-                query: "".to_string(),
+                scroll: String::from(""),
+                query: String::from(""),
                 arr_options: [
                     AssignmentTree {
                         i: 2,
-                        col: ["testingtext2".to_string(), "2".to_string()].to_vec(),
+                        col: [String::from("testingtext2"), String::from("2")].to_vec(),
                         c: [].to_vec(),
                         h: false
                     },
                     AssignmentTree {
                         i: 1,
-                        col: ["testingtext".to_string(), "1".to_string()].to_vec(),
+                        col: [String::from("testingtext"), String::from("1")].to_vec(),
                         c: [].to_vec(),
                         h: false
                     }
@@ -2548,16 +2548,16 @@ mod tests {
             *res.as_ref().unwrap(),
             MiscErrorResponse {
                 this_text: 2,
-                text_name: "testingtext2".to_string(),
+                text_name: String::from("testingtext2"),
                 words: [
                     WordRow {
                         wordid: 31,
-                        word: "ὁσίου".to_string(),
+                        word: String::from("ὁσίου"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: Some(17),
                         hqid: 31,
                         seq: 1,
@@ -2567,18 +2567,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: Some(2),
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 32,
-                        word: "γὰρ".to_string(),
+                        word: String::from("γὰρ"),
                         word_type: 0,
-                        lemma: "".to_string(),
-                        def: "".to_string(),
+                        lemma: String::from(""),
+                        def: String::from(""),
                         unit: 0,
-                        pos: "".to_string(),
+                        pos: String::from(""),
                         arrowed_id: None,
                         hqid: 0,
                         seq: 2,
@@ -2588,18 +2588,18 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: None,
-                        sort_alpha: "".to_string(),
+                        sort_alpha: String::from(""),
                         last_word_of_page: false,
                         app_crit: None
                     },
                     WordRow {
                         wordid: 33,
-                        word: "ὅσιος".to_string(),
+                        word: String::from("ὅσιος"),
                         word_type: 0,
-                        lemma: "newword".to_string(),
-                        def: "newdef".to_string(),
+                        lemma: String::from("newword"),
+                        def: String::from("newdef"),
                         unit: 0,
-                        pos: "newpos".to_string(),
+                        pos: String::from("newpos"),
                         arrowed_id: Some(17),
                         hqid: 31,
                         seq: 3,
@@ -2609,14 +2609,14 @@ mod tests {
                         is_flagged: false,
                         word_text_seq: 1,
                         arrowed_text_seq: Some(2),
-                        sort_alpha: "newword".to_string(),
+                        sort_alpha: String::from("newword"),
                         last_word_of_page: false,
                         app_crit: None
                     }
                 ]
                 .to_vec(),
                 selected_id: None,
-                error: "".to_string()
+                error: String::from("")
             }
         );
     }
@@ -2640,7 +2640,7 @@ mod tests {
 
         //set an already existing gloss
         let post = SetGlossRequest {
-            qtype: "set_gloss".to_string(),
+            qtype: String::from("set_gloss"),
             word_id: 17,
             gloss_id: 30,
         };
@@ -2650,13 +2650,13 @@ mod tests {
         assert_eq!(
             res.unwrap(),
             UpdateGlossIdResponse {
-                qtype: "set_gloss".to_string(),
+                qtype: String::from("set_gloss"),
                 words: [SmallWord {
                     wordid: 17,
                     hqid: 30,
-                    lemma: "newword".to_string(),
-                    pos: "newpos".to_string(),
-                    def: "newdef".to_string(),
+                    lemma: String::from("newword"),
+                    pos: String::from("newpos"),
+                    def: String::from("newdef"),
                     runningcount: Some(1),
                     arrowed_seq: None,
                     total: Some(1),
@@ -2681,13 +2681,13 @@ mod tests {
         let (db, user_info) = set_up().await;
 
         let post = UpdateGlossRequest {
-            qtype: "newlemma".to_string(),
+            qtype: String::from("newlemma"),
             hqid: None,
-            lemma: "newword".to_string(),
-            stripped_lemma: "newword".to_string(),
-            pos: "newpos".to_string(),
-            def: "newdef".to_string(),
-            note: "newnote".to_string(),
+            lemma: String::from("newword"),
+            stripped_lemma: String::from("newword"),
+            pos: String::from("newpos"),
+            def: String::from("newdef"),
+            note: String::from("newnote"),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
@@ -2703,7 +2703,7 @@ mod tests {
         assert_eq!(
             *res.as_ref().unwrap(),
             UpdateGlossResponse {
-                qtype: "newlemma".to_string(),
+                qtype: String::from("newlemma"),
                 success: true,
                 affectedrows: 1,
                 inserted_id: Some(1)
@@ -2711,20 +2711,20 @@ mod tests {
         );
 
         let post = UpdateGlossRequest {
-            qtype: "editlemma".to_string(),
+            qtype: String::from("editlemma"),
             hqid: Some(gloss_id),
-            lemma: "newword2".to_string(),
-            stripped_lemma: "newword2".to_string(),
-            pos: "newpos2".to_string(),
-            def: "newdef2".to_string(),
-            note: "newnote2".to_string(),
+            lemma: String::from("newword2"),
+            stripped_lemma: String::from("newword2"),
+            pos: String::from("newpos2"),
+            def: String::from("newdef2"),
+            note: String::from("newnote2"),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
         assert_eq!(
             *res.as_ref().unwrap(),
             UpdateGlossResponse {
-                qtype: "editlemma".to_string(),
+                qtype: String::from("editlemma"),
                 success: true,
                 affectedrows: 1,
                 inserted_id: None
@@ -2734,11 +2734,11 @@ mod tests {
         let timestamp = 1667191605; //get_timestamp().try_into().unwrap(),
         let info = WordtreeQueryRequest {
             n: 101,
-            idprefix: "updatelog".to_string(),
-            x: "0.4828853350220542".to_string(),
+            idprefix: String::from("updatelog"),
+            x: String::from("0.4828853350220542"),
             request_time: timestamp,
             page: 0, //can be negative for pages before
-            mode: "context".to_string(),
+            mode: String::from("context"),
             query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
             lex: None,
         };

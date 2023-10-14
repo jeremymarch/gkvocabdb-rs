@@ -60,12 +60,12 @@ pub async fn hqvocab(
 
     let lower_str = match &info.lower {
         Some(s) => s.clone(),
-        None => "1".to_string(),
+        None => String::from("1"),
     };
 
     let upper_str = match &info.upper {
         Some(s) => s.clone(),
-        None => "20".to_string(),
+        None => String::from("20"),
     };
 
     let mut lower: u32 = lower_str.trim().parse::<u32>().unwrap_or(1);
@@ -87,7 +87,7 @@ pub async fn hqvocab(
         upper = lower;
     }
 
-    let sort = info.sort.clone().unwrap_or_else(|| "unit".to_string());
+    let sort = info.sort.clone().unwrap_or_else(|| String::from("unit"));
     let mut tx = db.begin_tx().await.map_err(map_glosser_error)?;
     for p in ["noun", "verb", "adjective", "other"] {
         let mut res = String::from("");
@@ -116,11 +116,11 @@ pub async fn hqvocab(
                         if w.0.starts_with("ἐκ, ") {
                             w.0.to_string()
                         } else if w.0.starts_with("—, ἐ") {
-                            "—, ἐρήσομαι".to_string()
+                            String::from("—, ἐρήσομαι")
                         } else if w.0.starts_with("—, ἀν") {
-                            "—, ἀνερήσομαι".to_string()
+                            String::from("—, ἀνερήσομαι")
                         } else if w.0.starts_with("—, ἀλ") {
-                            "—, ἀλλήλων".to_string()
+                            String::from("—, ἀλλήλων")
                         } else {
                             w.0.chars().take_while(|&ch| ch != ',').collect::<String>()
                             //w.0.split(',').next().unwrap().to_string()
@@ -134,7 +134,7 @@ pub async fn hqvocab(
                     } else {
                         w.0
                     },
-                    if sort == "alpha" { u } else { "".to_string() },
+                    if sort == "alpha" { u } else { String::from("") },
                     w.2
                 )
                 .as_str(),
