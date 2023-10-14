@@ -34,7 +34,7 @@ fn map_xml_error(e: quick_xml::Error) -> GlosserError {
     GlosserError::XmlError(e.to_string())
 }
 
-pub async fn import(
+pub async fn gkv_import_text(
     db: &dyn GlosserDb,
     course_id: u32,
     info: &ConnectionInfo,

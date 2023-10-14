@@ -159,7 +159,7 @@ async fn import_text(
 
         match get_xml_string(payload).await {
             Ok((xml_string, title)) => {
-                let res = import_text::import(db, course_id, &info, &title, &xml_string)
+                let res = import_text::gkv_import_text(db, course_id, &info, &title, &xml_string)
                     .await
                     .map_err(map_glosser_error)?;
                 Ok(HttpResponse::Ok().json(res))
