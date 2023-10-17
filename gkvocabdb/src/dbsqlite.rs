@@ -28,6 +28,8 @@ use crate::SmallWord;
 use crate::TextWord;
 use crate::UpdateType;
 use crate::WordRow;
+use secrecy::ExposeSecret;
+use secrecy::Secret;
 use serde::Deserialize;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Transaction;
@@ -1470,7 +1472,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         name: &str,
         initials: &str,
         user_type: u32,
-        password: &str,
+        password: Secret<String>,
         email: &str,
     ) -> Result<i64, GlosserError> {
         let query = r#"INSERT INTO users (user_id, name, initials, user_type, password, email) VALUES (NULL, $1, $2, $3, $4, $5);"#;
@@ -1478,7 +1480,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .bind(name)
             .bind(initials)
             .bind(user_type)
-            .bind(password)
+            .bind(password.expose_secret())
             .bind(email)
             .execute(&mut *self.tx)
             .await
@@ -1486,6 +1488,26 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .last_insert_rowid();
 
         Ok(user_id)
+    }
+
+    async fn get_credentials(
+        &mut self,
+        username: &str,
+    ) -> Result<Option<(u32, Secret<String>)>, GlosserError> {
+        let row = sqlx::query(
+            r#"
+            SELECT user_id, password
+            FROM users
+            WHERE initials = $1
+            "#,
+        )
+        .bind(username)
+        .map(|row: SqliteRow| (row.get("user_id"), Secret::new(row.get("password"))))
+        .fetch_optional(&mut *self.tx)
+        .await
+        .map_err(map_sqlx_error)?;
+
+        Ok(row)
     }
 
     async fn create_db(&mut self) -> Result<(), GlosserError> {

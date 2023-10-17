@@ -16,6 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+use crate::map_glosser_error;
 use actix_session::Session;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
@@ -24,7 +25,8 @@ use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use gkvocabdb::dbsqlite::GlosserDbSqlite;
-use secrecy::ExposeSecret;
+use gkvocabdb::gkv_validate_credentials;
+use gkvocabdb::Credentials;
 use secrecy::Secret;
 
 #[derive(serde::Deserialize)]
@@ -33,12 +35,8 @@ pub struct FormData {
     password: Secret<String>,
 }
 
-pub struct Credentials {
-    pub username: String,
-    pub password: Secret<String>,
-}
-
 pub fn get_user_id(session: Session) -> Option<u32> {
+    //session.purge(); //to force logout
     session.get::<u32>("user_id").unwrap_or(None)
 }
 
@@ -106,43 +104,46 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 </html>"#))
 }
 
-fn validate_login(credentials: Credentials) -> Option<u32> {
-    if credentials.username.to_lowercase() == "jm"
-        && credentials.password.expose_secret() == "clam1234"
-    {
-        Some(3)
-    } else if credentials.username.to_lowercase() == "ykk"
-        && credentials.password.expose_secret() == "greekdb555"
-    {
-        Some(4)
-    } else if credentials.username.to_lowercase() == "hh"
-        && credentials.password.expose_secret() == "greekdb555"
-    {
-        Some(5)
-    } else if credentials.username.to_lowercase() == "cd"
-        && credentials.password.expose_secret() == "greekdb555"
-    {
-        Some(6)
-    } else if credentials.username.to_lowercase() == "rr"
-        && credentials.password.expose_secret() == "greekdb555"
-    {
-        Some(7)
-    } else {
-        None
-    }
-}
+// fn validate_login(credentials: Credentials) -> Option<u32> {
+//     if credentials.username.to_lowercase() == "jm"
+//         && credentials.password.expose_secret() == "greekdb555"
+//     {
+//         Some(3)
+//     } else if credentials.username.to_lowercase() == "ykk"
+//         && credentials.password.expose_secret() == "greekdb555"
+//     {
+//         Some(4)
+//     } else if credentials.username.to_lowercase() == "hh"
+//         && credentials.password.expose_secret() == "greekdb555"
+//     {
+//         Some(5)
+//     } else if credentials.username.to_lowercase() == "cd"
+//         && credentials.password.expose_secret() == "greekdb555"
+//     {
+//         Some(6)
+//     } else if credentials.username.to_lowercase() == "rr"
+//         && credentials.password.expose_secret() == "greekdb555"
+//     {
+//         Some(7)
+//     } else {
+//         None
+//     }
+// }
 
 pub async fn login_post(
     (session, form, req): (Session, web::Form<FormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let _db = req.app_data::<GlosserDbSqlite>().unwrap();
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let credentials = Credentials {
         username: form.0.username,
         password: form.0.password,
     };
 
-    if let Some(user_id) = validate_login(credentials) {
+    if let Ok(user_id) = gkv_validate_credentials(db, credentials)
+        .await
+        .map_err(map_glosser_error)
+    {
         session.renew(); //https://www.lpalmieri.com/posts/session-based-authentication-in-rust/#4-5-2-session
         if session.insert("user_id", user_id).is_ok() {
             return Ok(HttpResponse::SeeOther()
@@ -156,49 +157,3 @@ pub async fn login_post(
         .insert_header((LOCATION, "/login"))
         .finish())
 }
-
-/*
-async fn check_login((session, _req): (Session, HttpRequest)) -> Result<HttpResponse, AWError> {
-    //session.insert("user_id", 1);
-    //session.renew();
-    //session.purge();
-    if let Some(user_id) = get_user_id(session) {
-        return Ok(HttpResponse::Ok().json(LoginCheckResponse { is_logged_in:true,user_id:user_id }));
-    }
-    Ok(HttpResponse::Ok().json(LoginCheckResponse { is_logged_in:false,user_id:0 }))
-}
-*/
-
-/* For Basic Authentication
-use actix_web_httpauth::middleware::HttpAuthentication;
-use actix_web_httpauth::extractors::basic::BasicAuth;
-use actix_web_httpauth::extractors::basic::Config;
-use actix_web_httpauth::extractors::AuthenticationError;
-use actix_web::dev::ServiceRequest;
-use std::pin::Pin;
-
-async fn validator_basic(req: ServiceRequest, credentials: BasicAuth) -> Result<ServiceRequest, Error> {
-
-    let config = req.app_data::<Config>()
-    .map(|data| Pin::new(data).get_ref().clone())
-    .unwrap_or_else(Default::default);
-
-    match validate_credentials_basic(credentials.user_id(), credentials.password().unwrap().trim()) {
-        Ok(res) => {
-            if res {
-                Ok(req)
-            } else {
-                Err(AuthenticationError::from(config).into())
-            }
-        }
-        Err(_) => Err(AuthenticationError::from(config).into()),
-    }
-}
-
-fn validate_credentials_basic(user_id: &str, user_password: &str) -> Result<bool, std::io::Error> {
-    if user_id.eq("greekdb") && user_password.eq("pass") {
-        return Ok(true);
-    }
-    Err(std::io::Error::new(std::io::ErrorKind::Other, "Authentication failed!"))
-}
-*/

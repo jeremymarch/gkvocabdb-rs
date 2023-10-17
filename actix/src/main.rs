@@ -559,6 +559,11 @@ pub fn map_glosser_error(e: GlosserError) -> PhilologusError {
             name: String::from("import error"),
             error: format!("import error: {}", e),
         },
+        GlosserError::AuthenticationError => PhilologusError {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            name: String::from("authentication error"),
+            error: String::from("authentication error"),
+        },
         GlosserError::UnknownError => PhilologusError {
             code: StatusCode::INTERNAL_SERVER_ERROR,
             name: String::from("unknown error"),

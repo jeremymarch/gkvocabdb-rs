@@ -27,17 +27,35 @@ pub mod dbsqlite;
 pub mod export_text;
 pub mod import_text;
 
+use argon2::password_hash::SaltString;
+use argon2::Algorithm;
+use argon2::Argon2;
+use argon2::Params;
+use argon2::PasswordHash;
+use argon2::PasswordHasher;
+use argon2::PasswordVerifier;
+use argon2::Version;
 use chrono::Utc;
+use secrecy::ExposeSecret;
+use secrecy::Secret;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use tokio::task::spawn_blocking;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Clone)]
+pub struct Credentials {
+    pub username: String,
+    pub password: Secret<String>,
+}
+
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum GlosserError {
     Database(String),
     XmlError(String),
     JsonError(String),
     ImportError(String),
+    AuthenticationError,
     UnknownError,
 }
 
@@ -48,6 +66,7 @@ impl std::fmt::Display for GlosserError {
             GlosserError::XmlError(s) => write!(fmt, "GlosserError: xml: {}", s),
             GlosserError::JsonError(s) => write!(fmt, "GlosserError: json error: {}", s),
             GlosserError::ImportError(s) => write!(fmt, "GlosserError: import error: {}", s),
+            GlosserError::AuthenticationError => write!(fmt, "GlosserError: authentication error"),
             GlosserError::UnknownError => write!(fmt, "GlosserError: unknown error"),
         }
     }
@@ -544,9 +563,14 @@ pub trait GlosserDbTrx {
         name: &str,
         initials: &str,
         user_type: u32,
-        password: &str,
+        password: Secret<String>,
         email: &str,
     ) -> Result<i64, GlosserError>;
+
+    async fn get_credentials(
+        &mut self,
+        username: &str,
+    ) -> Result<Option<(u32, Secret<String>)>, GlosserError>;
 
     async fn create_db(&mut self) -> Result<(), GlosserError>;
 }
@@ -1031,6 +1055,98 @@ pub async fn gkv_create_db(db: &dyn GlosserDb) -> Result<(), GlosserError> {
     Ok(())
 }
 
+pub async fn gkv_create_user(
+    db: &dyn GlosserDb,
+    name: &str,
+    initials: &str,
+    user_type: u32,
+    password: &str,
+    email: &str,
+) -> Result<u32, GlosserError> {
+    if name.len() < 2
+        || name.len() > 30
+        || password.len() < 8
+        || password.len() > 60
+        || email.len() < 6
+        || email.len() > 120
+    {
+        return Err(GlosserError::UnknownError);
+    }
+
+    let secret_password = Secret::new(password.to_string());
+
+    let password_hash = spawn_blocking(move || compute_password_hash(secret_password))
+        .await
+        .map_err(|_| GlosserError::AuthenticationError)??;
+
+    let mut tx = db.begin_tx().await?;
+    let user_id = tx
+        .insert_user(name, initials, user_type, password_hash, email)
+        .await?;
+    tx.commit_tx().await?;
+    Ok(user_id.try_into().unwrap())
+}
+
+fn compute_password_hash(password: Secret<String>) -> Result<Secret<String>, GlosserError> {
+    let salt = SaltString::generate(&mut rand::thread_rng());
+    let password_hash = Argon2::new(
+        Algorithm::Argon2id,
+        Version::V0x13,
+        Params::new(15000, 2, 1, None).unwrap(),
+    )
+    .hash_password(password.expose_secret().as_bytes(), &salt);
+
+    match password_hash {
+        Ok(p) => Ok(Secret::new(p.to_string())),
+        Err(_e) => Err(GlosserError::AuthenticationError),
+    }
+}
+
+pub async fn gkv_validate_credentials(
+    db: &dyn GlosserDb,
+    credentials: Credentials,
+) -> Result<u32, GlosserError> {
+    let mut user_id = None;
+    let mut expected_password_hash = Secret::new(
+        "$argon2id$v=19$m=15000,t=2,p=1$\
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+            .to_string(),
+    );
+
+    let mut tx = db.begin_tx().await?;
+    if let Some((stored_user_id, stored_password_hash)) =
+        tx.get_credentials(&credentials.username).await?
+    {
+        user_id = Some(stored_user_id);
+        expected_password_hash = stored_password_hash;
+    }
+    tx.commit_tx().await?;
+
+    spawn_blocking(move || {
+        verify_password_hash(expected_password_hash, &credentials.password) //this will error and return if password does not match
+    })
+    .await
+    .map_err(|_| GlosserError::AuthenticationError)??;
+    match user_id {
+        Some(id) => Ok(id),
+        _ => Err(GlosserError::AuthenticationError),
+    }
+}
+
+fn verify_password_hash(
+    expected_password_hash: Secret<String>,
+    password_candidate: &Secret<String>,
+) -> Result<(), GlosserError> {
+    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret());
+    match expected_password_hash {
+        Ok(p) => Argon2::default()
+            .verify_password(password_candidate.expose_secret().as_bytes(), &p)
+            .map_err(|_| GlosserError::AuthenticationError),
+        Err(_) => Err(GlosserError::AuthenticationError),
+    }
+}
+
 pub fn get_timestamp() -> i64 {
     let now = Utc::now();
     now.timestamp()
@@ -1065,15 +1181,19 @@ mod tests {
 
         gkv_create_db(&db).await.expect("Could not create db.");
 
-        let mut tx = db.begin_tx().await.unwrap();
-        let user_id = tx
-            .insert_user("testuser", "tu", 0, "12341234", "tu@blah.com")
+        // let mut tx = db.begin_tx().await.unwrap();
+        // let user_id = tx
+        //     .insert_user("testuser", "tu", 0, "12341234", "tu@blah.com")
+        //     .await
+        //     .unwrap();
+        // tx.commit_tx().await.unwrap();
+
+        let user_id = gkv_create_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com")
             .await
             .unwrap();
-        tx.commit_tx().await.unwrap();
 
         let info = ConnectionInfo {
-            user_id: user_id.try_into().unwrap(),
+            user_id,
             timestamp: get_timestamp(),
             ip_address: String::from("0.0.0.0"),
             user_agent: String::from("test_agent"),
@@ -1149,6 +1269,31 @@ mod tests {
         import_text::gkv_import_text(db, course_id, user_info, title, xml_string)
             .await
             .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_login() {
+        let (db, _user_info) = set_up().await;
+
+        let user_id = gkv_create_user(&db, "testuser9", "jm", 0, "abcdabcd", "user1@blah.com")
+            .await
+            .unwrap();
+
+        //failing credentials
+        let credentials = Credentials {
+            username: String::from("jm"),
+            password: Secret::new("abcdabcdx".to_string()),
+        };
+        let res = gkv_validate_credentials(&db, credentials).await;
+        assert_eq!(res, Err(GlosserError::AuthenticationError));
+
+        //passing credentials
+        let credentials = Credentials {
+            username: String::from("jm"),
+            password: Secret::new("abcdabcd".to_string()),
+        };
+        let res = gkv_validate_credentials(&db, credentials).await;
+        assert_eq!(res.unwrap(), user_id);
     }
 
     #[tokio::test]
