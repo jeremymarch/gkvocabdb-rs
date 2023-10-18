@@ -1467,7 +1467,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     }
 
     #[allow(dead_code)]
-    async fn insert_user(
+    async fn create_user(
         &mut self,
         name: &str,
         initials: &str,
@@ -1524,7 +1524,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type TEXT NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, parent_id INTEGER references texts (text_id) DEFAULT NULL, display INTEGER DEFAULT 1) STRICT;
             CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT ) STRICT;
-            CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, initials TEXT NOT NULL, user_type INTEGER NOT NULL, password TEXT NOT NULL DEFAULT "81237698562398", email TEXT) STRICT;
+            CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL UNIQUE, initials TEXT NOT NULL UNIQUE, user_type INTEGER NOT NULL, password TEXT NOT NULL, email TEXT) STRICT;
             CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id)) STRICT;
             CREATE TABLE IF NOT EXISTS containers (container_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS lemmatizer (form TEXT PRIMARY KEY NOT NULL, gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id)) STRICT;

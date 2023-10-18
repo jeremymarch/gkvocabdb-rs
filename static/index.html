@@ -28,6 +28,9 @@ function setTheme () {
 setTheme();
 </script>
 <style>
+#logoutid {
+  cursor: pointer;
+}
 .verse-line-label {
   margin-right:10px;
   display: inline-block;
@@ -2058,6 +2061,10 @@ function onResize () {
       $('.wordtree').css('width', width - 19 + 'px');
     }
 
+    function logout () {
+      location = '/logout';
+    }
+
     function toggleSettingsClicked () {
       let s = document.getElementById('settingsdiv');
       if (!s) {
@@ -2065,7 +2072,7 @@ function onResize () {
         s.id = 'settingsdiv';
         s.classList.add('settings');
         s.style.display = 'block';
-        s.innerHTML = "Settings<br><ul><li><div tabindex='0' style='height:70px;'>dark mode: <div style='text-align:right;float:right;padding:0px;border:none;'>system <input id='darkModeSystem' type='radio' name='darkmode' onclick='darkModeClick(this);' value='system'/><br>dark <input id='darkModeDark' type='radio' name='darkmode' onclick='darkModeClick(this);' value='dark'/><br>light<input id='darkModeLight' type='radio' name='darkmode' onclick='darkModeClick(this);' value='light'/></div></div></li></ul>";
+        s.innerHTML = "Settings<br><ul><li><div tabindex='0' style='height:70px;'>dark mode: <div style='text-align:right;float:right;padding:0px;border:none;'>system <input id='darkModeSystem' type='radio' name='darkmode' onclick='darkModeClick(this);' value='system'/><br>dark <input id='darkModeDark' type='radio' name='darkmode' onclick='darkModeClick(this);' value='dark'/><br>light<input id='darkModeLight' type='radio' name='darkmode' onclick='darkModeClick(this);' value='light'/></div></div></li><li><div id='logoutid' onclick='logout()'>logout</div></li></ul>";
         const c = document.createElement('div');
         c.id = 'backdrop';
         c.onclick = function () {

@@ -16,7 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-use crate::map_glosser_error;
+
 use actix_session::Session;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
@@ -24,26 +24,35 @@ use actix_web::web;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
+use secrecy::Secret;
+
 use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use gkvocabdb::gkv_validate_credentials;
 use gkvocabdb::Credentials;
-use secrecy::Secret;
+
+use crate::map_glosser_error;
 
 #[derive(serde::Deserialize)]
-pub struct FormData {
+pub struct LoginFormData {
     username: String,
     password: Secret<String>,
 }
 
 pub fn get_user_id(session: Session) -> Option<u32> {
-    //session.purge(); //to force logout
     session.get::<u32>("user_id").unwrap_or(None)
+}
+
+pub async fn logout(session: Session) -> Result<HttpResponse, AWError> {
+    session.purge();
+    //FlashMessage::error(String::from("Authentication error")).send();
+    Ok(HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish())
 }
 
 pub async fn login_get() -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
-        //.insert_header(("X-Hdr", "sample"))
         .body(r#"<!DOCTYPE html>
 <html lang="en">
     <head>
@@ -104,34 +113,8 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 </html>"#))
 }
 
-// fn validate_login(credentials: Credentials) -> Option<u32> {
-//     if credentials.username.to_lowercase() == "jm"
-//         && credentials.password.expose_secret() == "greekdb555"
-//     {
-//         Some(3)
-//     } else if credentials.username.to_lowercase() == "ykk"
-//         && credentials.password.expose_secret() == "greekdb555"
-//     {
-//         Some(4)
-//     } else if credentials.username.to_lowercase() == "hh"
-//         && credentials.password.expose_secret() == "greekdb555"
-//     {
-//         Some(5)
-//     } else if credentials.username.to_lowercase() == "cd"
-//         && credentials.password.expose_secret() == "greekdb555"
-//     {
-//         Some(6)
-//     } else if credentials.username.to_lowercase() == "rr"
-//         && credentials.password.expose_secret() == "greekdb555"
-//     {
-//         Some(7)
-//     } else {
-//         None
-//     }
-// }
-
 pub async fn login_post(
-    (session, form, req): (Session, web::Form<FormData>, HttpRequest),
+    (session, form, req): (Session, web::Form<LoginFormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 

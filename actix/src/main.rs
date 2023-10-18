@@ -122,6 +122,10 @@ struct LoginCheckResponse {
     user_id: u32,
 }
 
+fn not_logged_in_response() -> Result<HttpResponse, AWError> {
+    Ok(HttpResponse::Unauthorized().finish())
+}
+
 async fn import_text(
     (session, payload, req): (Session, Multipart, HttpRequest),
 ) -> Result<HttpResponse> {
@@ -177,17 +181,7 @@ async fn import_text(
             }
         }
     } else {
-        let res = ImportResponse {
-            success: false,
-            words_inserted: 0,
-            error: String::from("Import failed: not logged in"),
-        };
-        Ok(HttpResponse::Ok().json(res))
-        /*
-        Ok(HttpResponse::BadRequest()
-                .content_type("text/plain")
-                .body("update_failed: not logged in"))
-        */
+        not_logged_in_response()
     }
 }
 
@@ -269,12 +263,7 @@ async fn export_text(
             Ok(HttpResponse::Ok().json(res))
         }
     } else {
-        let res = ImportResponse {
-            success: false,
-            words_inserted: 0,
-            error: String::from("Export failed: not logged in"),
-        };
-        Ok(HttpResponse::Ok().json(res))
+        not_logged_in_response()
     }
 }
 
@@ -297,14 +286,7 @@ async fn update_or_add_gloss(
 
         Ok(HttpResponse::Ok().json(res))
     } else {
-        //not logged in
-        let res = UpdateGlossResponse {
-            qtype: post.qtype.to_string(),
-            success: false,
-            affectedrows: 0,
-            inserted_id: None,
-        };
-        Ok(HttpResponse::Ok().json(res))
+        not_logged_in_response()
     }
 }
 
@@ -326,17 +308,10 @@ async fn arrow_word_req(
         let res = gkv_arrow_word(db, &post, &info, course_id)
             .await
             .map_err(map_glosser_error)?;
-        return Ok(HttpResponse::Ok().json(res));
+        Ok(HttpResponse::Ok().json(res))
+    } else {
+        not_logged_in_response()
     }
-
-    let res = MiscErrorResponse {
-        this_text: 1,
-        text_name: String::from(""),
-        words: [].to_vec(),
-        selected_id: None,
-        error: String::from("Not logged in (update_words)"),
-    };
-    Ok(HttpResponse::Ok().json(res))
 }
 
 async fn set_gloss(
@@ -357,17 +332,10 @@ async fn set_gloss(
         let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id)
             .await
             .map_err(map_glosser_error)?;
-        return Ok(HttpResponse::Ok().json(res));
+        Ok(HttpResponse::Ok().json(res))
+    } else {
+        not_logged_in_response()
     }
-    let res = MiscErrorResponse {
-        this_text: 1,
-        text_name: String::from(""),
-        words: [].to_vec(),
-        selected_id: None,
-        error: String::from("Not logged in (update_words)"),
-    };
-
-    Ok(HttpResponse::Ok().json(res))
 }
 
 async fn move_text(
@@ -395,17 +363,10 @@ async fn move_text(
             selected_id: None,
             error: String::from("Success"),
         };
-        return Ok(HttpResponse::Ok().json(res));
+        Ok(HttpResponse::Ok().json(res))
+    } else {
+        not_logged_in_response()
     }
-    let res = MiscErrorResponse {
-        this_text: 1,
-        text_name: String::from(""),
-        words: [].to_vec(),
-        selected_id: None,
-        error: String::from("Not logged in (update_words)"),
-    };
-
-    Ok(HttpResponse::Ok().json(res))
 }
 
 async fn get_gloss(
@@ -714,6 +675,7 @@ async fn main() -> io::Result<()> {
 fn config(cfg: &mut web::ServiceConfig) {
     cfg.route("/login", web::get().to(login::login_get))
         .route("/login", web::post().to(login::login_post))
+        .route("/logout", web::get().to(login::logout))
         .service(web::resource("/query").route(web::get().to(get_text_words)))
         .service(web::resource("/queryglosses").route(web::get().to(get_glosses)))
         .service(web::resource("/querytexts").route(web::get().to(get_texts)))

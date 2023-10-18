@@ -558,7 +558,7 @@ pub trait GlosserDbTrx {
         limit: u32,
     ) -> Result<Vec<(String, u32, String, u32)>, GlosserError>;
 
-    async fn insert_user(
+    async fn create_user(
         &mut self,
         name: &str,
         initials: &str,
@@ -1073,6 +1073,8 @@ pub async fn gkv_create_user(
         return Err(GlosserError::UnknownError);
     }
 
+    let initials_upper = initials.to_uppercase(); //uppercase to enforce unique regardless of case
+
     let secret_password = Secret::new(password.to_string());
 
     let password_hash = spawn_blocking(move || compute_password_hash(secret_password))
@@ -1081,7 +1083,7 @@ pub async fn gkv_create_user(
 
     let mut tx = db.begin_tx().await?;
     let user_id = tx
-        .insert_user(name, initials, user_type, password_hash, email)
+        .create_user(name, &initials_upper, user_type, password_hash, email)
         .await?;
     tx.commit_tx().await?;
     Ok(user_id.try_into().unwrap())
@@ -1115,8 +1117,9 @@ pub async fn gkv_validate_credentials(
     );
 
     let mut tx = db.begin_tx().await?;
-    if let Some((stored_user_id, stored_password_hash)) =
-        tx.get_credentials(&credentials.username).await?
+    if let Some((stored_user_id, stored_password_hash)) = tx
+        .get_credentials(&credentials.username.to_uppercase())
+        .await?
     {
         user_id = Some(stored_user_id);
         expected_password_hash = stored_password_hash;
@@ -1128,6 +1131,7 @@ pub async fn gkv_validate_credentials(
     })
     .await
     .map_err(|_| GlosserError::AuthenticationError)??;
+
     match user_id {
         Some(id) => Ok(id),
         _ => Err(GlosserError::AuthenticationError),
@@ -1180,13 +1184,6 @@ mod tests {
         };
 
         gkv_create_db(&db).await.expect("Could not create db.");
-
-        // let mut tx = db.begin_tx().await.unwrap();
-        // let user_id = tx
-        //     .insert_user("testuser", "tu", 0, "12341234", "tu@blah.com")
-        //     .await
-        //     .unwrap();
-        // tx.commit_tx().await.unwrap();
 
         let user_id = gkv_create_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com")
             .await
