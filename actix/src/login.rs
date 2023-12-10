@@ -53,6 +53,7 @@ pub async fn logout(session: Session) -> Result<HttpResponse, AWError> {
 pub async fn login_get() -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
+        //.insert_header(("X-Hdr", "sample"))
         .body(r#"<!DOCTYPE html>
 <html lang="en">
     <head>
