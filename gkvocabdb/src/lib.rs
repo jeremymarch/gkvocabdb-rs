@@ -519,6 +519,7 @@ pub trait GlosserDbTrx {
     ) -> Result<Vec<WordRow>, GlosserError>;
 
     async fn get_text_name(&mut self, text_id: u32) -> Result<String, GlosserError>;
+    async fn get_text_title(&mut self, text_id: u32) -> Result<String, GlosserError>;
 
     async fn update_text_order_db(
         &mut self,

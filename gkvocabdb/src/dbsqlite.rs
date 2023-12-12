@@ -951,6 +951,20 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         Ok(res.0)
     }
 
+    async fn get_text_title(&mut self, text_id: u32) -> Result<String, GlosserError> {
+        //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
+        let query = "SELECT title \
+    FROM texts \
+    WHERE text_id = $1";
+        let res: (String,) = sqlx::query_as(query)
+            .bind(text_id)
+            .fetch_one(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
+
+        Ok(res.0)
+    }
+
     // async fn update_counts_for_text_trx<'a, 'b>(
     //     tx: &'a mut sqlx::Transaction<'b, sqlx::Sqlite>,
     //     course_id: u32,
@@ -1522,7 +1536,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             CREATE TABLE IF NOT EXISTS words_history (word_history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, word_id INTEGER NOT NULL, seq INTEGER NOT NULL, text INTEGER NOT NULL, word TEXT NOT NULL, gloss_id INTEGER DEFAULT NULL REFERENCES glosses (gloss_id), type INTEGER DEFAULT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser TEXT NOT NULL DEFAULT '', isFlagged INTEGER NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '') STRICT;
             CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, gloss_id INTEGER NOT NULL, unit INTEGER NOT NULL, lemma TEXT NOT NULL, sortalpha TEXT NOT NULL DEFAULT '', def TEXT NOT NULL, pos TEXT NOT NULL, note TEXT NOT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, status INTEGER NOT NULL DEFAULT 1, updatedUser TEXT NOT NULL DEFAULT '') STRICT;
             CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type TEXT NOT NULL) STRICT;
-            CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, parent_id INTEGER references texts (text_id) DEFAULT NULL, display INTEGER DEFAULT 1) STRICT;
+            CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, parent_id INTEGER references texts (text_id) DEFAULT NULL, display INTEGER DEFAULT 1, title TEXT NOT NULL DEFAULT '') STRICT;
             CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT ) STRICT;
             CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL UNIQUE, initials TEXT NOT NULL UNIQUE, user_type INTEGER NOT NULL, password TEXT NOT NULL, email TEXT) STRICT;
             CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id)) STRICT;

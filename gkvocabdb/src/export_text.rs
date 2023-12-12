@@ -52,6 +52,7 @@ pub async fn gkv_export_texts_as_latex(
 
     for text_id in texts {
         let mut tx = db.begin_tx().await?;
+        let header = tx.get_text_title(text_id).await?;
         let words: Vec<WordRow> = tx.get_words_for_export(text_id, course_id).await?;
         tx.commit_tx().await?;
 
@@ -73,7 +74,7 @@ pub async fn gkv_export_texts_as_latex(
             let mut res = String::from(""); //start fresh
 
             let mut title = String::from("");
-            let mut header = String::from("");
+            //let mut header = String::from("ΥΠΕΡ ΤΟΥ ΕΡΑΤΟΣΘΕΝΟΥΣ ΦΟΝΟΥ ΑΠΟΛΟΓΙΑ");
             let mut prev_non_space = true;
             let mut last_type = WordType::InvalidType;
             let mut glosses: HashMap<u32, Gloss> = HashMap::new();
@@ -114,7 +115,7 @@ pub async fn gkv_export_texts_as_latex(
                     WordType::WorkTitle => {
                         //7
                         title = word;
-                        header = title.clone();
+                        //header = title.clone();
                     }
                     WordType::Speaker => {
                         //2

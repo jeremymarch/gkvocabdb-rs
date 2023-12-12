@@ -258,7 +258,7 @@ async fn export_text(
             let res = ImportResponse {
                 success: false,
                 words_inserted: 0,
-                error: String::from("Export failed: not logged in"),
+                error: String::from("Export failed"),
             };
             Ok(HttpResponse::Ok().json(res))
         }
