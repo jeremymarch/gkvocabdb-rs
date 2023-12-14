@@ -237,7 +237,7 @@ async fn export_text(
     if let Some(_user_id) = login::get_user_id(session) {
         if let Ok(latex) = export_text::gkv_export_texts_as_latex(
             db,
-            info.text_ids.as_str(),
+            "129,130,131,132", //info.text_ids.as_str(),
             course_id,
             bold_glosses,
         )

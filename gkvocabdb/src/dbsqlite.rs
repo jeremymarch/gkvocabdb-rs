@@ -810,19 +810,19 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         text_id: u32,
         course_id: u32,
     ) -> Result<Vec<WordRow>, GlosserError> {
-        let query = format!("SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.sortalpha, b.unit, b.pos, d.word_id as arrowedID,
-        b.gloss_id, a.seq, e.seq AS arrowedSeq,
-        a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, c.word_id as page_break, h.entry AS appcrit_entry
-        FROM words a 
-        LEFT JOIN glosses b ON a.gloss_id = b.gloss_id 
-        LEFT JOIN latex_page_breaks c ON a.word_id = c.word_id 
-        LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
-        LEFT JOIN words e ON e.word_id = d.word_id  
-        LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
-        LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
-        LEFT JOIN appCrit h on h.word_id = A.word_id 
-        WHERE a.text_id = {text_id} AND a.type > -1
-        ORDER BY a.seq
+        let query = format!("SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.sortalpha, b.unit, b.pos, d.word_id as arrowedID, \
+        b.gloss_id, a.seq, e.seq AS arrowedSeq, \
+        a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, c.word_id as page_break, h.entry AS appcrit_entry \
+        FROM words a \
+        LEFT JOIN glosses b ON a.gloss_id = b.gloss_id \
+        LEFT JOIN latex_page_breaks c ON a.word_id = c.word_id \
+        LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id}) \
+        LEFT JOIN words e ON e.word_id = d.word_id \
+        LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id}) \
+        LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id}) \
+        LEFT JOIN appCrit h on h.word_id = A.word_id \
+        WHERE a.text_id = {text_id} AND a.type > -1 \
+        ORDER BY a.seq \
         LIMIT 55000;", text_id = text_id, course_id = course_id);
 
         let res: Result<Vec<WordRow>, GlosserError> = sqlx::query(&query)

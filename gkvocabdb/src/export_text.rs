@@ -42,18 +42,18 @@ pub async fn gkv_export_texts_as_latex(
 ) -> Result<String, GlosserError> {
     let mut latex: String = include_str!("latex/doc_template.tex")
         .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
-
-    //info.text_ids is now a comma separated string of text_ids "133,134,135"
-    //let texts:Vec<u32> = vec![133,134,135,136,137];//vec![info.textid];
+    
     let texts: Vec<u32> = text_ids
         .split(',')
         .map(|s| s.parse().expect("parse error"))
         .collect();
-
-    for text_id in texts {
+    
         let mut tx = db.begin_tx().await?;
-        let header = tx.get_text_title(text_id).await?;
-        let words: Vec<WordRow> = tx.get_words_for_export(text_id, course_id).await?;
+        let header = tx.get_text_title(*texts.first().unwrap()).await?;
+        let mut words: Vec<WordRow> = vec![];
+        for text_id in texts {
+            words.append(&mut tx.get_words_for_export(text_id, course_id).await?);
+        }
         tx.commit_tx().await?;
 
         //divide words into seperate vectors of words per page
@@ -278,7 +278,7 @@ pub async fn gkv_export_texts_as_latex(
                 &app_crits,
             );
         }
-    }
+    //}
     latex.push_str("\\end{document}\n");
     Ok(latex)
 }
