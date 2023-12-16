@@ -268,7 +268,7 @@ pub async fn gkv_export_texts_as_latex(
 fn fix_subsection(word: &str) -> String {
     let section_input = word.replace("[section]", "");
 
-    let re = Regex::new("([0-9]).([0-9])").unwrap();
+    let re = Regex::new("([0-9]+).([0-9]+)").unwrap();
     let matches = re.captures(&section_input);
 
     if let Some(matches) = matches {
