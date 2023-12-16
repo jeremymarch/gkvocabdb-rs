@@ -139,6 +139,26 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         Ok(())
     }
 
+    async fn insert_pagebreak(&mut self, word_id: u32) -> Result<(), GlosserError> {
+        let query = r#"REPLACE INTO latex_page_breaks (word_id) VALUES ($1);"#;
+        let _ = sqlx::query(query)
+            .bind(word_id)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
+        Ok(())
+    }
+
+    async fn delete_pagebreak(&mut self, word_id: u32) -> Result<(), GlosserError> {
+        let query = r#"DELETE FROM latex_page_breaks WHERE word_id = $1;"#;
+        let _ = sqlx::query(query)
+            .bind(word_id)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
+        Ok(())
+    }
+
     async fn insert_lemmatizer_form(
         &mut self,
         form: &str,
@@ -1539,7 +1559,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, parent_id INTEGER references texts (text_id) DEFAULT NULL, display INTEGER DEFAULT 1, title TEXT NOT NULL DEFAULT '') STRICT;
             CREATE TABLE IF NOT EXISTS update_log (update_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type INTEGER REFERENCES update_types(update_type_id), object_id INTEGER, history_id INTEGER, course_id INTEGER, update_desc TEXT, comment TEXT, updated INTEGER NOT NULL, user_id INTEGER REFERENCES users(user_id), ip TEXT, user_agent TEXT ) STRICT;
             CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL UNIQUE, initials TEXT NOT NULL UNIQUE, user_type INTEGER NOT NULL, password TEXT NOT NULL, email TEXT) STRICT;
-            CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL REFERENCES words(word_id)) STRICT;
+            CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL UNIQUE REFERENCES words(word_id)) STRICT;
             CREATE TABLE IF NOT EXISTS containers (container_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS lemmatizer (form TEXT PRIMARY KEY NOT NULL, gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id)) STRICT;
             

@@ -66,6 +66,11 @@ struct MoveTextRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+struct PagebreakRequest {
+    word_id: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginResponse {
     success: bool,
 }
@@ -225,8 +230,44 @@ async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), std:
     Ok((xml_string, title))
 }
 
+async fn insert_pagebreak(
+    (info, session, req): (web::Form<PagebreakRequest>, Session, HttpRequest),
+) -> Result<HttpResponse> {
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
+
+    if let Some(_user_id) = login::get_user_id(session) {
+        let mut tx = db.begin_tx().await.unwrap();
+        tx.insert_pagebreak(info.word_id)
+            .await
+            .map_err(map_glosser_error)?;
+        tx.commit_tx().await.unwrap();
+
+        Ok(HttpResponse::Ok().json(1))
+    } else {
+        not_logged_in_response()
+    }
+}
+
+async fn delete_pagebreak(
+    (info, session, req): (web::Form<PagebreakRequest>, Session, HttpRequest),
+) -> Result<HttpResponse> {
+    let db = req.app_data::<GlosserDbSqlite>().unwrap();
+
+    if let Some(_user_id) = login::get_user_id(session) {
+        let mut tx = db.begin_tx().await.unwrap();
+        tx.delete_pagebreak(info.word_id)
+            .await
+            .map_err(map_glosser_error)?;
+        tx.commit_tx().await.unwrap();
+
+        Ok(HttpResponse::Ok().json(1))
+    } else {
+        not_logged_in_response()
+    }
+}
+
 async fn export_text(
-    (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
+    (_info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
     let bold_glosses = false;
@@ -237,7 +278,7 @@ async fn export_text(
     if let Some(_user_id) = login::get_user_id(session) {
         if let Ok(latex) = export_text::gkv_export_texts_as_latex(
             db,
-            "129,130,131,132", //info.text_ids.as_str(),
+            "228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269", //"129,130,131,132", //info.text_ids.as_str(),
             course_id,
             bold_glosses,
         )
@@ -693,6 +734,8 @@ fn config(cfg: &mut web::ServiceConfig) {
         .service(web::resource("/importtext").route(web::post().to(import_text)))
         .service(web::resource("/exporttext").route(web::get().to(export_text)))
         .service(web::resource("/movetext").route(web::post().to(move_text)))
+        .service(web::resource("/insertpagebreak").route(web::post().to(insert_pagebreak)))
+        .service(web::resource("/deletepagebreak").route(web::post().to(delete_pagebreak)))
         .service(web::resource("/healthzzz").route(web::get().to(health_check)))
         .service(
             fs::Files::new("/", "./static")

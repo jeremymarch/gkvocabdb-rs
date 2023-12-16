@@ -426,6 +426,10 @@ pub trait GlosserDbTrx {
     async fn commit_tx(self: Box<Self>) -> Result<(), GlosserError>;
     async fn rollback_tx(self: Box<Self>) -> Result<(), GlosserError>;
 
+    async fn insert_pagebreak(&mut self, word_id: u32) -> Result<(), GlosserError>;
+
+    async fn delete_pagebreak(&mut self, word_id: u32) -> Result<(), GlosserError>;
+
     async fn load_lemmatizer(&mut self) -> Result<(), GlosserError>;
 
     async fn insert_lemmatizer_form(

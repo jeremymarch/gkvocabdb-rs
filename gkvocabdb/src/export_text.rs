@@ -148,7 +148,8 @@ pub async fn gkv_export_texts_as_latex(
                     // }
 
                     //fixSubsection(word);
-                    res.push_str(format!("%StartSubSection%{}%EndSubSection%", word).as_str());
+                    let w = word.replace("[section]", "");
+                    res.push_str(format!("%StartSubSection%{}%EndSubSection%", w).as_str());
                     if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent {
                         //-1 || 6
                         prev_non_space = true;
@@ -281,6 +282,28 @@ pub async fn gkv_export_texts_as_latex(
     Ok(latex)
 }
 
+//for thuc
+// function fixSubsection($a) {
+
+//     $r = str_replace("[section]", "", $a);
+//     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
+//         if ($matches[2][0] == "1") {
+//             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
+//         }
+//         else {
+//             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
+//         }
+//         return $r;
+//     }
+//     else {
+//         return "%StartSubSection%" . $r . "%EndSubSection%";
+//     }
+// }
+
+// fn fix_subsection(word:String) -> String {
+
+// }
+
 fn apply_latex_templates(
     latex: &mut String,
     title: &str,
@@ -331,9 +354,16 @@ fn apply_latex_templates(
 
         *text = text.replace("%StartSubSection%", "\\hspace{0pt}\\marginsec{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
         *text = text.replace("%EndSubSection%", "}");
+
+        *text = text.replace("%parnoindent%", "\n\\par\\noindent\n");
+
         *text = text.replace("%StartSubSubSection%", "\\hspace{0pt}\\marginseclight{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
         *text = text.replace("%EndSubSubSection%", "}");
         *text = text.replace("%para%", "\n\\par\n");
+
+        *text = text.replace("%StartInnerSubTitle%", "\\par \\textbf{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
+        *text = text.replace("%EndInnerSubTitle%", "} ");
+
         //\hspace*{\fill}: https://tex.stackexchange.com/questions/54040/underful-hbox-badness-10000
         latex.push_str(format!("{}\\hspace*{{\\fill}}\n\\end{{spacing}}\n", text).as_str());
     }
