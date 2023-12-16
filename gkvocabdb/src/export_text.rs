@@ -21,6 +21,7 @@ use crate::GlosserDb;
 use crate::GlosserError;
 use crate::WordRow;
 use crate::WordType;
+use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -129,27 +130,8 @@ pub async fn gkv_export_texts_as_latex(
                 }
                 WordType::Section => {
                     //4
-
-                    // function fixSubsection($a) {
-
-                    //     $r = str_replace("[section]", "", $a);
-                    //     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
-                    //         if ($matches[2][0] == "1") {
-                    //             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
-                    //         }
-                    //         else {
-                    //             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
-                    //         }
-                    //         return $r;
-                    //     }
-                    //     else {
-                    //         return "%StartSubSection%" . $r . "%EndSubSection%";
-                    //     }
-                    // }
-
-                    //fixSubsection(word);
-                    let w = word.replace("[section]", "");
-                    res.push_str(format!("%StartSubSection%{}%EndSubSection%", w).as_str());
+                    let w = fix_subsection(&word);
+                    res.push_str(&w);
                     if last_type == WordType::InvalidType || last_type == WordType::ParaWithIndent {
                         //-1 || 6
                         prev_non_space = true;
@@ -283,26 +265,25 @@ pub async fn gkv_export_texts_as_latex(
 }
 
 //for thuc
-// function fixSubsection($a) {
+fn fix_subsection(word: &str) -> String {
+    let section_input = word.replace("[section]", "");
 
-//     $r = str_replace("[section]", "", $a);
-//     if (preg_match('/(\d+)[.](\d+)/', $r, $matches, PREG_OFFSET_CAPTURE) === 1) {
-//         if ($matches[2][0] == "1") {
-//             $r = "%StartSubSection%" . $matches[1][0] . "%EndSubSection%";
-//         }
-//         else {
-//             $r = "%StartSubSubSection%" . $matches[2][0] . "%EndSubSubSection%";
-//         }
-//         return $r;
-//     }
-//     else {
-//         return "%StartSubSection%" . $r . "%EndSubSection%";
-//     }
-// }
+    let re = Regex::new("([0-9]).([0-9])").unwrap();
+    let matches = re.captures(&section_input);
 
-// fn fix_subsection(word:String) -> String {
+    if let Some(matches) = matches {
+        let section = matches.get(1).unwrap().as_str();
+        let subsection = matches.get(2).unwrap().as_str();
 
-// }
+        if subsection == "1" {
+            format!("%StartSubSection%{}%EndSubSection%", section)
+        } else {
+            format!("%StartSubSubSection%{}%EndSubSubSection%", subsection)
+        }
+    } else {
+        format!("%StartSubSection%{}%EndSubSection%", section_input)
+    }
+}
 
 fn apply_latex_templates(
     latex: &mut String,
