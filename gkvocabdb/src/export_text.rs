@@ -173,7 +173,13 @@ pub async fn gkv_export_texts_as_latex(
                 WordType::VerseLine => {
                     //5
                     //need to skip "[line]" prefix
-                    res.push_str(format!("%VERSELINESTART%{}%VERSELINEEND%", word).as_str());
+                    res.push_str(
+                        format!(
+                            "%VERSELINESTART%{}%VERSELINEEND%",
+                            word.replace("[line]", "")
+                        )
+                        .as_str(),
+                    );
                     prev_non_space = true;
                 }
                 _ => (),
@@ -259,7 +265,7 @@ pub async fn gkv_export_texts_as_latex(
             &app_crits,
         );
     }
-    //}
+
     latex.push_str("\\end{document}\n");
     Ok(latex)
 }

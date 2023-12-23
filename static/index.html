@@ -1417,7 +1417,7 @@ BUTTON {
     }
 
     function insertSpaceAfter (w) {
-      const punc = ['—'];
+      const punc = ['—', '<'];
       if (punc.indexOf(w) > -1) {
         return false;
       } else {
@@ -1532,8 +1532,8 @@ BUTTON {
               firstOfSection = false;
             } else {
               const br1 = document.createElement('br');
-              const br2 = document.createElement('br');
               textFragment.appendChild(br1);
+              const br2 = document.createElement('br');
               textFragment.appendChild(br2);
               // t += '<br><br>'; // not for first section
             }
