@@ -82,6 +82,9 @@ pub async fn gkv_export_texts_as_latex(
 
         let mut app_crits: Vec<String> = vec![]; //placeholder for now
 
+        let mut verse_text = String::from("");
+        let mut verse_line: String = String::from(""); //set to 0 when not in a verse section
+
         for w in words_in_page {
             let word = w
                 .word
@@ -117,16 +120,19 @@ pub async fn gkv_export_texts_as_latex(
                     //7
                     title = word;
                     //header = title.clone();
+                    verse_line = String::from("reset");
                 }
                 WordType::Speaker => {
                     //2
                     res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
+                    verse_line = String::from("reset");
                 }
                 WordType::InlineSpeaker => {
                     //9
                     res.push_str(
                         format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str(),
                     );
+                    verse_line = String::from("reset");
                 }
                 WordType::Section => {
                     //4
@@ -138,16 +144,19 @@ pub async fn gkv_export_texts_as_latex(
                     } else {
                         prev_non_space = false;
                     }
+                    verse_line = String::from("reset");
                 }
                 WordType::ParaWithIndent => {
                     //6
                     res.push_str("%para%");
                     prev_non_space = true;
+                    verse_line = String::from("reset");
                 }
                 WordType::ParaNoIndent => {
                     //10
                     res.push_str("%parnoindent%");
                     prev_non_space = true;
+                    verse_line = String::from("reset");
                 }
                 WordType::Word | WordType::Punctuation => {
                     //0 | 1
@@ -155,31 +164,43 @@ pub async fn gkv_export_texts_as_latex(
                         ".", ",", "·", "·", ";", ";", ">", "]", ")", ",\"", "·\"", "·\"", ".’",
                     ];
 
-                    res.push_str(
-                        format!(
-                            "{}{}",
-                            if punc.contains(&word.as_str()) || prev_non_space {
-                                ""
-                            } else {
-                                " "
-                            },
-                            word
-                        )
-                        .as_str(),
-                    ); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
-
+                    let ww = format!(
+                        "{}{}",
+                        if punc.contains(&word.as_str()) || prev_non_space {
+                            ""
+                        } else {
+                            " "
+                        },
+                        word
+                    );
+                    if verse_line == "reset" {
+                        res.push_str(ww.as_str()); // (( punc.contains(word) || prev_non_space ) ? "" : " ") . $word;
+                    } else {
+                        verse_text.push_str(ww.as_str());
+                    }
                     prev_non_space = word == "<" || word == "[" || word == "(";
                 }
                 WordType::VerseLine => {
                     //5
                     //need to skip "[line]" prefix
-                    res.push_str(
-                        format!(
-                            "%VERSELINESTART%{}%VERSELINEEND%",
-                            word.replace("[line]", "")
-                        )
-                        .as_str(),
-                    );
+                    match verse_line.as_str() {
+                        "reset" => (),
+                        "" => (),
+                        _ => res.push_str(
+                            format!("{}%VERSELINESTART%{}%VERSELINEEND%", verse_text, verse_line)
+                                .as_str(),
+                        ),
+                    }
+                    verse_line = word.replace("[line]", "");
+                    verse_text = String::from("");
+
+                    // res.push_str(
+                    //     format!(
+                    //         "%VERSELINESTART%{}%VERSELINEEND%",
+                    //         verse_line
+                    //     )
+                    //     .as_str(),
+                    // );
                     prev_non_space = true;
                 }
                 _ => (),
