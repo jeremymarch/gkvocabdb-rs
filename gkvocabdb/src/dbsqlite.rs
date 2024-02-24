@@ -146,6 +146,21 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .execute(&mut *self.tx)
             .await
             .map_err(map_sqlx_error)?;
+        /*
+            self.update_log_trx(
+                UpdateType::AddPageBreak,
+                Some(word_id.into()),
+                None,
+                Some(course_id.into()),
+                format!(
+                    "Add page break on word ({}) in course ({})",
+                    word_id, course_id
+                )
+                .as_str(),
+                info,
+            )
+            .await?;
+        */
         Ok(())
     }
 

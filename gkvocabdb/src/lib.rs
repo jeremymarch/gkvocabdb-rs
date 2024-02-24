@@ -80,6 +80,8 @@ pub enum UpdateType {
     SetGlossId,
     ImportText,
     DeleteGloss,
+    AddPageBreak,
+    RemovePageBreak,
 }
 
 impl UpdateType {
@@ -92,6 +94,7 @@ impl UpdateType {
             UpdateType::SetGlossId => 5,
             UpdateType::ImportText => 6,
             UpdateType::DeleteGloss => 7,
+            UpdateType::AddPageBreak | UpdateType::RemovePageBreak => todo!(),
         }
     }
 }
@@ -304,7 +307,7 @@ pub enum WordType {
     SectionTitle = 8,
     InlineSpeaker = 9,
     ParaNoIndent = 10,
-    PageBreak = 11,
+    PageBreak = 11, //not used: we now use separate table called latex_page_breaks
     Desc = 12,
     InvalidType = 13,
     //0 word

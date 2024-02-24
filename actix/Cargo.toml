@@ -11,16 +11,16 @@ path = "src/main.rs"
 
 [dependencies]
 gkvocabdb = { path = "../gkvocabdb" }
-actix-web = { version = "4.4.1" }
-actix-files = "0.6.2"
+actix-web = { version = "4.5.1" }
+actix-files = "0.6.5"
 actix-session = { version = "0.9.0", features = ["cookie-session"] }
 actix-multipart = "0.6.1"
 actix-web-httpauth = "0.8.1"
 sqlx = { version = "0.7.3", features = ["sqlite", "runtime-tokio-rustls"] }
-serde = { version = "1.0.196", features = ["derive"] }
-futures = "0.3.29"
-env_logger = "0.10.1"
-thiserror = "1.0.50"
+serde = { version = "1.0.197", features = ["derive"] }
+futures = "0.3.30"
+env_logger = "0.11.2"
+thiserror = "1.0.57"
 secrecy = { version = "0.8", features = ["serde"] }
 hex = "0.4.3"
 
