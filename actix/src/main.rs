@@ -275,12 +275,22 @@ async fn export_text(
 
     //println!("host: {:?}", req.connection_info().host());
 
+    //UPDATE words SET type = 14,seq=seq + 1   where text_id in (296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314) and type=2 and instr(word, '.') > 0;
+    //UPDATE words SET seq=seq + 1 where text_id in (296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314) and type=14 and word_id = ;
+    //UPDATE words SET seq=seq - 1 where text_id in (296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314) and type=5 and word_id = ;
+
+    //select b.word_id from words a inner join words b on a.seq=b.seq where a.word_id!=b.word_id and a.type = 14;
+
+    //update words set seq = seq + 1 where word_id in (select a.word_id from words a inner join words b on a.seq = b.seq - 1 where a.text_id in (296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314) and a.type = 14 and b.type = 5 order by a.seq);
+    //update words set seq = seq - 1 where word_id in (select b.word_id from words a inner join words b on a.seq = b.seq - 1 where a.text_id in (296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314) and a.type = 14 and b.type = 5 order by a.seq);
+
     if let Some(_user_id) = login::get_user_id(session) {
         if let Ok(latex) = export_text::gkv_export_texts_as_latex(
             db,
             /*phaedrus*/ //"228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269", //"129,130,131,132", //info.text_ids.as_str(),
-            /*thuc*/ "270,271,272,273,274,275,276,277,278,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295",
-            /*ajax*/ //"296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314",
+            /*thuc*/ //"270,271,272,273,274,275,276,277,278,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295",
+            /*ajax*/
+            "296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314",
             course_id,
             bold_glosses,
         )
