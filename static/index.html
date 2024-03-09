@@ -46,6 +46,9 @@ setTheme();
   display: inline-block;
   width: 20px;
 }
+.inline-verse-speaker {
+  font-weight: bold;
+}
 .section-label {
   font-weight: bold;
 }
@@ -1528,7 +1531,13 @@ BUTTON {
           }
 
           // build text
-          if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION || i.t === TYPE_INLINE_VERSE_SPEAKER) {
+          if (i.t === TYPE_INLINE_VERSE_SPEAKER) {
+            const sectionDiv = document.createElement('span');
+            sectionDiv.classList.add('inline-verse-speaker');
+            sectionDiv.innerHTML = i.w.replace('[section]', '') + ' ';
+            textFragment.appendChild(sectionDiv);
+          }
+          else if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION) {
             if (firstOfSection) {
               firstOfSection = false;
             } else {
