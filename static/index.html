@@ -707,6 +707,7 @@ BUTTON {
     const TYPE_PAGE_BREAK = 11;
     // eslint-disable-next-line no-unused-vars
     const TYPE_DESC = 12;
+    const TYPE_INLINE_VERSE_SPEAKER = 14;
 
     // https://github.com/le717/microajax
     function microAjax (options) {
@@ -1527,7 +1528,7 @@ BUTTON {
           }
 
           // build text
-          if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION) {
+          if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION || i.t === TYPE_INLINE_VERSE_SPEAKER) {
             if (firstOfSection) {
               firstOfSection = false;
             } else {
