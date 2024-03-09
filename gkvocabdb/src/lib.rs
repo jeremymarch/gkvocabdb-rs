@@ -310,6 +310,7 @@ pub enum WordType {
     PageBreak = 11, //not used: we now use separate table called latex_page_breaks
     Desc = 12,
     InvalidType = 13,
+    InlineVerseSpeaker = 14,
     //0 word
     //1 punct
     //2 speaker
@@ -337,6 +338,7 @@ impl WordType {
             10 => Self::ParaNoIndent,
             11 => Self::PageBreak,
             12 => Self::Desc,
+            14 => Self::InlineVerseSpeaker,
             _ => Self::InvalidType,
         }
     }

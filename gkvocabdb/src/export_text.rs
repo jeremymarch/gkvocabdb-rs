@@ -84,6 +84,7 @@ pub async fn gkv_export_texts_as_latex(
 
         let mut verse_text = String::from("");
         let mut verse_line: String = String::from(""); //set to 0 when not in a verse section
+        let mut verse_inline_speaker: String = String::from("");
 
         for w in words_in_page {
             let word = w
@@ -118,12 +119,13 @@ pub async fn gkv_export_texts_as_latex(
             match WordType::from_i32(w.word_type.into()) {
                 WordType::WorkTitle => {
                     //7
-                    title = word;
+                    title = word.clone();
                     //header = title.clone();
                     verse_line = String::from("reset");
                 }
                 WordType::Speaker => {
                     //2
+                    //including lines 91, 134, 201, 719, 864, 872, , 974, 1047, 1226, 1318
                     res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
                     verse_line = String::from("reset");
                 }
@@ -133,6 +135,13 @@ pub async fn gkv_export_texts_as_latex(
                         format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str(),
                     );
                     verse_line = String::from("reset");
+                }
+                WordType::InlineVerseSpeaker => {
+                    //all but lines 91, 134, 201, 719, 864, 872, , 974, 1047, 1226, 1318
+                    //14
+                    //res.push_str(format!("%StartInlineVerseSpeaker%{}%EndInlineVerseSpeaker%", word).as_str());
+                    verse_inline_speaker = word.clone();
+                    //verse_line = String::from("reset");
                 }
                 WordType::Section => {
                     //4
@@ -187,12 +196,16 @@ pub async fn gkv_export_texts_as_latex(
                         "reset" => (),
                         "" => (),
                         _ => res.push_str(
-                            format!("{}%VERSELINESTART%{}%VERSELINEEND%", verse_text, verse_line)
-                                .as_str(),
+                            format!(
+                                "{}%VERSEREALLINESTART%{}%VERSELINESTART%{}%VERSELINEEND%",
+                                verse_inline_speaker, verse_text, verse_line
+                            )
+                            .as_str(),
                         ),
                     }
                     verse_line = word.replace("[line]", "");
                     verse_text = String::from("");
+                    verse_inline_speaker = String::from("");
 
                     // res.push_str(
                     //     format!(
@@ -205,6 +218,7 @@ pub async fn gkv_export_texts_as_latex(
                 }
                 _ => (),
             }
+
             //last_seq = w.seq as i64;
             //last_word_id = w.wordid as i64;
 
@@ -270,6 +284,21 @@ pub async fn gkv_export_texts_as_latex(
 
             last_type = WordType::from_i32(w.word_type.into());
         }
+
+        //finish last verse line if needed
+        if verse_line.as_str() != "reset" && verse_line.as_str() != "" {
+            res.push_str(
+                format!(
+                    "{}%VERSEREALLINESTART%{}%VERSELINESTART%{}%VERSELINEEND%",
+                    verse_inline_speaker, verse_text, verse_line
+                )
+                .as_str(),
+            );
+            // verse_line = String::from("");
+            // verse_text = String::from("");
+            // verse_inline_speaker = String::from("");
+        }
+
         let mut sorted_glosses: Vec<Gloss> = glosses.values().cloned().collect();
         sorted_glosses.sort_by(|a, b| {
             a.sort_alpha
@@ -341,8 +370,10 @@ fn apply_latex_templates(
 
     if text.contains("%VERSELINESTART%") {
         *text = text.replace("%StartSubTitle%", "");
-        *text = text.replace("%EndSubTitle%", " & "); //add this even if no %StartSubTitle%
+        *text = text.replace("%EndSubTitle%", " \\\\ "); //add this even if no %StartSubTitle%
         *text = text.replace("%LINEEND%", " \\\\ \n");
+
+        *text = text.replace("%VERSEREALLINESTART%", " & ");
         *text = text.replace("%VERSELINESTART%", " & ");
         *text = text.replace("%VERSELINEEND%", " \\\\ \n");
         latex.push_str(
