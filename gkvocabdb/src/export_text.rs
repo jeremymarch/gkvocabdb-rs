@@ -198,12 +198,15 @@ pub async fn gkv_export_texts_as_latex(
                         _ => res.push_str(
                             format!(
                                 "{}%VERSEREALLINESTART%{}%VERSELINESTART%{}%VERSELINEEND%",
-                                verse_inline_speaker, verse_text, verse_line
+                                verse_inline_speaker,
+                                verse_text,
+                                format_verse_line(&verse_line)
                             )
                             .as_str(),
                         ),
                     }
-                    verse_line = word.replace("[line]", "");
+                    verse_line = word.clone(); //format_verse_line(&word);
+
                     verse_text = String::from("");
                     verse_inline_speaker = String::from("");
 
@@ -290,7 +293,9 @@ pub async fn gkv_export_texts_as_latex(
             res.push_str(
                 format!(
                     "{}%VERSEREALLINESTART%{}%VERSELINESTART%{}%VERSELINEEND%",
-                    verse_inline_speaker, verse_text, verse_line
+                    verse_inline_speaker,
+                    verse_text,
+                    format_verse_line(&verse_line)
                 )
                 .as_str(),
             );
@@ -318,6 +323,25 @@ pub async fn gkv_export_texts_as_latex(
 
     latex.push_str("\\end{document}\n");
     Ok(latex)
+}
+
+fn format_verse_line(word: &str) -> String {
+    let word_input = word.replace("[line]", "");
+
+    let re = Regex::new("^([0-9]+)$").unwrap();
+    let matches = re.captures(&word_input);
+
+    if let Some(matches) = matches {
+        let line_num = matches.get(1).unwrap().as_str();
+        let line_num2 = line_num.parse::<u32>().unwrap();
+        if line_num2 % 5 == 0 {
+            line_num2.to_string()
+        } else {
+            String::from("")
+        }
+    } else {
+        word_input
+    }
 }
 
 //for thuc
