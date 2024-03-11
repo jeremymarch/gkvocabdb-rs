@@ -205,7 +205,7 @@ pub async fn gkv_export_texts_as_latex(
                             .as_str(),
                         ),
                     }
-                    verse_line = word.clone(); //format_verse_line(&word);
+                    verse_line = word.clone();
 
                     verse_text = String::from("");
                     verse_inline_speaker = String::from("");
@@ -328,19 +328,24 @@ pub async fn gkv_export_texts_as_latex(
 fn format_verse_line(word: &str) -> String {
     let word_input = word.replace("[line]", "");
 
-    let re = Regex::new("^([0-9]+)$").unwrap();
-    let matches = re.captures(&word_input);
-
-    if let Some(matches) = matches {
-        let line_num = matches.get(1).unwrap().as_str();
-        let line_num2 = line_num.parse::<u32>().unwrap();
-        if line_num2 % 5 == 0 {
-            line_num2.to_string()
-        } else {
-            String::from("")
-        }
-    } else {
+    if word_input.contains('-') {
+        // 105-106, etc.
         word_input
+    } else {
+        let re = Regex::new("([0-9]+)").unwrap();
+        let matches = re.captures(&word_input);
+
+        if let Some(matches) = matches {
+            let line_num = matches.get(1).unwrap().as_str();
+            let line_num2 = line_num.parse::<u32>().unwrap();
+            if line_num2 % 5 == 0 {
+                word_input // 175 [str
+            } else {
+                String::from("")
+            }
+        } else {
+            word_input // [str
+        }
     }
 }
 
