@@ -267,7 +267,7 @@ async fn delete_pagebreak(
 }
 
 async fn export_text(
-    (_info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
+    (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
     let bold_glosses = false;
@@ -276,12 +276,32 @@ async fn export_text(
     //println!("host: {:?}", req.connection_info().host());
 
     if let Some(_user_id) = login::get_user_id(session) {
+        let text_ids_to_export = if !info.text_ids.contains(',') {
+            //if single text_id passed in we want to get all of its sibling texts and return them as a comma separated string
+            if let Ok(id) = info.text_ids.parse::<u32>() {
+                let mut tx = db.begin_tx().await.unwrap();
+                let text_ids = tx.get_sibling_texts(id).await.map_err(map_glosser_error)?;
+                tx.commit_tx().await.unwrap();
+                text_ids
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            } else {
+                String::from("") //error parsing single text_id string input
+            }
+        } else {
+            //if multiple texts passed in just use the as is
+            info.text_ids.clone()
+        };
+
         if let Ok(latex) = export_text::gkv_export_texts_as_latex(
             db,
             /*phaedrus*/ //"228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269", //"129,130,131,132", //info.text_ids.as_str(),
             /*thuc*/ //"270,271,272,273,274,275,276,277,278,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295",
             /*ajax*/
-            "296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314",
+            //"296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314",
+            &text_ids_to_export,
             course_id,
             bold_glosses,
         )

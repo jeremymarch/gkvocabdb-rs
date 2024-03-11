@@ -972,6 +972,19 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
     //change get_words to use subtext id
     //order of assignments will be by id?  or word_seq?
 
+    async fn get_sibling_texts(&mut self, text_id: u32) -> Result<Vec<u32>, GlosserError> {
+        let query = "SELECT text_id \
+    FROM texts \
+    WHERE parent_id = (SELECT parent_id FROM texts WHERE text_id = $1) ORDER BY text_id";
+        let res: Result<Vec<u32>, GlosserError> = sqlx::query(query)
+            .bind(text_id)
+            .map(|rec: SqliteRow| rec.get("text_id"))
+            .fetch_all(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error);
+        res
+    }
+
     async fn get_text_name(&mut self, text_id: u32) -> Result<String, GlosserError> {
         //let query = "SELECT id,title,wordcount FROM assignments ORDER BY id;";
         let query = "SELECT name \
