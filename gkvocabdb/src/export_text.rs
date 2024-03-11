@@ -332,7 +332,7 @@ fn format_verse_line(word: &str) -> String {
         // 105-106, etc.
         word_input
     } else {
-        let re = Regex::new("([0-9]+)(.)*").unwrap();
+        let re = Regex::new("([0-9]+)(.*)").unwrap();
         let matches = re.captures(&word_input);
 
         if let Some(matches) = matches {
