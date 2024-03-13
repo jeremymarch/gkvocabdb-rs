@@ -83,7 +83,7 @@ pub async fn gkv_export_texts_as_latex(
         let mut app_crits: Vec<String> = vec![]; //placeholder for now
 
         let mut verse_text = String::from("");
-        let mut verse_line: String = String::from(""); //set to 0 when not in a verse section
+        let mut verse_line: String = String::from("reset"); //set to 0 when not in a verse section
         let mut verse_inline_speaker: String = String::from("");
 
         for w in words_in_page {
