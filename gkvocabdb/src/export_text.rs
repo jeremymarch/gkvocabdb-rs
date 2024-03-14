@@ -108,7 +108,8 @@ pub async fn gkv_export_texts_as_latex(
                 .replace('\u{1FE3}', "\u{03B0}") //upsilon + diaeresis + acute
                 .replace('\u{037E}', "\u{003B}") //semicolon
                 .replace('\u{0387}', "\u{00B7}") //middle dot
-                .replace('\u{0344}', "\u{0308}\u{0301}"); //combining diaeresis with acute
+                .replace('\u{0344}', "\u{0308}\u{0301}") //combining diaeresis with acute
+                .replace('\u{02B9}', r#"^{\prime}"#); //MODIFIER LETTER PRIME
 
             //assert!(!word.contains('\u{1F79}'));
 
