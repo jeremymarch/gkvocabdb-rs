@@ -437,6 +437,13 @@ pub trait GlosserDbTrx {
 
     async fn load_lemmatizer(&mut self) -> Result<(), GlosserError>;
 
+    async fn insert_word(
+        &mut self,
+        before_word_id: u32,
+        word_type: u32,
+        word: &str,
+    ) -> Result<i64, GlosserError>;
+
     async fn insert_lemmatizer_form(
         &mut self,
         form: &str,
@@ -585,6 +592,23 @@ pub trait GlosserDbTrx {
 
     async fn create_db(&mut self) -> Result<(), GlosserError>;
 }
+/*
+pub async fn insert_thuc_paras(db: &dyn GlosserDb) {
+    println!("insert thuc paras start");
+    let a = [
+        47401, 47440, 48651, 48994, 49204, 49301, 49674, 49851, 50413, 51110, 51604, 52047, 52174,
+        52291, 52527, 52581, 52697, 52730, 53024, 53113, 53266, 53303, 53435, 53679, 53868, 54058,
+        54237, 54303, 54531, 54758, 54952, 55190, 55476, 55791, 55862, 56177, 56663, 56948, 57108,
+        57278, 57470, 57719, 57809, 57957, 58078, 58320, 58519, 58974, 59302,
+    ];
+    let mut tx = db.begin_tx().await.unwrap();
+    for id in a {
+        tx.insert_word(id, 6, "").await.unwrap();
+    }
+    tx.commit_tx().await.unwrap();
+    println!("insert thuc paras success");
+}
+*/
 
 pub async fn gkv_arrow_word(
     db: &dyn GlosserDb,

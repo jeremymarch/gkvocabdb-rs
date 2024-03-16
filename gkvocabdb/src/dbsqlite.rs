@@ -1572,6 +1572,38 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         Ok(row)
     }
 
+    async fn insert_word(
+        &mut self,
+        before_word_id: u32,
+        word_type: u32,
+        word: &str,
+    ) -> Result<i64, GlosserError> {
+        let query = r#"UPDATE words set seq = seq + 1 WHERE text_id > 269 AND text_id < 296 AND seq >= (SELECT seq FROM words WHERE word_id = $1);"#;
+        let _res = sqlx::query(query)
+            .bind(before_word_id)
+            .execute(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?;
+
+        //do not insert value for updated so it gets default timestamp, inserting null to it does not set the timestamp
+        let query2 = r#"INSERT INTO words (word_id, seq, text_id, word, gloss_id, type, updatedUser, isFlagged, note) 
+            VALUES (NULL, 
+                (SELECT seq - 1 FROM words WHERE word_id = $1), 
+                (SELECT text_id FROM words WHERE word_id = $2), 
+                $3, NULL, $4, '', 0, '');"#;
+        let word_id = sqlx::query(query2)
+            .bind(before_word_id)
+            .bind(before_word_id)
+            .bind(word) //''
+            .bind(word_type) //6
+            .execute(&mut *self.tx)
+            .await
+            .map_err(map_sqlx_error)?
+            .last_insert_rowid();
+
+        Ok(word_id)
+    }
+
     async fn create_db(&mut self) -> Result<(), GlosserError> {
         let query = r#"
             CREATE TABLE IF NOT EXISTS courses (course_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL) STRICT;

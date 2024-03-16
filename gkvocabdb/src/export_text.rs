@@ -328,10 +328,11 @@ pub async fn gkv_export_texts_as_latex(
 
 fn format_verse_line(word: &str) -> String {
     let word_input = word.replace("[line]", "");
+    let mut output = String::from("");
 
     if word_input.contains('-') {
         // 105-106, etc.
-        word_input
+        output = word_input // print everything for line ranges
     } else {
         let re = Regex::new("([0-9]+)(.*)").unwrap();
         let matches = re.captures(&word_input);
@@ -340,16 +341,13 @@ fn format_verse_line(word: &str) -> String {
             let line_num = matches.get(1).unwrap().as_str();
             let line_num2 = line_num.parse::<u32>().unwrap();
             if line_num2 % 5 == 0 {
-                word_input // 175 [str
+                output = word_input // 175 [str
             } else if let Some(rest) = matches.get(2) {
-                String::from(rest.as_str())
-            } else {
-                String::from("")
+                output = rest.as_str().to_string() // just [str etc.
             }
-        } else {
-            word_input // [str
         }
     }
+    output.to_lowercase()
 }
 
 //for thuc

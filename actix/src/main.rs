@@ -649,6 +649,8 @@ async fn main() -> io::Result<()> {
     tx.load_lemmatizer().await.unwrap();
     tx.commit_tx().await.unwrap();
 
+    //insert_thuc_paras(&db_pool).await;
+
     /*
     https://github.com/SergioBenitez/Rocket/discussions/1989
     .journal_mode(SqliteJournalMode::Off)
