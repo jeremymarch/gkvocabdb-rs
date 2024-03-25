@@ -410,7 +410,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         //or could have separate history table just for gloss_id changes
         //word_history_id, word_id, seq, text, word, gloss_id, type,
         let query = "INSERT INTO words_history \
-        (word_history_id, word_id, seq, text, word, gloss_id, type, updated, updatedUser, isFlagged, note) \
+        (word_history_id, word_id, seq, text_id, word, gloss_id, type, updated, updatedUser, isFlagged, note) \
         SELECT NULL, word_id, seq, text_id, word, gloss_id, type, updated, updatedUser, isFlagged, note FROM words \
         WHERE word_id = $1;";
         let history_id = sqlx::query(query)
@@ -1613,7 +1613,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             CREATE TABLE IF NOT EXISTS arrowed_words_history (history_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, course_id INTEGER NOT NULL REFERENCES courses (course_id), gloss_id INTEGER NOT NULL REFERENCES glosses (gloss_id), word_id INTEGER, updated INTEGER, user_id INTEGER REFERENCES users (user_id), comment TEXT) STRICT;
             CREATE TABLE IF NOT EXISTS appcrit (word_id INTEGER NOT NULL, entry TEXT DEFAULT NULL, PRIMARY KEY (word_id)) STRICT;
             CREATE TABLE IF NOT EXISTS words (word_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, seq INTEGER NOT NULL, text_id INTEGER NOT NULL, word TEXT NOT NULL, gloss_id INTEGER DEFAULT NULL REFERENCES glosses (gloss_id), type INTEGER DEFAULT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser TEXT NOT NULL DEFAULT '', isFlagged INTEGER NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '') STRICT;
-            CREATE TABLE IF NOT EXISTS words_history (word_history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, word_id INTEGER NOT NULL, seq INTEGER NOT NULL, text INTEGER NOT NULL, word TEXT NOT NULL, gloss_id INTEGER DEFAULT NULL REFERENCES glosses (gloss_id), type INTEGER DEFAULT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser TEXT NOT NULL DEFAULT '', isFlagged INTEGER NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '') STRICT;
+            CREATE TABLE IF NOT EXISTS words_history (word_history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, word_id INTEGER NOT NULL, seq INTEGER NOT NULL, text_id INTEGER NOT NULL, word TEXT NOT NULL, gloss_id INTEGER DEFAULT NULL REFERENCES glosses (gloss_id), type INTEGER DEFAULT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedUser TEXT NOT NULL DEFAULT '', isFlagged INTEGER NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '') STRICT;
             CREATE TABLE IF NOT EXISTS glosses_history (gloss_history_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, gloss_id INTEGER NOT NULL, unit INTEGER NOT NULL, lemma TEXT NOT NULL, sortalpha TEXT NOT NULL DEFAULT '', def TEXT NOT NULL, pos TEXT NOT NULL, note TEXT NOT NULL, updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, status INTEGER NOT NULL DEFAULT 1, updatedUser TEXT NOT NULL DEFAULT '') STRICT;
             CREATE TABLE IF NOT EXISTS update_types (update_type_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, update_type TEXT NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS "texts" (text_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, parent_id INTEGER references texts (text_id) DEFAULT NULL, display INTEGER DEFAULT 1, title TEXT NOT NULL DEFAULT '') STRICT;
