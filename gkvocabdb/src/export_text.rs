@@ -69,6 +69,7 @@ pub async fn gkv_export_texts_as_latex(
 
     //to build index
     let mut arrowed_words_index: Vec<ArrowedWordsIndex> = vec![];
+    let index_page_offset = 2;
 
     let mut start = 0;
     for (idx, ww) in words.iter().enumerate() {
@@ -257,7 +258,7 @@ pub async fn gkv_export_texts_as_latex(
                         arrowed_words_index.push(ArrowedWordsIndex {
                             gloss_lemma: w.lemma.to_owned(),
                             gloss_sort: w.sort_alpha.to_owned(),
-                            page_number: page_idx,
+                            page_number: page_idx + index_page_offset,
                         });
                     }
                 } else if (w.arrowed_text_seq.is_some()
