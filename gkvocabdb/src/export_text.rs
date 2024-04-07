@@ -35,12 +35,19 @@ struct Gloss {
     arrow: bool,
 }
 
+struct ArrowedWordsIndex {
+    gloss_lemma: String,
+    gloss_sort: String,
+    page_number: usize,
+}
+
 pub async fn gkv_export_texts_as_latex(
     db: &dyn GlosserDb,
     text_ids: &str,
     course_id: u32,
     bold_glosses: bool,
 ) -> Result<String, GlosserError> {
+    let build_index = true;
     let mut latex: String = include_str!("latex/doc_template.tex")
         .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
 
@@ -60,6 +67,9 @@ pub async fn gkv_export_texts_as_latex(
     //divide words into seperate vectors of words per page
     let mut words_divided_by_page: Vec<Vec<WordRow>> = vec![];
 
+    //to build index
+    let mut arrowed_words_index: Vec<ArrowedWordsIndex> = vec![];
+
     let mut start = 0;
     for (idx, ww) in words.iter().enumerate() {
         if ww.last_word_of_page {
@@ -71,7 +81,7 @@ pub async fn gkv_export_texts_as_latex(
         words_divided_by_page.push(words[start..words.len()].to_vec());
     }
 
-    for words_in_page in words_divided_by_page {
+    for (page_idx, words_in_page) in words_divided_by_page.into_iter().enumerate() {
         let mut res = String::from(""); //start fresh
 
         let mut title = String::from("");
@@ -242,6 +252,14 @@ pub async fn gkv_export_texts_as_latex(
                 let is_arrowed;
                 if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
                     is_arrowed = true; //this instance is arrowed
+                                       //$arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
+                    if build_index {
+                        arrowed_words_index.push(ArrowedWordsIndex {
+                            gloss_lemma: w.lemma.to_owned(),
+                            gloss_sort: w.sort_alpha.to_owned(),
+                            page_number: page_idx,
+                        });
+                    }
                 } else if (w.arrowed_text_seq.is_some()
                     && w.arrowed_text_seq < Some(w.word_text_seq))
                     || (w.arrowed_text_seq.is_some()
@@ -320,6 +338,63 @@ pub async fn gkv_export_texts_as_latex(
             &header,
             &app_crits,
         );
+    }
+
+    if build_index && !arrowed_words_index.is_empty() {
+        // global $INDEXtemplate;
+        // global $startIndexTable;
+        // $latex = $INDEXtemplate . "\n";
+        // //$latex .= $startIndexTable;
+        // $latex .= '\fancyhead[ER]{' . "INDEX OF ARROWED WORDS" . "}\n";
+        // $latex .= "\\noindent \n";
+
+        // $boldLemmata = FALSE;
+        // $latex = str_replace("%BOLDLEMMATA%", ($boldLemmata) ? '\bf' : "", $latex);
+        // usort($arrowedIndex, "indexsort");
+        // $i = 0;
+        // foreach ($arrowedIndex as $a) {
+        //     //$latex .= explode(",", $a[0], 2)[0] . " & " . $a[2] . " \\\\ \n";
+        //     $latex .= explode(",", $a[0], 2)[0] . " \dotfill " . $a[2] . " \\\\ \n";
+        //     $i++;
+        //     if ($i > 43) {
+        //         $i = 0;
+        //         //$latex .= "\\end{tabular}\n";
+        //         $latex .= "\\newpage \n";
+        //         $latex .= "\\noindent \n";
+        //         //$latex .= $startIndexTable . "\n";
+        //     }
+
+        // }
+        // //$latex .= '\end{tabular}' . "\n";
+        // $latex .= '\end{document}' . "\n";
+        latex.push_str(ARROWED_INDEX_TEMPLATE);
+
+        arrowed_words_index.sort_by(|a, b| {
+            a.gloss_sort
+                .to_lowercase()
+                .cmp(&b.gloss_sort.to_lowercase())
+        });
+        let mut gloss_per_page = 0;
+        for gloss in arrowed_words_index {
+            //$latex .= explode(",", $a[0], 2)[0] . " \dotfill " . $a[2] . " \\\\ \n";
+            latex.push_str(
+                &gloss
+                    .gloss_lemma
+                    .chars()
+                    .take_while(|&ch| ch != ',')
+                    .collect::<String>(),
+            );
+            latex.push_str(r" \dotfill ");
+            latex.push_str(&gloss.page_number.to_string());
+            latex.push_str(" \\\\ \n");
+
+            gloss_per_page += 1;
+            if gloss_per_page > 43 {
+                gloss_per_page = 0;
+                latex.push_str("\\newpage \n");
+                latex.push_str("\\noindent \n");
+            }
+        }
     }
 
     latex.push_str("\\end{document}\n");
@@ -471,3 +546,60 @@ fn apply_latex_templates(
 
     latex.to_string()
 }
+
+const ARROWED_INDEX_TEMPLATE: &str = r##"
+\newpage
+\fancyhead[ER]{INDEX OF ARROWED WORDS}
+%\begin{spacing}{\GlossLineSpacing}
+\noindent
+"##;
+
+// const ARROWED_INDEX_TEMPLATE: &str = r##"
+// \documentclass[twoside,openright,12pt,letterpaper]{book}
+// %\usepackage[margin=1.0in]{geometry}
+// \usepackage[twoside, margin=1.0in]{geometry} %bindingoffset=0.5in,
+// \usepackage[utf8]{inputenc}
+// \usepackage{fontspec}
+// \usepackage{array}
+// \usepackage{booktabs}
+// \usepackage{ragged2e}
+// \usepackage{setspace}
+// \usepackage{navigator}
+
+// \newcommand{\GlossLineSpacing}{1.5}
+
+// \setmainfont[Scale=MatchUppercase,Ligatures=TeX, BoldFont={*BOLD}, ItalicFont={IFAOGrec.ttf}, ItalicFeatures={FakeSlant=0.2}]{IFAOGrec.ttf}
+// %\setmainlanguage[variant=polytonic]{greek}
+// \tolerance=10000 % https://www.texfaq.org/FAQ-overfull
+// \setlength{\extrarowheight}{8pt}
+// \newcolumntype{L}{>{\setlength{\RaggedRight\parindent}{-2em}\leftskip 2em}p}
+// \newcolumntype{D}{>{\setlength{\RaggedRight}}p}
+
+// \usepackage{fancyhdr} % http://tug.ctan.org/tex-archive/macros/latex/contrib/fancyhdr/fancyhdr.pdf
+
+// \pagestyle{fancy}
+// \fancyhf{}
+// \renewcommand{\headrulewidth}{0.0pt}
+//   \fancyhead[OL]{LGI - UPPER LEVEL GREEK}% Author on Odd page, Centred
+//   \fancyhead[ER]{INDEX OF ARROWED WORDS}% Title on Even page, Centred
+// \setlength{\headheight}{14.49998pt}
+// \cfoot{\thepage}
+
+// %\usepackage{enumitem}
+// %\SetLabelAlign{margin}{\llap{#1~~}}
+// %\usepackage{showframe} % just to show the margins
+// %https://tex.stackexchange.com/questions/223701/labels-in-the-left-margin
+
+// %https://tex.stackexchange.com/questions/40748/use-sections-inline
+// \newcommand{\marginsec}[1]{\vadjust{\vbox to 0pt{\sbox0{\bfseries#1\quad}\kern-0.89em\llap{\box0}}}}
+// \newcommand{\marginseclight}[1]{\vadjust{\vbox to 0pt{\sbox0{\footnotesize#1\hspace{0.25em}\quad}\kern-0.85em\llap{\box0}}}}
+// \usepackage[none]{hyphenat}
+// \usepackage[polutonikogreek,english]{babel} %https://tex.stackexchange.com/questions/13067/utf8x-vs-utf8-inputenc
+// \usepackage{microtype}
+// \begin{document}
+// \clearpage
+// \setcounter{page}{1}
+// \mbox{}
+// \newpage
+// \noindent
+// "##;
