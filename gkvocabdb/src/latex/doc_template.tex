@@ -24,8 +24,8 @@
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0.0pt}
-  \fancyhead[OL]{LGI - UPPER LEVEL GREEK}% Author on Odd page, Centered
-  \fancyhead[ER]{ΑΠΟΛΟΓΙΑ ΣΩΚΡΑΤΟΥΣ (1)}% Title on Even page, Centered
+  \fancyhead[EL]{%EVEN_PAGE_HEADER%}% Title on Even page, Centered
+  \fancyhead[OR]{}% Author on Odd page, Centered
 \setlength{\headheight}{14.49998pt}
 \cfoot{\thepage}
 
@@ -41,7 +41,7 @@
 \usepackage[polutonikogreek,english]{babel} %https://tex.stackexchange.com/questions/13067/utf8x-vs-utf8-inputenc
 \usepackage{microtype}
 \begin{document}
-\clearpage
-\setcounter{page}{1}
-\newpage
-\mbox{}
+%\clearpage
+\setcounter{page}{%FIRST_PAGE_NUMBER%}
+%\newpage
+%\mbox{}

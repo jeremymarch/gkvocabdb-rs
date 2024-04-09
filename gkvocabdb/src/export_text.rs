@@ -47,9 +47,15 @@ pub async fn gkv_export_texts_as_latex(
     course_id: u32,
     bold_glosses: bool,
 ) -> Result<String, GlosserError> {
-    let build_index = true;
+    let first_page_number = 4; //should be an even number, else headers will be reversed and we want page 1 to be a right hand page
+    let even_page_header = "LGI - UPPER LEVEL GREEK";
+    let build_index = true; // whether to build the index
+    let index_page_offset = first_page_number; // which page the text starts on
+
     let mut latex: String = include_str!("latex/doc_template.tex")
-        .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" });
+        .replace("%BOLDLEMMATA%", if bold_glosses { "\\bf" } else { "" })
+        .replace("%EVEN_PAGE_HEADER%", even_page_header)
+        .replace("%FIRST_PAGE_NUMBER%", &first_page_number.to_string());
 
     let texts: Vec<u32> = text_ids
         .split(',')
@@ -57,7 +63,7 @@ pub async fn gkv_export_texts_as_latex(
         .collect();
 
     let mut tx = db.begin_tx().await?;
-    let header = tx.get_text_title(*texts.first().unwrap()).await?;
+    let mut header = tx.get_text_title(*texts.first().unwrap()).await?; //this is overwritten for now by the title
     let mut words: Vec<WordRow> = vec![];
     for text_id in texts {
         words.append(&mut tx.get_words_for_export(text_id, course_id).await?);
@@ -69,10 +75,15 @@ pub async fn gkv_export_texts_as_latex(
 
     //to build index
     let mut arrowed_words_index: Vec<ArrowedWordsIndex> = vec![];
-    let index_page_offset = 2;
 
     let mut start = 0;
     for (idx, ww) in words.iter().enumerate() {
+        if WordType::from_i32(ww.word_type.into()) == WordType::WorkTitle
+            && (idx % 2 != 0 || idx == 0)
+        {
+            words_divided_by_page.push(vec![]); //add blank page before work title page, if page is odd (note idx is 0 indexed; page numbers are 1 indexed)
+        }
+
         if ww.last_word_of_page {
             words_divided_by_page.push(words[start..=idx].to_vec());
             start = idx + 1;
@@ -132,7 +143,7 @@ pub async fn gkv_export_texts_as_latex(
                 WordType::WorkTitle => {
                     //7
                     title = word.clone();
-                    //header = title.clone();
+                    header = title.clone();
                     verse_line = String::from("reset");
                 }
                 WordType::Speaker => {
@@ -459,9 +470,9 @@ fn apply_latex_templates(
 
     if !header.is_empty() {
         if !title.is_empty() {
-            latex.push_str("\\fancyhead[ER]{ }\n");
+            latex.push_str("\\fancyhead[OR]{ }\n");
         } else {
-            latex.push_str(format!("\\fancyhead[ER]{{{}}}\n", header).as_str());
+            latex.push_str(format!("\\fancyhead[OR]{{{}}}\n", header).as_str());
         }
     }
     if !title.is_empty() {
