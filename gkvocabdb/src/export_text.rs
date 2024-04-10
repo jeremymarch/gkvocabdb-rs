@@ -495,7 +495,7 @@ fn apply_latex_templates(
         *text = text.replace("%VERSELINEEND%", " \\\\ \n");
         latex.push_str(
             format!(
-                "{}{}\\end{{tabular}}\n",
+                "{}{}~\\\\\n\\end{{tabular}}\n",
                 include_str!("latex/verse_table_start.tex"),
                 text
             )
