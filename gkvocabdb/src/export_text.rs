@@ -77,20 +77,40 @@ pub async fn gkv_export_texts_as_latex(
     let mut arrowed_words_index: Vec<ArrowedWordsIndex> = vec![];
 
     let mut start = 0;
+    let mut page_num = 1;
+    let mut at_least_one_word = false;
     for (idx, ww) in words.iter().enumerate() {
-        if WordType::from_i32(ww.word_type.into()) == WordType::WorkTitle
-            && (idx % 2 != 0 || idx == 0)
-        {
-            words_divided_by_page.push(vec![]); //add blank page before work title page, if page is odd (note idx is 0 indexed; page numbers are 1 indexed)
+        if WordType::from_i32(ww.word_type.into()) == WordType::WorkTitle {
+            words_divided_by_page.push(vec![]);
+            page_num += 1;
+            at_least_one_word = false;
+            //println!("title1 {}", page_num);
+            if page_num % 2 != 0 {
+                words_divided_by_page.push(vec![]); //add blank page before work title page, if page is odd (note idx is 0 indexed; page numbers are 1 indexed)
+                page_num += 1;
+                at_least_one_word = false;
+                //println!("title2 {}", page_num);
+            }
         }
-
-        if ww.last_word_of_page {
+        if WordType::from_i32(ww.word_type.into()) == WordType::Word {
+            at_least_one_word = true;
+        }
+        if ww.last_word_of_page && at_least_one_word {
             words_divided_by_page.push(words[start..=idx].to_vec());
             start = idx + 1;
+            page_num += 1;
+            at_least_one_word = false;
         }
     }
+    //println!("final {}", page_num);
+
     if start < words.len() - 1 {
         words_divided_by_page.push(words[start..words.len()].to_vec());
+    }
+    words_divided_by_page.push(vec![]); //blank page before index
+    page_num += 1;
+    if page_num % 2 != 0 {
+        words_divided_by_page.push(vec![]); //extra blank page if on left page
     }
 
     for (page_idx, words_in_page) in words_divided_by_page.into_iter().enumerate() {
