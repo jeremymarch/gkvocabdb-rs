@@ -165,14 +165,14 @@ pub async fn gkv_export_texts_as_latex(
             match WordType::from_i32(w.word_type.into()) {
                 WordType::WorkTitle => {
                     //7
-                    title = word.clone();
-                    header = title.clone();
+                    title.clone_from(&word);
+                    header.clone_from(&title);
                     verse_line = String::from("reset");
                 }
                 WordType::Speaker => {
                     //2
                     //including lines 91, 134, 201, 719, 864, 872, , 974, 1047, 1226, 1318
-                    
+
                     match verse_line.as_str() {
                         "reset" => (),
                         "" => (),
@@ -200,7 +200,6 @@ pub async fn gkv_export_texts_as_latex(
                     // );
                     prev_non_space = true;
                     res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
-                    
                 }
                 WordType::InlineSpeaker => {
                     //9
@@ -213,7 +212,7 @@ pub async fn gkv_export_texts_as_latex(
                     //all but lines 91, 134, 201, 719, 864, 872, , 974, 1047, 1226, 1318
                     //14
                     //res.push_str(format!("%StartInlineVerseSpeaker%{}%EndInlineVerseSpeaker%", word).as_str());
-                    verse_inline_speaker = word.clone();
+                    verse_inline_speaker.clone_from(&word);
                     //verse_line = String::from("reset");
                 }
                 WordType::Section => {
@@ -278,7 +277,7 @@ pub async fn gkv_export_texts_as_latex(
                             .as_str(),
                         ),
                     }
-                    verse_line = word.clone();
+                    verse_line.clone_from(&word);
 
                     verse_text = String::from("");
                     verse_inline_speaker = String::from("");
