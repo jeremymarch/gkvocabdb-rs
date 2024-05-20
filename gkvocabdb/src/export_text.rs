@@ -129,6 +129,9 @@ pub async fn gkv_export_texts_as_latex(
         let mut verse_inline_speaker: String = String::from("");
 
         for w in words_in_page {
+            // if w.wordid > 69704 && w.wordid < 69728 {
+            //     println!("word2 {} {}", w.wordid, w.word);
+            // }
             let word = w
                 .word
                 .trim()
@@ -169,8 +172,35 @@ pub async fn gkv_export_texts_as_latex(
                 WordType::Speaker => {
                     //2
                     //including lines 91, 134, 201, 719, 864, 872, , 974, 1047, 1226, 1318
-                    res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
+                    
+                    match verse_line.as_str() {
+                        "reset" => (),
+                        "" => (),
+                        _ => res.push_str(
+                            format!(
+                                "{}%VERSEREALLINESTART%{}%VERSELINESTART%{}%VERSELINEEND%",
+                                verse_inline_speaker,
+                                verse_text,
+                                format_verse_line(&verse_line)
+                            )
+                            .as_str(),
+                        ),
+                    }
                     verse_line = String::from("reset");
+
+                    verse_text = String::from("");
+                    verse_inline_speaker = String::from("");
+
+                    // res.push_str(
+                    //     format!(
+                    //         "%VERSELINESTART%{}%VERSELINEEND%",
+                    //         verse_line
+                    //     )
+                    //     .as_str(),
+                    // );
+                    prev_non_space = true;
+                    res.push_str(format!("%StartSubTitle%{}%EndSubTitle%", word).as_str());
+                    
                 }
                 WordType::InlineSpeaker => {
                     //9

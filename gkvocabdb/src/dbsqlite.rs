@@ -858,7 +858,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         LEFT JOIN appCrit h on h.word_id = A.word_id \
         WHERE a.text_id = {text_id} AND a.type > -1 \
         ORDER BY a.seq \
-        LIMIT 55000;", text_id = text_id, course_id = course_id);
+        LIMIT 550000;", text_id = text_id, course_id = course_id);
 
         let res: Result<Vec<WordRow>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| WordRow {
