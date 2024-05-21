@@ -242,7 +242,8 @@ pub async fn gkv_export_texts_as_latex(
                 WordType::Word | WordType::Punctuation => {
                     //0 | 1
                     let punc = vec![
-                        ".", ",", "·", "·", ";", ";", ">", "]", ")", ",\"", "·\"", "·\"", ".’",
+                        ".", ",", "·", "·", ";", ";", ">", "]", ")", ",\"", ".”", ".\"", "·\"",
+                        "·\"", ".’",
                     ];
 
                     let ww = format!(
