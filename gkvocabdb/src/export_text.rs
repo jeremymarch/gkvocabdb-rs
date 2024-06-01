@@ -47,7 +47,7 @@ pub async fn gkv_export_texts_as_latex(
     course_id: u32,
     bold_glosses: bool,
 ) -> Result<String, GlosserError> {
-    let first_page_number = 58; //should be an even number, else headers will be reversed and we want page 1 to be a right hand page
+    let first_page_number = 24; //should be an even number, else headers will be reversed and we want page 1 to be a right hand page
     let even_page_header = "LGI - UPPER LEVEL GREEK";
     let build_index = true; // whether to build the index
     let index_page_offset = first_page_number; // which page the text starts on
