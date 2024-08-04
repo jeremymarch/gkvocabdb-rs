@@ -199,7 +199,11 @@ async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), std:
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_type = field.content_disposition();
-        let name = content_type.get_name().unwrap_or("").to_string();
+        let name = match content_type {
+            Some(n) => n.get_name().unwrap_or(""),
+            _ => "",
+        }
+        .to_string();
 
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {

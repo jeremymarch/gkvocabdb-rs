@@ -23,6 +23,7 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use gkvocabdb::GlosserDb;
+use regex::Regex;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -58,34 +59,66 @@ pub async fn hqvocab(
     //     rows.push_str("</tr>");
     // }
 
-    let lower_str = match &info.lower {
-        Some(s) => s.clone(),
+    let mut lower_str = match &info.lower {
+        Some(s) => s.trim().to_lowercase(),
         None => String::from("1"),
     };
 
-    let upper_str = match &info.upper {
-        Some(s) => s.clone(),
+    let mut upper_str = match &info.upper {
+        Some(s) => s.trim().to_lowercase(),
         None => String::from("20"),
     };
 
-    let mut lower: u32 = lower_str.trim().parse::<u32>().unwrap_or(1);
-    let mut upper: u32 = upper_str.trim().parse::<u32>().unwrap_or(20);
+    let unit_min = 1;
+    let mut unit_max = 20;
 
-    if lower < 1 {
-        lower = 1;
+    let lower_re = Regex::new("^([im])([1-9])$").unwrap();
+    let lower_matches = lower_re.captures(&lower_str);
+    if let Some(lower_matches) = lower_matches {
+        let text = lower_matches.get(1).unwrap().as_str();
+        let num = lower_matches.get(2).unwrap().as_str();
+
+        if text == "i" {
+            lower_str = format!("3{}", num);
+        } else {
+            lower_str = format!("4{}", num);
+        }
     }
-    if lower > 20 {
-        lower = 20;
+
+    let upper_re = Regex::new("^([im])([1-9])$").unwrap();
+    let upper_matches = upper_re.captures(&upper_str);
+    if let Some(upper_matches) = upper_matches {
+        let text = upper_matches.get(1).unwrap().as_str();
+        let num = upper_matches.get(2).unwrap().as_str();
+
+        if text == "i" {
+            upper_str = format!("3{}", num);
+        } else {
+            upper_str = format!("4{}", num);
+        }
+        unit_max = 49;
     }
-    if upper < 1 {
-        upper = 1;
-    }
-    if upper > 20 {
-        upper = 20;
-    }
+
+    let mut lower: u32 = lower_str.trim().parse::<u32>().unwrap_or(unit_min);
+    let mut upper: u32 = upper_str.trim().parse::<u32>().unwrap_or(unit_max);
+
+    lower = lower.clamp(unit_min, unit_max);
+    upper = upper.clamp(unit_min, unit_max);
+
     if lower > upper {
         upper = lower;
     }
+
+    // let lower_display = if lower_matches.is_some() {
+    //     lower_str
+    // } else {
+    //     lower.to_string()
+    // };
+    // let upper_display = if upper_matches.is_some() {
+    //     upper_str
+    // } else {
+    //     upper.to_string()
+    // };
 
     let sort = info.sort.clone().unwrap_or_else(|| String::from("unit"));
     let mut tx = db.begin_tx().await.map_err(map_glosser_error)?;
@@ -99,16 +132,27 @@ pub async fn hqvocab(
             .map_err(map_glosser_error)?;
         for w in hqv {
             if sort != "alpha" && last_unit != w.1 {
+                let unit_title = match w.1 {
+                    1..=20 => format!("Unit: {}", w.1),
+                    31..=39 => format!("Ion {}", w.1 - 30),
+                    41..=49 => format!("Medea {}", w.1 - 40),
+                    _ => String::from("?"),
+                };
                 res.push_str(
                     format!(
-                        "<div class='rowdiv'><p class='rowp'>Unit: {}</p></div>",
-                        w.1
+                        "<div class='rowdiv'><p class='rowp'>{}</p></div>",
+                        unit_title
                     )
                     .as_str(),
                 );
                 last_unit = w.1;
             }
-            let u = format!(" <span class='unitNum'>({})</span>", w.1);
+            let alpha_unit_title = match w.1 {
+                1..=20 => format!(" <span class='unitNum'>({})</span>", w.1),
+                31..=39 => format!(" <span class='unitNum'>(i{})</span>", w.1 - 30),
+                41..=49 => format!(" <span class='unitNum'>(m{})</span>", w.1 - 40),
+                _ => String::from("?"),
+            };
             res.push_str(
                 format!(
                     "<p class='row tooltip'>{}{}<span class='tooltiptext'>{}</span></p>",
@@ -134,7 +178,11 @@ pub async fn hqvocab(
                     } else {
                         w.0
                     },
-                    if sort == "alpha" { u } else { String::from("") },
+                    if sort == "alpha" {
+                        alpha_unit_title
+                    } else {
+                        String::from("")
+                    },
                     w.2
                 )
                 .as_str(),
@@ -144,9 +192,18 @@ pub async fn hqvocab(
         template = template.replacen(format!("%{}%", p).as_str(), &res, 1);
     }
     tx.commit_tx().await.map_err(map_glosser_error)?;
-
-    template = template.replacen("%%upper%%", &upper.to_string(), 1);
-    template = template.replacen("%%lower%%", &lower.to_string(), 1);
+    let upper_display = if upper > 20 {
+        info.upper.as_ref().unwrap()
+    } else {
+        &upper.to_string()
+    };
+    template = template.replacen("%%upper%%", upper_display.trim(), 1);
+    let lower_display = if lower > 20 {
+        info.lower.as_ref().unwrap()
+    } else {
+        &lower.to_string()
+    };
+    template = template.replacen("%%lower%%", lower_display.trim(), 1);
 
     if info.abbrev.is_some() {
         template = template.replacen("%abbreviated%", "checked", 1);

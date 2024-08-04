@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// xelatex -interaction=nonstopmode [file.tex]
+
 use crate::GlosserDb;
 use crate::GlosserError;
 use crate::WordRow;
@@ -516,6 +518,7 @@ fn apply_latex_templates(
     header: &str,
     app_crits: &Vec<String>,
 ) -> String {
+    let include_text = true;
     latex.push_str("\\newpage\n");
 
     if !header.is_empty() {
@@ -535,51 +538,53 @@ fn apply_latex_templates(
         );
     }
 
-    if text.contains("%VERSELINESTART%") {
-        *text = text.replace("%StartSubTitle%", "");
-        *text = text.replace("%EndSubTitle%", " \\\\ "); //add this even if no %StartSubTitle%
-        *text = text.replace("%LINEEND%", " \\\\ \n");
+    if include_text {
+        if text.contains("%VERSELINESTART%") {
+            *text = text.replace("%StartSubTitle%", "");
+            *text = text.replace("%EndSubTitle%", " \\\\ "); //add this even if no %StartSubTitle%
+            *text = text.replace("%LINEEND%", " \\\\ \n");
 
-        *text = text.replace("%VERSEREALLINESTART%", " & ");
-        *text = text.replace("%VERSELINESTART%", " & ");
-        *text = text.replace("%VERSELINEEND%", " \\\\ \n");
-        latex.push_str(
-            format!(
-                "{}{}~\\\\\n\\end{{tabular}}\n",
-                include_str!("latex/verse_table_start.tex"),
-                text
-            )
-            .as_str(),
-        );
-    } else {
-        latex.push_str("\\begin{spacing}{\\GlossLineSpacing}\n");
-        latex.push_str("\\noindent\n");
+            *text = text.replace("%VERSEREALLINESTART%", " & ");
+            *text = text.replace("%VERSELINESTART%", " & ");
+            *text = text.replace("%VERSELINEEND%", " \\\\ \n");
+            latex.push_str(
+                format!(
+                    "{}{}~\\\\\n\\end{{tabular}}\n",
+                    include_str!("latex/verse_table_start.tex"),
+                    text
+                )
+                .as_str(),
+            );
+        } else {
+            latex.push_str("\\begin{spacing}{\\GlossLineSpacing}\n");
+            latex.push_str("\\noindent\n");
 
-        *text = text.replace("%StartSubTitle%", "\\begin{center}"); //\hspace{0pt} solves problem when \par\marginsec{} come together
-        *text = text.replace("%EndSubTitle%", "\\end{center}");
+            *text = text.replace("%StartSubTitle%", "\\begin{center}"); //\hspace{0pt} solves problem when \par\marginsec{} come together
+            *text = text.replace("%EndSubTitle%", "\\end{center}");
 
-        *text = text.replace("%StartSubSection%", "\\hspace{0pt}\\marginsec{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
-        *text = text.replace("%EndSubSection%", "}");
+            *text = text.replace("%StartSubSection%", "\\hspace{0pt}\\marginsec{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
+            *text = text.replace("%EndSubSection%", "}");
 
-        *text = text.replace("%parnoindent%", "\n\\par\\noindent\n");
+            *text = text.replace("%parnoindent%", "\n\\par\\noindent\n");
 
-        *text = text.replace("%StartSubSubSection%", "\\hspace{0pt}\\marginseclight{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
-        *text = text.replace("%EndSubSubSection%", "}");
-        *text = text.replace("%para%", "\n\\par\n");
+            *text = text.replace("%StartSubSubSection%", "\\hspace{0pt}\\marginseclight{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
+            *text = text.replace("%EndSubSubSection%", "}");
+            *text = text.replace("%para%", "\n\\par\n");
 
-        *text = text.replace("%StartInnerSubTitle%", "\\par \\textbf{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
-        *text = text.replace("%EndInnerSubTitle%", "} ");
+            *text = text.replace("%StartInnerSubTitle%", "\\par \\textbf{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
+            *text = text.replace("%EndInnerSubTitle%", "} ");
 
-        //\hspace*{\fill}: https://tex.stackexchange.com/questions/54040/underful-hbox-badness-10000
-        latex.push_str(format!("{}\\hspace*{{\\fill}}\n\\end{{spacing}}\n", text).as_str());
-    }
+            //\hspace*{\fill}: https://tex.stackexchange.com/questions/54040/underful-hbox-badness-10000
+            latex.push_str(format!("{}\\hspace*{{\\fill}}\n\\end{{spacing}}\n", text).as_str());
+        }
 
-    //insert apparatus criticus here appcrit
-    if !app_crits.is_empty() {
-        latex.push_str("~\\\\\n");
-    }
-    for a in app_crits {
-        latex.push_str(format!("{}\\\\\n", a).as_str());
+        //insert apparatus criticus here appcrit
+        if !app_crits.is_empty() {
+            latex.push_str("~\\\\\n");
+        }
+        for a in app_crits {
+            latex.push_str(format!("{}\\\\\n", a).as_str());
+        }
     }
 
     latex.push_str("\\begin{table}[b!]\\leftskip -0.84cm\n");
