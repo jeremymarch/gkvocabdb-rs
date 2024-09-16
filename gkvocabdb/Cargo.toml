@@ -11,7 +11,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-quick-xml = "0.31.0"
+quick-xml = "0.36.1"
 unicode-normalization = { version = "0.1.23", default-features = false }
 chrono = { version = "0.4.34", default-features = false, features = ["clock"] }
 sqlx = { version = "0.8.0", features = ["sqlite", "runtime-tokio-rustls"] }

@@ -219,6 +219,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         unit: u32,
         sort: &str,
     ) -> Result<Vec<(String, u32, String)>, GlosserError> {
+        let course_id = 1;
         let s = match sort {
             "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
             _ => "unit, sortalpha COLLATE PolytonicGreek ASC",
@@ -229,7 +230,12 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             "adjective" => "pos == 'adjective'",
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
-        let query = format!("SELECT lemma, unit, def FROM glosses WHERE {} AND unit >= $1 AND unit <= $2 AND status = 1 ORDER BY {};", p, s);
+        let query = format!(
+            "SELECT lemma, unit, def FROM glosses \
+            LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id}) \
+            WHERE {} AND unit >= $1 AND unit <= $2 AND status = 1 ORDER BY {};",
+            p, s
+        );
         let words: Vec<(String, u32, String)> = sqlx::query_as(&query)
             .bind(lower_unit)
             .bind(unit)
@@ -448,8 +454,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         )
         SELECT B.gloss_id, B.lemma, B.pos, B.def, total_count, A.seq, A.word_id, \
     D.word_id as arrowedID, E.seq AS arrowedSeq, A.isFlagged, G.text_order,F.text_order AS arrowed_text_order, \
-    COUNT(A.gloss_id) OVER (PARTITION BY A.gloss_id ORDER BY G.text_order,A.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
-        AS running_count 
+    COUNT(A.gloss_id) OVER (PARTITION BY A.gloss_id ORDER BY G.text_order,A.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        AS running_count
     FROM words A \
     LEFT JOIN glosses B ON A.gloss_id = B.gloss_id \
     LEFT JOIN arrowed_words D ON (A.gloss_id = D.gloss_id AND D.course_id = {course_id}) \
@@ -921,14 +927,14 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             GROUP BY gloss_id
         )
         SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.unit, b.pos, b.sortalpha, d.word_id as arrowedID, b.gloss_id, a.seq, e.seq AS arrowedSeq,
-        a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, total_count, c.word_id as page_break, 
-        COUNT(a.gloss_id) OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
-        + IFNULL(running_basis, 0) AS running_count 
-        FROM words a 
-        LEFT JOIN glosses b ON a.gloss_id = b.gloss_id 
-        LEFT JOIN latex_page_breaks c ON a.word_id = c.word_id 
+        a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, total_count, c.word_id as page_break,
+        COUNT(a.gloss_id) OVER (PARTITION BY a.gloss_id ORDER BY a.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        + IFNULL(running_basis, 0) AS running_count
+        FROM words a
+        LEFT JOIN glosses b ON a.gloss_id = b.gloss_id
+        LEFT JOIN latex_page_breaks c ON a.word_id = c.word_id
         LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id})
-        LEFT JOIN words e ON e.word_id = d.word_id  
+        LEFT JOIN words e ON e.word_id = d.word_id
         LEFT JOIN course_x_text f ON (e.text_id = f.text_id AND f.course_id = {course_id})
         LEFT JOIN course_x_text g ON ({text_id} = g.text_id AND g.course_id = {course_id})
         LEFT JOIN gloss_basis ON a.gloss_id = gloss_basis.gloss_id
@@ -1586,10 +1592,10 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .map_err(map_sqlx_error)?;
 
         //do not insert value for updated so it gets default timestamp, inserting null to it does not set the timestamp
-        let query2 = r#"INSERT INTO words (word_id, seq, text_id, word, gloss_id, type, updatedUser, isFlagged, note) 
-            VALUES (NULL, 
-                (SELECT seq - 1 FROM words WHERE word_id = $1), 
-                (SELECT text_id FROM words WHERE word_id = $2), 
+        let query2 = r#"INSERT INTO words (word_id, seq, text_id, word, gloss_id, type, updatedUser, isFlagged, note)
+            VALUES (NULL,
+                (SELECT seq - 1 FROM words WHERE word_id = $1),
+                (SELECT text_id FROM words WHERE word_id = $2),
                 $3, NULL, $4, '', 0, '');"#;
         let word_id = sqlx::query(query2)
             .bind(before_word_id)
@@ -1622,7 +1628,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             CREATE TABLE IF NOT EXISTS latex_page_breaks (word_id INTEGER NOT NULL UNIQUE REFERENCES words(word_id)) STRICT;
             CREATE TABLE IF NOT EXISTS containers (container_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL) STRICT;
             CREATE TABLE IF NOT EXISTS lemmatizer (form TEXT PRIMARY KEY NOT NULL, gloss_id INTEGER NOT NULL REFERENCES glosses(gloss_id)) STRICT;
-            
+
             CREATE INDEX IF NOT EXISTS idx_hqvocab_lemma ON glosses (lemma);
             CREATE INDEX IF NOT EXISTS idx_hqvocab_sortalpha ON glosses (sortalpha);
             CREATE INDEX IF NOT EXISTS idx_hqvocab_updated ON glosses (updated);

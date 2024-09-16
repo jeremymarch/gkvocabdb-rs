@@ -185,7 +185,10 @@ fn process_imported_text(
     let mut words: Vec<TextWord> = Vec::new();
 
     let mut reader = Reader::from_str(xml_string);
-    reader.trim_text(true);
+    //reader.trim_text(true);
+    reader.config_mut().trim_text(true);
+    reader.config_mut().enable_all_checks(true);
+
     let mut buf = Vec::new();
 
     let mut in_text = false;
@@ -312,9 +315,9 @@ fn process_imported_text(
     }
     if !found_tei {
         //using this error for now, if doc does not even try to be tei
-        return Err(quick_xml::Error::UnexpectedToken(String::from(
-            "Missing TEI.2 tags",
-        )));
+        return Err(quick_xml::Error::IllFormed(
+            quick_xml::errors::IllFormedError::MissingDoctypeName,
+        ));
     }
     /*
     for a in words {
