@@ -185,8 +185,7 @@ fn process_imported_text(
     let mut words: Vec<TextWord> = Vec::new();
 
     let mut reader = Reader::from_str(xml_string);
-    //reader.trim_text(true);
-    reader.config_mut().trim_text(true);
+    reader.config_mut().trim_text(true); //FIX ME: check docs, do we want true here?
     reader.config_mut().enable_all_checks(true);
 
     let mut buf = Vec::new();
@@ -196,6 +195,7 @@ fn process_imported_text(
     let mut in_head = false;
     let mut found_tei = false;
     let mut in_desc = false;
+    let mut chapter_value: Option<String> = None;
     /*
     TEI: verse lines can either be empty <lb n="5"/>blah OR <l n="5">blah</l>
     see Perseus's Theocritus for <lb/> and Euripides for <l></l>
@@ -208,7 +208,54 @@ fn process_imported_text(
             Ok(Event::Start(ref e)) => {
                 // for namespaced:
                 // Ok((ref namespace_value, Event::Start(ref e)))
-                if b"text" == e.name().as_ref() {
+                if b"div" == e.name().as_ref() {
+                    let mut subtype = None;
+                    let mut n = None;
+
+                    for attrib in e.attributes() {
+                        //.next().unwrap().unwrap();
+                        if attrib.as_ref().unwrap().key == QName(b"subtype") {
+                            subtype = Some(
+                                std::str::from_utf8(&attrib.unwrap().value)
+                                    .unwrap()
+                                    .to_string(),
+                            );
+                        } else if attrib.as_ref().unwrap().key == QName(b"n") {
+                            n = Some(
+                                std::str::from_utf8(&attrib.unwrap().value)
+                                    .unwrap()
+                                    .to_string(),
+                            );
+                        }
+                    }
+
+                    if subtype.is_some() && n.is_some() {
+                        //if found both subtype and n attributes on div
+                        match subtype.unwrap().as_str() {
+                            "chapter" => chapter_value = Some(n.unwrap()),
+                            "section" => {
+                                let reference = if chapter_value.is_some() {
+                                    Some(format!(
+                                        "{}.{}",
+                                        chapter_value.as_ref().unwrap(),
+                                        n.unwrap()
+                                    ))
+                                } else {
+                                    Some(n.unwrap())
+                                };
+
+                                if let Some(ref_value) = reference {
+                                    words.push(TextWord {
+                                        word: ref_value,
+                                        word_type: WordType::Section as u32,
+                                        gloss_id: None,
+                                    });
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                } else if b"text" == e.name().as_ref() {
                     in_text = true;
                 } else if b"speaker" == e.name().as_ref() {
                     in_speaker = true;
@@ -340,34 +387,40 @@ mod tests {
             <text lang="greek">
                 <head>Θύρσις ἢ ᾠδή</head>
                 <speaker>Θύρσις</speaker>
-                <lb rend="displayNum" n="5" />αἴκα δ᾽ αἶγα λάβῃ τῆνος γέρας, ἐς τὲ καταρρεῖ
-                <pb/>
-                <l n="10">ὁσίου γὰρ ἀνδρὸς ὅσιος ὢν ἐτύγχανον</l>
-                <desc>This is a test.</desc>
+                <div subtype="chapter" n="1">
+                    <div subtype="section" n="1">
+                        <lb rend="displayNum" n="5" />αἴκα δ᾽ αἶγα λάβῃ τῆνος γέρας, ἐς τὲ καταρρεῖ
+                        <pb/>
+                        <l n="10">ὁσίου γὰρ ἀνδρὸς ὅσιος ὢν ἐτύγχανον</l>
+                        <desc>This is a test.</desc>
+                    </div>
+                </div>
             </text>
         </TEI.2>"#;
         let r = process_imported_text(xml_string, &lemmatizer).unwrap();
         //to see this: cargo test -- --nocapture
-        // for a in &r {
-        //     println!("{:?}", a);
-        // }
-        assert_eq!(r.len(), 29);
+        for a in &r {
+            println!("{:?}", a);
+        }
+        assert_eq!(r.len(), 30);
         assert_eq!(r[0].word_type, WordType::WorkTitle as u32);
         assert_eq!(r[1].word_type, WordType::Speaker as u32);
-        assert_eq!(r[2].word_type, WordType::VerseLine as u32);
-        assert_eq!(r[2].word, "[line]5");
-        assert_eq!(r[3].word_type, WordType::Word as u32);
-        assert_eq!(r[4].gloss_id, Some(30));
-        assert_eq!(r[10].word_type, WordType::Punctuation as u32);
-        assert_eq!(r[14].word_type, WordType::PageBreak as u32);
-        assert_eq!(r[15].word_type, WordType::VerseLine as u32);
-        assert_eq!(r[15].word, "[line]10");
-        assert_eq!(r[22].word, "");
-        assert_eq!(r[22].word_type, WordType::ParaNoIndent as u32);
-        assert_eq!(r[23].word, "This");
-        assert_eq!(r[23].word_type, WordType::Desc as u32);
-        assert_eq!(r[28].word, "");
-        assert_eq!(r[28].word_type, WordType::ParaNoIndent as u32);
+        assert_eq!(r[2].word_type, WordType::Section as u32);
+        assert_eq!(r[2].word, "1.1");
+        assert_eq!(r[3].word_type, WordType::VerseLine as u32);
+        assert_eq!(r[3].word, "[line]5");
+        assert_eq!(r[4].word_type, WordType::Word as u32);
+        assert_eq!(r[5].gloss_id, Some(30));
+        assert_eq!(r[11].word_type, WordType::Punctuation as u32);
+        assert_eq!(r[15].word_type, WordType::PageBreak as u32);
+        assert_eq!(r[16].word_type, WordType::VerseLine as u32);
+        assert_eq!(r[16].word, "[line]10");
+        assert_eq!(r[23].word, "");
+        assert_eq!(r[23].word_type, WordType::ParaNoIndent as u32);
+        assert_eq!(r[24].word, "This");
+        assert_eq!(r[24].word_type, WordType::Desc as u32);
+        assert_eq!(r[29].word, "");
+        assert_eq!(r[29].word_type, WordType::ParaNoIndent as u32);
     }
 
     #[test]
