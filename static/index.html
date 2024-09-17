@@ -2446,7 +2446,7 @@
           if (returnObj && returnObj.affectedRows === 1) {
             // clear arrow from all with this lemmaid first, so we never end up with multiple arrows displaying for same lemma
             // $('.listword[lemmaid='' + vLemmaID + ''] > .listarrow').html('');
-            $('.listword[lemmaid="' + vLemmaID + '""]').removeClass(
+            $('.listword[lemmaid="' + vLemmaID + '"]').removeClass(
               "arrowedHere",
             );
 
@@ -2462,17 +2462,15 @@
             }
             // show or hide rows with same lemmaid after this row.
             // fix me, we are using id rather than seq.  should use seq
-            $('.listword[lemmaid="' + vLemmaID + '""]').each(
-              function (idx, el) {
-                if (parseInt(el.id.substring(4)) > parseInt(vTextWordID)) {
-                  if (toggleOff) {
-                    $(this).removeClass("alreadyArrowed");
-                  } else {
-                    $(this).addClass("alreadyArrowed");
-                  }
+            $('.listword[lemmaid="' + vLemmaID + '"]').each(function (idx, el) {
+              if (parseInt(el.id.substring(4)) > parseInt(vTextWordID)) {
+                if (toggleOff) {
+                  $(this).removeClass("alreadyArrowed");
+                } else {
+                  $(this).addClass("alreadyArrowed");
                 }
-              },
-            );
+              }
+            });
 
             // console.log(data);
           } else {
