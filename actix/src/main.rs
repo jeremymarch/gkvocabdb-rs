@@ -84,6 +84,12 @@ struct TreeRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+struct InsertDeletePageBreak {
+    success: bool,
+    word_id: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponseTree {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
     select_id: Option<u32>,
@@ -246,7 +252,10 @@ async fn insert_pagebreak(
             .map_err(map_glosser_error)?;
         tx.commit_tx().await.unwrap();
 
-        Ok(HttpResponse::Ok().json(1))
+        Ok(HttpResponse::Ok().json(InsertDeletePageBreak {
+            success: true,
+            word_id: info.word_id,
+        }))
     } else {
         not_logged_in_response()
     }
@@ -264,7 +273,10 @@ async fn delete_pagebreak(
             .map_err(map_glosser_error)?;
         tx.commit_tx().await.unwrap();
 
-        Ok(HttpResponse::Ok().json(1))
+        Ok(HttpResponse::Ok().json(InsertDeletePageBreak {
+            success: true,
+            word_id: info.word_id,
+        }))
     } else {
         not_logged_in_response()
     }

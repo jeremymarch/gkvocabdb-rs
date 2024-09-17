@@ -697,11 +697,13 @@ pub async fn gkv_update_or_add_gloss(
                     .await?;
                 tx.commit_tx().await?;
 
+                let id = post.hqid.unwrap() as u32;
+
                 return Ok(UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
-                    inserted_id: None,
+                    inserted_id: Some(id.into()),
                 });
             }
         }
@@ -711,11 +713,13 @@ pub async fn gkv_update_or_add_gloss(
                 let rows_affected = tx.delete_gloss(post.hqid.unwrap(), info).await?;
                 tx.commit_tx().await?;
 
+                let id = post.hqid.unwrap() as u32;
+
                 return Ok(UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
-                    inserted_id: None,
+                    inserted_id: Some(id.into()),
                 });
             }
         }
@@ -804,7 +808,7 @@ pub async fn gkv_get_glosses(
     let result_rows_stripped: Vec<(String, u32)> = result_rows
         .into_iter()
         .map(|mut row| {
-            row.0 = format!("<b>{}</b> {} <a class='listfrequency' href='javascript:showGlossOccurrencesList({})'>({})</a>", 
+            row.0 = format!("<b>{}</b> {} <a class='listfrequency' href='javascript:showGlossOccurrencesList({})'>({})</a>",
                 row.0, row.2, if row.3 > 0 { row.1 } else { 0 /* set to 0 if count is 0 */ }, row.3);
             (row.0, row.1)
         })
