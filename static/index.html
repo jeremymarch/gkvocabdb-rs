@@ -1268,7 +1268,7 @@
         console.log("move text: " + vtextId + ", " + vstep);
 
         function callback(returnObj) {
-          showToast("success: " + data);
+          showToast("success: " + returnObj);
 
           showTextList();
           if (globalSelectedTextId) {
@@ -1403,11 +1403,11 @@
       }
 
       function showNoClick() {
-        $("#noclick").css("display", "block");
+        document.getElementById("noclick").style.display = "block";
       }
 
       function hideNoClick() {
-        $("#noclick").css("display", "none");
+        document.getElementById("noclick").style.display = "none";
       }
 
       function annotateGloss() {
@@ -1430,18 +1430,19 @@
       }
       function annotateFormShow() {
         annotateFormClear();
-        $("#annotateformcontainer").show();
-        $("#annotateform").show();
-        $("#AnnotateInput").focus();
+        document.getElementById("annotateformcontainer").style.display =
+          "block";
+        document.getElementById("annotateform").style.display = "block";
+        document.getElementById("AnnotateInput").focus();
         showNoClick();
       }
       function annotateFormClose() {
-        $("#annotateformcontainer").hide();
-        $("#annotateform").hide();
+        document.getElementById("annotateformcontainer").style.display = "none";
+        document.getElementById("annotateform").style.display = "none";
         hideNoClick();
       }
       function annotateFormClear() {
-        $("#AnnotateInput").val("");
+        document.getElementById("AnnotateInput").value = "";
       }
 
       function toggleEditGlossFormClicked() {
@@ -1470,8 +1471,8 @@
         if ($("#editformcontainer").is(":visible")) {
           newGlossFormClose();
         } else {
-          $("#editFormTitle").html("<b>Edit</b>");
-          $("#EditInputHQID").html(""); // clear before loading
+          document.getElementById("editFormTitle").innerHTML = "<b>Edit</b>";
+          document.getElementById("EditInputHQID").innerHTML = ""; // clear before loading
           getEditLemmaData(lemmaid);
 
           newGlossFormShow();
@@ -1479,8 +1480,8 @@
       }
 
       function editGlossFormToggle(lemmaid) {
-        $("#editFormTitle").html("<b>Edit</b>");
-        $("#EditInputHQID").html(""); // clear before loading
+        document.getElementById("editFormTitle").innerHTML = "<b>Edit</b>";
+        document.getElementById("EditInputHQID").innerHTML = ""; // clear before loading
         getEditLemmaData(lemmaid);
 
         newGlossFormShow();
@@ -1510,16 +1511,16 @@
       }
 
       function uploaddialog() {
-        $("#importspinner").hide();
-        $("#uploadform").css("z-index", "999");
-        $("#fileuploadtitle").val("");
-        $("#fileupload").val("");
+        document.getElementById("importspinner").style.display = "none";
+        document.getElementById("uploadform").style.zIndex = "999";
+        document.getElementById("fileuploadtitle").value = "";
+        document.getElementById("fileupload").value = "";
 
         if ($("#uploadform").is(":visible")) {
-          $("#uploadform").hide();
+          document.getElementById("uploadform").style.display = "none";
           hideNoClick();
         } else {
-          $("#uploadform").show();
+          document.getElementById("uploadform").style.display = "block";
           showNoClick();
         }
       }
@@ -1527,79 +1528,79 @@
         if ($("#editformcontainer").is(":visible")) {
           newGlossFormClose();
         } else {
-          $("#editFormTitle").html("<b>New</b>");
-          $("#EditInputHQID").html(""); // clear before loading
+          document.getElementById("editFormTitle").innerHTML = "<b>New</b>";
+          document.getElementById("EditInputHQID").innerHTML = ""; // clear before loading
           newGlossFormShow();
         }
       }
       function newGlossFormShow() {
         newGlossFormClear();
-        $("#arrowedrow").hide();
-        $("#editformcontainer").show();
-        $("#editform").show();
-        $("#EditInputLemma").focus();
+        document.getElementById("arrowedrow").style.display = "none";
+        document.getElementById("editformcontainer").style.display = "block";
+        document.getElementById("editform").style.display = "block";
+        document.getElementById("EditInputLemma").focus();
         showNoClick();
       }
       function newGlossFormClose() {
-        $("#editformcontainer").hide();
-        $("#editform").hide();
+        document.getElementById("editformcontainer").style.display = "none";
+        document.getElementById("editform").style.display = "none";
         hideNoClick();
       }
       function newGlossFormClear() {
-        $("#EditInputGloss").val("");
-        $("#EditInputPOS").val("");
-        $("#EditInputNote").val("");
-        // $("#EditInputNotef").val("");
-        $("#EditInputLemma").val("");
-        $("#EditInputArrowed").attr("checked", false);
+        document.getElementById("EditInputGloss").value = "";
+        document.getElementById("EditInputPOS").value = "";
+        document.getElementById("EditInputNote").value = "";
+        // $('#EditInputNotef').val('');
+        document.getElementById("EditInputLemma").value = "";
+        document
+          .getElementById("EditInputArrowed")
+          .setAttribute("checked", "false");
       }
       function showGlossList() {
-        // $("#test1Entry")[0].value = "";
+        // $('#test1Entry')[0].value = '';
         lemmaListWordTree.url = "queryglosses";
         lemmaListWordTree.refresh();
-        // let a = "";
+        // let a = '';
         // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-        $("#leftlist").css("display", "");
-        $("#test1Entry").focus();
+        document.getElementById("leftlist").style.display = "";
+        document.getElementById("test1Entry").focus();
         // showNoClick();
       }
       function hideGlossList() {
-        $("#test1Entry")[0].value = "";
-        $("#leftlist").css("display", "none");
+        document.getElementById("test1Entry").value = "";
+        document.getElementById("leftlist").style.display = "none";
         lemmaListWordTree.clearWordTree();
         hideNoClick();
       }
 
       function showUpdateLogList() {
-        // $("#test1Entry")[0].value = "";
         updateLogWordTree.url = "updatelog";
         updateLogWordTree.refresh();
-        // let a = "";
+        // let a = '';
         // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-        $("#updateloglist").css("display", "");
-        $("#updatelogEntry").focus();
+        document.getElementById("updateloglist").style.display = "";
+        document.getElementById("updatelogEntry").focus();
         // showNoClick();
       }
       function hideUpdateLogList() {
-        $("#updatelogEntry")[0].value = "";
-        $("#updateloglist").css("display", "none");
+        document.getElementById("updatelogEntry").value = "";
+        document.getElementById("updateloglist").style.display = "none";
         updateLogWordTree.clearWordTree();
         hideNoClick();
       }
 
       function showTextList() {
-        // $("#test1Entry")[0].value = "";
         textListWordTree.url = "querytexts";
         textListWordTree.refresh();
-        // let a = "";
+        // let a = '';
         // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-        $("#textlist").css("display", "");
-        $("#textEntry").focus();
+        document.getElementById("textlist").style.display = "";
+        document.getElementById("textEntry").focus();
         // showNoClick();
       }
       function hideTextList() {
-        $("#textEntry")[0].value = "";
-        $("#textlist").css("display", "none");
+        document.getElementById("textEntry").value = "";
+        document.getElementById("textlist").style.display = "none";
         textListWordTree.clearWordTree();
         hideNoClick();
       }
@@ -1610,15 +1611,15 @@
           hideTextList();
           hideGlossList();
           hideUpdateLogList();
-          // $("#test1Entry")[0].value = "";
+          // $('#test1Entry')[0].value = '';
           glossUsesWordTree.url = "glossuses";
           glossUsesWordTree.params.tag_id = parseInt(glossId);
           glossUsesWordTree.refresh();
 
-          // let a = "";
+          // let a = '';
           // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-          $("#glossuseslist").css("display", "");
-          $("#glossusesEntry").focus();
+          document.getElementById("glossuseslist").style.display = "";
+          document.getElementById("glossusesEntry").focus();
 
           hideGlossList();
 
@@ -1626,8 +1627,8 @@
         }
       }
       function hideGlossUsesList() {
-        $("#glossusesEntry")[0].value = "";
-        $("#glossuseslist").css("display", "none");
+        document.getElementById("glossusesEntry").value = "";
+        document.getElementById("glossuseslist").style.display = "none";
         glossUsesWordTree.clearWordTree();
         hideNoClick();
       }
@@ -1649,7 +1650,6 @@
           // alert(selectedWordInList);
           $(".selectedWord").removeClass("selectedWord");
           $("#" + id).addClass("selectedWord");
-          // $("#" + id).html("<input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/><br><input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/><input type='text' id='abc' name='abc'/>");
           $("#" + wordsid).addClass("selectedWord");
 
           const a = document.getElementById(wordsid);
@@ -1703,7 +1703,7 @@
         console.log("getting words from text: " + text);
         const url = "query?text=" + text + "&wordid=0";
 
-        globalSelectedTextId = text; //FIX ME: should do after success?
+        globalSelectedTextId = text; // FIX ME: should do after success?
         function callback(returnObj) {
           procGetWordsResponse(returnObj);
         }
@@ -1747,7 +1747,7 @@
       }
 
       function procGetWordsResponse(returnObj) {
-        // console.log("Proc Response: " + str);
+        // console.log('Proc Response: ' + str);
         // alert(str);
 
         if (!returnObj) {
@@ -1762,8 +1762,8 @@
           return;
         }
 
-        $("#showAllGlossesButton").css("display", "");
-        $("#hideSeenGlossesButton").css("display", "none");
+        document.getElementById("showAllGlossesButton").style.display = "";
+        document.getElementById("hideSeenGlossesButton").style.display = "none";
         if (
           returnObj.thisText &&
           Number.isInteger(parseInt(returnObj.thisText))
@@ -1795,10 +1795,10 @@
               if (i.hqid !== null) {
                 b.setAttribute("lemmaid", i.hqid);
               }
-              // b.setAttribute("seq", i.s);
+              // b.setAttribute('seq', i.s);
               b.classList.add("listword");
               // b.className += 'listword';
-              // b.setAttribute("tabindex","0");
+              // b.setAttribute('tabindex','0');
 
               if (i.l) {
                 // parseInt(i.u) < 21)
@@ -1808,7 +1808,7 @@
               if (!i.l) {
                 // lemma is null
                 b.innerHTML =
-                  "<div class='clickablelistword'><span class='listheadword'>" +
+                  '<div class="clickablelistword"><span class="listheadword">' +
                   i.w +
                   "</span></div>";
               } else {
@@ -1828,11 +1828,11 @@
                 }
                 /*
                 if (i.s2 === i.s) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
-                    b.className += " arrowedHere";
+                    b.className += ' arrowedHere';
                 }
                 else if (i.s2 !== null && parseInt(i.s2) < parseInt(i.s)) //hideable
                 {
-                    b.className += " alreadyArrowed";
+                    b.className += ' alreadyArrowed';
                 }
                 */
                 if (i.if && parseInt(i.if) === 1) {
@@ -1962,13 +1962,13 @@
 
       function hideSeenGlossesClicked() {
         $(".alreadyArrowed").css("display", "none");
-        $("#hideSeenGlossesButton").css("display", "none");
-        $("#showAllGlossesButton").css("display", "");
+        document.getElementById("hideSeenGlossesButton").style.display = "none";
+        document.getElementById("showAllGlossesButton").style.display = "";
       }
       function showAllGlossesClicked() {
         $(".alreadyArrowed").css("display", "block");
-        $("#showAllGlossesButton").css("display", "none");
-        $("#hideSeenGlossesButton").css("display", "");
+        document.getElementById("showAllGlossesButton").style.display = "none";
+        document.getElementById("hideSeenGlossesButton").style.display = "";
       }
 
       function showToast(msg) {
@@ -1986,7 +1986,7 @@
       }
 
       function setGlossForWord(lex, id) {
-        // alert("blah: " + lex + ", " + id);
+        // alert('blah: ' + lex + ', ' + id);
         if (selectedWordInList === null) {
           alert("First select a word.");
           return;
@@ -2005,16 +2005,16 @@
       annotateFormClose();
       return;
 
-      let id = $("#AnnotateWordID").html();
-      let newNote = $("#AnnotateInput").val();
+      let id = $('#AnnotateWordID').html();
+      let newNote = $('#AnnotateInput').val();
 
       //remove returns, tabs, and trim
-      newNote = newNote.replace(/---/g, "—");
-      newNote = newNote.replace(/[\t\n\r\b]/g, "").replace(/  +/g, ' ').trim();
+      newNote = newNote.replace(/---/g, '—');
+      newNote = newNote.replace(/[\t\n\r\b]/g, '').replace(/  +/g, ' ').trim();
 
-      if (id !== null && id != "")
+      if (id !== null && id != '')
       {
-          console.log("edit annotation: " + id);
+          console.log('edit annotation: ' + id);
           realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote);
       }
       annotateFormClose();
@@ -2022,11 +2022,11 @@
       }
 
       function newLemmaFormSubmit() {
-        const editHQID = $("#EditInputHQID").html();
-        let newLemma = $("#EditInputLemma").val();
-        let newPOS = $("#EditInputPOS").val();
-        let newGloss = $("#EditInputGloss").val();
-        let newNote = $("#EditInputNote").val();
+        const editHQID = document.getElementById("EditInputHQID").innerHTML;
+        let newLemma = document.getElementById("EditInputLemma").value;
+        let newPOS = document.getElementById("EditInputPOS").value;
+        let newGloss = document.getElementById("EditInputGloss").value;
+        let newNote = document.getElementById("EditInputNote").value;
 
         if (!newLemma || newLemma.length < 1) {
           alert("Lemma field cannot be empty.");
@@ -2084,7 +2084,7 @@
           return;
         }
         const arrowID = this.id;
-        const textwordid = arrowID.substring(5); // without "arrow" prefix
+        const textwordid = arrowID.substring(5); // without 'arrow' prefix
         const lemmaid = this.parentNode.getAttribute("lemmaid");
         const toggleOff = $("#" + arrowID).parents(".arrowedHere").length > 0;
 
@@ -2093,41 +2093,64 @@
 
       /** *** real ajax functions ******/
 
+      function serializeFormData(obj) {
+        const str = [];
+        for (const p in obj) {
+          if (Object.hasOwn(obj, p)) {
+            str.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
+          }
+        }
+        return str.join("&");
+      }
+
+      function procResponseWarning(a) {
+        console.log("warning: " + a);
+      }
+      function procResponseError() {
+        console.log("ajax connection error.");
+      }
+
       //send generic XHR request
       function sendXHR(url, method, requestData, callback) {
-        // sendData = serialize(requestData);
-        // microAjax({
-        //   url: sendUrl,
-        //   method: 'POST',
-        //   data: sendData,
-        //   success: procResponse,
-        //   warning: procResponseError,
-        //   error: null
-        // });
-
-        $.ajax({
-          url: url,
-          type: method,
-          data: requestData,
-          dataType: "text", // JSON automatically deserializes json
-          success: function (data, textStatus, jqXHR) {
-            if (typeof callback == "function") {
-              let returnObj;
-              try {
-                returnObj = JSON.parse(data);
-              } catch (e) {
-                alert("Error: " + e.message + "\n" + data);
-                return;
+        const useJQuery = false;
+        if (useJQuery) {
+          requestData = serializeFormData(requestData);
+          microAjax({
+            url: url,
+            method: method,
+            data: requestData,
+            success: function (d) {
+              callback(JSON.parse(d));
+            },
+            warning: function (d) {
+              procResponseWarning(JSON.parse(d));
+            },
+            error: procResponseError,
+          });
+        } else {
+          $.ajax({
+            url: url,
+            type: method,
+            data: requestData,
+            dataType: "text", // JSON automatically deserializes json
+            success: function (data, textStatus, jqXHR) {
+              if (typeof callback == "function") {
+                let returnObj;
+                try {
+                  returnObj = JSON.parse(data);
+                } catch (e) {
+                  alert("Error: " + e.message + "\n" + data);
+                  return;
+                }
+                callback(returnObj);
               }
-              callback(returnObj);
-            }
-          },
-          error: function (response) {
-            // getwords(url); //redo request on error
-            showToast("error in getAnnotateData");
-            console.log("error in getAnnotateData");
-          },
-        });
+            },
+            error: function (response) {
+              showToast("ajax error");
+              console.log("ajax error");
+            },
+          });
+        }
       }
 
       function getAnnotateData(vWordid) {
@@ -2141,8 +2164,8 @@
           const w = returnObj.words;
           if (w) {
             for (let i = 0; i < w.length; i++) {
-              $("#AnnotateWordID").html(w[i].wid);
-              $("#AnnotateInput").val(w[i].an);
+              document.getElementById("AnnotateWordID").innerHTML(w[i].wid);
+              document.getElementById("AnnotateInput").value = w[i].wid;
             }
           }
         }
@@ -2156,7 +2179,7 @@
       }
 
       function getEditLemmaData(vLemmaid) {
-        console.log("get lemmaid333: " + vLemmaid);
+        console.log("get lemmaid: " + vLemmaid);
 
         function callback(returnObj) {
           if (!returnObj) {
@@ -2166,16 +2189,17 @@
           const w = returnObj.words;
           if (w) {
             for (let i = 0; i < w.length; i++) {
-              // let wid = w[i].i;
-              $("#EditInputHQID").html(w[i].hqid);
-              $("#EditInputLemma").val(w[i].l);
-              $("#EditInputPOS").val(w[i].pos);
-              $("#EditInputGloss").val(w[i].g);
-              $("#EditInputNote").val(w[i].n);
-              // let lemmaid = w[i].hqid
-              // let lemma = w[i].l;
-              // let pos = w[i].pos;
-              // let gloss = w[i].g;
+              let lemmaid = w[i].hqid;
+              let lemma = w[i].l;
+              let pos = w[i].pos;
+              let gloss = w[i].g;
+              let note = w[i].n;
+
+              document.getElementById("EditInputHQID").innerHTML = lemmaid;
+              document.getElementById("EditInputLemma").value = lemma;
+              document.getElementById("EditInputPOS").value = pos;
+              document.getElementById("EditInputGloss").value = gloss;
+              document.getElementById("EditInputNote").value = note;
             }
           }
         }
@@ -2225,7 +2249,7 @@
                 });
                 $("#arrow" + wid).click(toggleArrow);
               }
-              // alert("(" + w[i].rc + " of " + w[i].fr + ") " + w[i].ws + ", " + w[i].ls);
+              // alert('(' + w[i].rc + ' of ' + w[i].fr + ') ' + w[i].ws + ', ' + w[i].ls);
             }
           }
         }
@@ -2243,7 +2267,7 @@
       }
 
       function updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid) {
-        $(".listword[lemmaid='" + lemmaid + "']").each(function (idx, el) {
+        $('.listword[lemmaid="' + lemmaid + '"]').each(function (idx, el) {
           const $e = $(el);
           $e.find(".listheadword").html(lemma);
           $e.find(".listpos").html(pos);
@@ -2261,23 +2285,23 @@
         glossId,
       ) {
         return (
-          "<div id='arrow" +
+          '<div id="arrow' +
           wid +
-          "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" +
+          '" class="listarrow"></div><div class="clickablelistword"><span class="listheadword" id="listheadword' +
           wid +
-          "'>" +
+          '">' +
           lemma +
-          "</span>.&nbsp;&nbsp;<span class='listposwrapper'>(<span class='listpos' id='listpos" +
+          '</span>.&nbsp;&nbsp;<span class="listposwrapper">(<span class="listpos" id="listpos' +
           wid +
-          "'>" +
+          '">' +
           pos +
-          "</span>) </span><span class='listdef' id='listdef" +
+          '</span>) </span><span class="listdef" id="listdef' +
           wid +
-          "'>" +
+          '">' +
           gloss +
-          "</span> <a class='listfrequency' href='javascript:showGlossOccurrencesList(" +
+          '</span> <a class="listfrequency" href="javascript:showGlossOccurrencesList(' +
           glossId +
-          ")'>(" +
+          ')">(' +
           count +
           " of " +
           total +
@@ -2305,15 +2329,15 @@
           $a.removeClass();
           $a.addClass("listword hqListWord");
           $a.attr("lemmaid", lemmaid);
-          // $a.attr("seq", seq);
+          // $a.attr('seq', seq);
 
           /*
           if (lemmaSeq === wordSeq) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
-              $a.addClass("arrowedHere");
+              $a.addClass('arrowedHere');
           }
           else if (lemmaSeq !== null && parseInt(lemmaSeq) < parseInt(wordSeq)) //hideable
           {
-              $a.addClass("alreadyArrowed");
+              $a.addClass('alreadyArrowed');
           }
           */
 
@@ -2421,8 +2445,8 @@
         function callback(returnObj) {
           if (returnObj && returnObj.affectedRows === 1) {
             // clear arrow from all with this lemmaid first, so we never end up with multiple arrows displaying for same lemma
-            // $(".listword[lemmaid='" + vLemmaID + "'] > .listarrow").html("");
-            $(".listword[lemmaid='" + vLemmaID + "']").removeClass(
+            // $('.listword[lemmaid='' + vLemmaID + ''] > .listarrow').html('');
+            $('.listword[lemmaid="' + vLemmaID + '""]').removeClass(
               "arrowedHere",
             );
 
@@ -2438,20 +2462,22 @@
             }
             // show or hide rows with same lemmaid after this row.
             // fix me, we are using id rather than seq.  should use seq
-            $(".listword[lemmaid='" + vLemmaID + "']").each(function (idx, el) {
-              if (parseInt(el.id.substring(4)) > parseInt(vTextWordID)) {
-                if (toggleOff) {
-                  $(this).removeClass("alreadyArrowed");
-                } else {
-                  $(this).addClass("alreadyArrowed");
+            $('.listword[lemmaid="' + vLemmaID + '""]').each(
+              function (idx, el) {
+                if (parseInt(el.id.substring(4)) > parseInt(vTextWordID)) {
+                  if (toggleOff) {
+                    $(this).removeClass("alreadyArrowed");
+                  } else {
+                    $(this).addClass("alreadyArrowed");
+                  }
                 }
-              }
-            });
+              },
+            );
 
-            //console.log(data);
+            // console.log(data);
           } else {
             showToast("error1 updating arrow for: arrow" + vTextWordID);
-            console.log(data);
+            // console.log(data);
           }
           vToggleArrowPending = false;
         }
@@ -2482,10 +2508,10 @@
               $("#word" + vTextWordID).removeClass("flagged");
             }
 
-            console.log(data);
+            // console.log(data);
           } else {
             showToast("error1 updating flag for: " + vTextWordID);
-            console.log(data);
+            // console.log(data);
           }
           vToggleFlagPending = false;
         }
@@ -2620,7 +2646,7 @@
           s.classList.add("settings");
           s.style.display = "block";
           s.innerHTML =
-            "Settings<br><ul><li><div tabindex='0' style='height:70px;'>dark mode: <div style='text-align:right;float:right;padding:0px;border:none;'>system <input id='darkModeSystem' type='radio' name='darkmode' onclick='darkModeClick(this);' value='system'/><br>dark <input id='darkModeDark' type='radio' name='darkmode' onclick='darkModeClick(this);' value='dark'/><br>light<input id='darkModeLight' type='radio' name='darkmode' onclick='darkModeClick(this);' value='light'/></div></div></li><li><div id='logoutid' onclick='logout()'>logout</div></li></ul>";
+            'Settings<br><ul><li><div tabindex="0" style="height:70px;">dark mode: <div style="text-align:right;float:right;padding:0px;border:none;">system <input id="darkModeSystem" type="radio" name="darkmode" onclick="darkModeClick(this);" value="system"/><br>dark <input id="darkModeDark" type="radio" name="darkmode" onclick="darkModeClick(this);" value="dark"/><br>light<input id="darkModeLight" type="radio" name="darkmode" onclick="darkModeClick(this);" value="light"/></div></div></li><li><div id="logoutid" onclick="logout()">logout</div></li></ul>';
           const c = document.createElement("div");
           c.id = "backdrop";
           c.onclick = function () {
