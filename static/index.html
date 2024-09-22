@@ -23,17 +23,17 @@
     ></script> -->
     <script type="text/javascript" src="wordtree.js?v10"></script>
     <script>
-      function setTheme() {
-        const mode = localStorage.getItem("mode");
-        const html = document.querySelector("HTML");
+      function setTheme () {
+        const mode = localStorage.getItem('mode');
+        const html = document.querySelector('HTML');
         if (
-          (window.matchMedia("(prefers-color-scheme: dark)").matches ||
-            mode === "dark") &&
-          mode !== "light"
+          (window.matchMedia('(prefers-color-scheme: dark)').matches ||
+            mode === 'dark') &&
+          mode !== 'light'
         ) {
-          html.classList.add("dark");
+          html.classList.add('dark');
         } else {
-          html.classList.remove("dark");
+          html.classList.remove('dark');
         }
       }
       setTheme();
@@ -745,11 +745,11 @@
         font-family: helvetica, arial;
       "
     >
-      <button id="getTexts" onclick="selectTextFormToggleClicked()">
+      <button id="getTexts">
         Select Text
       </button>
       <div id="text_title"></div>
-      <button id="pageBreakButton" onclick="addDeletePagebreak()">
+      <button id="pageBreakButton">
         Add/Remove Pagebreak
       </button>
       <div
@@ -761,30 +761,28 @@
           padding-top: 2px;
         "
       >
-        <button id="selectLemmaButton" onclick="toggleGlossListClicked()">
+        <button id="selectLemmaButton">
           Select Gloss
         </button>
-        <button id="newLemmaButton" onclick="toggleNewGlossFormClicked()">
+        <button id="newLemmaButton">
           New Gloss
         </button>
-        <button id="editLemmaButton" onclick="toggleEditGlossFormClicked()">
+        <button id="editLemmaButton">
           Edit Gloss
         </button>
         <button
           id="hideSeenGlossesButton"
-          onclick="hideSeenGlossesClicked()"
           style="display: none"
         >
           Hide Seen
         </button>
-        <button id="showAllGlossesButton" onclick="showAllGlossesClicked()">
+        <button id="showAllGlossesButton">
           Show All
         </button>
-        <button id="showUpdateLogButton" onclick="showUpdateLogClicked()">
+        <button id="showUpdateLogButton">
           Update Log
         </button>
         <svg
-          onclick="toggleSettingsClicked()"
           id="hamburger"
           viewBox="0 0 120 120"
         >
@@ -871,8 +869,8 @@
           name="fileuploadtitle"
         /><br /><br />
         <input id="fileupload" type="file" name="fileupload" /><br /><br />
-        <button onclick="uploaddialog()">Cancel</button
-        ><button onclick="uploadfile()">Upload</button>
+        <button id="uploadFileCancel">Cancel</button
+        ><button id="uploadFileButton">Upload</button>
       </div>
     </div>
     <div id="editformcontainer">
@@ -933,7 +931,7 @@
           <tr>
             <td colspan="2" align="center">
               <button onclick="newGlossFormClose()">Cancel</button
-              ><button onclick="newLemmaFormSubmit()">Submit</button>
+              ><button id="newLemmaFormSubmitButton">Submit</button>
             </td>
           </tr>
         </table>
@@ -965,16 +963,17 @@
     <div id="noclick"></div>
     <div id="snackbar"></div>
     <script type="module">
-      // eslint-disable-next-line import/no-named-default, camelcase
       import {
         toggle,
         translit,
+        // eslint-disable-next-line camelcase
         strip_diacritics,
-        default as init,
-      } from "./hoplitekb_wasm_rs.js";
+        // eslint-disable-next-line import/no-named-default
+        default as init
+      } from './hoplitekb_wasm_rs.js';
 
-      async function run() {
-        await init("./hoplitekb_wasm_rs_bg.wasm");
+      async function run () {
+        await init('./hoplitekb_wasm_rs_bg.wasm');
         // make the functions available to the browser
         window.toggle = toggle;
         window.translit = translit;
@@ -984,7 +983,9 @@
       run();
     </script>
     <script>
-      window.addEventListener("load", onload, false);
+      /* global Wordtree, getColumnValues, lookupWT,   */
+      /* eslint no-undef: "error" */
+      window.addEventListener('load', onload, false);
 
       const TYPE_WORD = 0;
       // eslint-disable-next-line no-unused-vars
@@ -1005,16 +1006,16 @@
       const TYPE_INLINE_VERSE_SPEAKER = 14;
 
       // https://github.com/le717/microajax
-      function microAjax(options) {
-        "use strict";
+      function microAjax (options) {
+        'use strict';
 
         // Default to GET
         if (!options.method) {
-          options.method = "GET";
+          options.method = 'GET';
         }
 
         // Default empty functions for the callbacks
-        function noop() {}
+        function noop () {}
         if (!options.success) {
           options.success = noop;
         }
@@ -1029,8 +1030,8 @@
         request.open(options.method, options.url, true);
         // request.setRequestHeader('Content-type', 'application/json; charset=UTF-8')
         request.setRequestHeader(
-          "Content-type",
-          "application/x-www-form-urlencoded; charset=UTF-8",
+          'Content-type',
+          'application/x-www-form-urlencoded; charset=UTF-8'
         );
         request.send(options.data);
 
@@ -1049,13 +1050,13 @@
         request.onerror = options.error;
       }
 
-      function stripDiacriticsLocal(origChars) {
+      function stripDiacriticsLocal (origChars) {
         // eslint-disable-next-line no-undef
         return strip_diacritics(origChars);
       }
 
       const unicodeMode = 2; // pua
-      function toggleDiacritic(str, pos, diacritic, unicodeMode) {
+      function toggleDiacritic (str, pos, diacritic, unicodeMode) {
         if (pos < 0 || pos > str.length) {
           return { str, pos: str.length };
         }
@@ -1067,23 +1068,22 @@
           s,
           parseInt(diacritic),
           false,
-          parseInt(unicodeMode),
+          parseInt(unicodeMode)
         );
 
         const newPos = pos - replaceLen + res.length;
 
         return {
           str: str.slice(0, pos - replaceLen) + res + str.slice(pos),
-          pos: newPos,
+          pos: newPos
         };
       }
 
       // transliterate to greek and toggle diacritics using wasm function
-      function handleKey(e) {
-
+      function handleKey (e) {
         if (
-          typeof this.selectionStart === "number" &&
-          typeof this.selectionEnd === "number"
+          typeof this.selectionStart === 'number' &&
+          typeof this.selectionEnd === 'number'
         ) {
           const text = this.value;
           const start = this.selectionStart;
@@ -1099,7 +1099,7 @@
             // len == 1 to exclude keys like "ENTER", etc.
             // eslint-disable-next-line no-undef
             const greekLetter = translit(key); // returns \0 if the character cannot be transliterated
-            if (greekLetter !== "\0") {
+            if (greekLetter !== '\0') {
               const end = this.selectionEnd;
               this.value = text.slice(0, start) + greekLetter + text.slice(end);
               this.selectionStart = this.selectionEnd = start + 1;
@@ -1115,8 +1115,9 @@
       let textListWordTree = null;
       let glossUsesWordTree = null;
       let updateLogWordTree = null;
-      function onload() {
-        let thisText = getCookie("selectedText");
+
+      function onload () {
+        let thisText = getCookie('selectedText');
         if (thisText === null || parseInt(thisText) < 1) {
           thisText = 1;
         }
@@ -1124,62 +1125,94 @@
         getwords(parseInt(thisText));
 
         const docHeight = document.documentElement.scrollHeight;
-        const w = new Wordtree("test1", 480, docHeight - 38);
+        const w = new Wordtree('test1', 480, docHeight - 38);
         w.columnOffsets = [0, 0, 0, 0];
-        w.params.lexicon = "hqvocab";
-        w.url = "queryglosses";
-        w.params.mode = "context";
-        w.show(document.getElementById("leftlist"));
+        w.params.lexicon = 'hqvocab';
+        w.url = 'queryglosses';
+        w.params.mode = 'context';
+        w.show(document.getElementById('leftlist'));
         lemmaListWordTree = w;
         w.hideFunction = hideGlossList;
 
         const w1Title =
-          "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton' onclick='selectGlossClicked()'>Assign</button><button id='glosslistEditButton' onclick='editGlossListClicked()'>Edit</button><button id='glosslistDeleteButton' onclick='deleteGlossListClicked()'>Delete</button><button id='showGlossUsesButton' onclick='showGlossOccurrencesClicked()'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>✕</button></div>";
+          "<div class='titletitle'>Glosses</div><div class='titleflex'><button id='glosslistSelectButton'>Assign</button><button id='glosslistEditButton'>Edit</button><button id='glosslistDeleteButton'>Delete</button><button id='showGlossUsesButton'>Occurrences</button><button id='glosslistclosebutton' class='wordtreeclosebutton' onclick='hideGlossList()'>✕</button></div>";
         w.title.innerHTML = w1Title;
         w.onEnterActivate = setGlossForWord;
         // w.onEnterActivate = removeDuplicate;
         // w.onClickActivate = act;
         // w.onSelectionChanged = act;
 
-        document.getElementById("test1Entry").style.fontSize = "14pt";
-        document.getElementById("test1Entry").classList.add("gkinput");
+        document.getElementById('test1Entry').style.fontSize = '14pt';
+        document.getElementById('test1Entry').classList.add('gkinput');
         // S(".gkinput").keypress(handleKey);
-        document.querySelectorAll(".gkinput").forEach((e) => {
-          e.addEventListener("keypress", handleKey);
+        document.querySelectorAll('.gkinput').forEach((e) => {
+          e.addEventListener('keypress', handleKey);
         });
 
-        const w2 = new Wordtree("text", 480, docHeight - 38);
+        const w2 = new Wordtree('text', 480, docHeight - 38);
         w2.columnOffsets = [0, 0, 0, 0];
-        w2.params.lexicon = "hqvocab";
-        w2.url = "querytexts";
-        w2.params.mode = "normal";
+        w2.params.lexicon = 'hqvocab';
+        w2.url = 'querytexts';
+        w2.params.mode = 'normal';
         w2.refreshOnESC = false;
 
-        w2.show(document.getElementById("textlist"));
+        w2.show(document.getElementById('textlist'));
         textListWordTree = w2;
         w2.hideFunction = hideTextList;
 
         const w2Title =
-          "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton' onclick='selectTextClicked()'>Select</button><button id='uploadbutton' onclick='uploaddialog()'>Upload</button><button id='exportbutton' onclick='exporttext()'>Export</button><button id='textUpButton' onclick='textUpClicked()'>↑</button><button id='textDownButton' onclick='textDownClicked()'>↓</button><button id='testlistclosebutton' class='wordtreeclosebutton' onclick='hideTextList()'>✕</button></div>";
+          "<div class='titletitle'>Texts</div><div class='titleflex'><!--<div style='height: 26px;width: 43px;border-radius:4px;border: 1px solid black;position: absolute;top: -5px;right: 28px;text-align: center;cursor:pointer;' onclick='newGlossFormShow()'><div style='padding:6px;'>N</div></div>--><button id='selectTextButton'>Select</button><button id='uploadbutton'>Upload</button><button id='exportbutton'>Export</button><button id='textUpButton'>↑</button><button id='textDownButton'>↓</button><button id='testlistclosebutton' class='wordtreeclosebutton'>✕</button></div>";
         w2.title.innerHTML = w2Title;
+
+        document.getElementById('textUpButton').addEventListener('click', textUpClicked);
+        document.getElementById('textDownButton').addEventListener('click', textDownClicked);
+        document.getElementById('testlistclosebutton').addEventListener('click', hideTextList);
+        document.getElementById('exportbutton').addEventListener('click', exporttext);
+        document.getElementById('uploadbutton').addEventListener('click', uploaddialog);
+        document.getElementById('selectTextButton').addEventListener('click', selectTextClicked);
+
+        document.getElementById('uploadFileButton').addEventListener('click', uploadfile);
+        document.getElementById('uploadFileCancel').addEventListener('click', uploaddialog);
+
+        document.getElementById('pageBreakButton').addEventListener('click', addDeletePagebreak);
+
+        document.getElementById('showGlossUsesButton').addEventListener('click', showGlossOccurrencesClicked);
+        document.getElementById('glosslistDeleteButton').addEventListener('click', deleteGlossListClicked);
+        document.getElementById('glosslistEditButton').addEventListener('click', editGlossListClicked);
+        document.getElementById('glosslistSelectButton').addEventListener('click', selectGlossClicked);
+
+        document.getElementById('showUpdateLogButton').addEventListener('click', showUpdateLogClicked);
+
+        document.getElementById('selectLemmaButton').addEventListener('click', toggleGlossListClicked);
+
+        document.getElementById('getTexts').addEventListener('click', selectTextFormToggleClicked);
+
+        document.getElementById('editLemmaButton').addEventListener('click', toggleEditGlossFormClicked);
+
+        document.getElementById('newLemmaButton').addEventListener('click', toggleNewGlossFormClicked);
+        document.getElementById('hideSeenGlossesButton').addEventListener('click', hideSeenGlossesClicked);
+        document.getElementById('showAllGlossesButton').addEventListener('click', showAllGlossesClicked);
+        document.getElementById('newLemmaFormSubmitButton').addEventListener('click', newLemmaFormSubmit);
+
+        document.getElementById('hamburger').addEventListener('click', toggleSettingsClicked);
 
         w2.onEnterActivate = queryText;
         // w2.onClickActivate = act;
         // w2.onSelectionChanged = act;
         // S("#textContainer").css({"top":"41px"});
-        const te = document.getElementById("textEntry");
+        const te = document.getElementById('textEntry');
         if (te) {
-          te.style.fontSize = "14pt";
-          te.style.display = "block";
+          te.style.fontSize = '14pt';
+          te.style.display = 'block';
         }
-        const w3 = new Wordtree("glossuses", 480, docHeight - 38);
+        const w3 = new Wordtree('glossuses', 480, docHeight - 38);
         w3.columnOffsets = [0, 0, 0, 0];
-        w3.params.lexicon = "hqvocab";
-        w3.url = "glossuses";
-        w3.params.mode = "normal";
+        w3.params.lexicon = 'hqvocab';
+        w3.url = 'glossuses';
+        w3.params.mode = 'normal';
         w3.refreshOnESC = false;
 
-        w3.show(document.getElementById("glossuseslist"));
+        w3.show(document.getElementById('glossuseslist'));
         glossUsesWordTree = w3;
         w3.hideFunction = hideGlossUsesList;
 
@@ -1190,17 +1223,17 @@
         w3.onEnterActivate = showOccurrenceClicked;
         // w2.onClickActivate = act;
         // w2.onSelectionChanged = act;
-        document.getElementById("glossusesEntry").style.fontSize = "14pt";
-        document.getElementById("glossusesEntry").style.display = "block";
+        document.getElementById('glossusesEntry').style.fontSize = '14pt';
+        document.getElementById('glossusesEntry').style.display = 'block';
 
-        const w4 = new Wordtree("updatelog", 480, docHeight - 38);
+        const w4 = new Wordtree('updatelog', 480, docHeight - 38);
         w4.columnOffsets = [0, 0, 0, 0];
-        w4.params.lexicon = "hqvocab";
-        w4.url = "updatelog";
-        w4.params.mode = "normal";
+        w4.params.lexicon = 'hqvocab';
+        w4.url = 'updatelog';
+        w4.params.mode = 'normal';
         w4.refreshOnESC = false;
 
-        w4.show(document.getElementById("updateloglist"));
+        w4.show(document.getElementById('updateloglist'));
         updateLogWordTree = w4;
         w4.hideFunction = hideUpdateLogList;
 
@@ -1214,74 +1247,74 @@
         onResize();
       }
 
-      function textUpClicked() {
-        const row = document.querySelector("#textlist .selectedRowClass");
+      function textUpClicked () {
+        const row = document.querySelector('#textlist .selectedRowClass');
         if (row) {
           moveText(getColumnValues(row)[1], -1);
         }
       }
-      function textDownClicked() {
-        const row = document.querySelector("#textlist .selectedRowClass");
+      function textDownClicked () {
+        const row = document.querySelector('#textlist .selectedRowClass');
         if (row) {
           moveText(getColumnValues(row)[1], 1);
         }
       }
 
-      function addDeletePagebreak() {
+      function addDeletePagebreak () {
         if (!selectedWordInList) {
           return;
         }
-        const d = document.getElementById("text" + selectedWordInList);
-        if (d.classList.contains("pagebreak")) {
+        const d = document.getElementById('text' + selectedWordInList);
+        if (d.classList.contains('pagebreak')) {
           deletePagebreak();
         } else {
           insertPagebreak();
         }
       }
 
-      function insertPagebreak() {
-        console.log("insert pagebreak: " + selectedWordInList);
+      function insertPagebreak () {
+        console.log('insert pagebreak: ' + selectedWordInList);
         if (!selectedWordInList) {
           return;
         }
 
-        function callback(returnObj) {
-          const d = document.getElementById("text" + returnObj.word_id);
-          d.classList.add("pagebreak");
+        function callback (returnObj) {
+          const d = document.getElementById('text' + returnObj.word_id);
+          d.classList.add('pagebreak');
         }
 
         sendXHR(
-          "insertpagebreak",
-          "POST",
+          'insertpagebreak',
+          'POST',
           { word_id: parseInt(selectedWordInList) },
-          callback,
-        );
+          callback
+  );
       }
 
-      function deletePagebreak() {
-        console.log("delete pagebreak: " + selectedWordInList);
+      function deletePagebreak () {
+        console.log('delete pagebreak: ' + selectedWordInList);
         if (!selectedWordInList) {
           return;
         }
 
-        function callback(returnObj) {
-          const d = document.getElementById("text" + returnObj.word_id);
-          d.classList.remove("pagebreak");
+        function callback (returnObj) {
+          const d = document.getElementById('text' + returnObj.word_id);
+          d.classList.remove('pagebreak');
         }
 
         sendXHR(
-          "deletepagebreak",
-          "POST",
+          'deletepagebreak',
+          'POST',
           { word_id: parseInt(selectedWordInList) },
-          callback,
-        );
+          callback
+  );
       }
 
-      function moveText(vtextId, vstep) {
-        console.log("move text: " + vtextId + ", " + vstep);
+      function moveText (vtextId, vstep) {
+        console.log('move text: ' + vtextId + ', ' + vstep);
 
-        function callback(returnObj) {
-          showToast("success: " + returnObj);
+        function callback (returnObj) {
+          showToast('success: ' + returnObj);
 
           showTextList();
           if (globalSelectedTextId) {
@@ -1290,84 +1323,84 @@
         }
 
         sendXHR(
-          "movetext",
-          "POST",
-          { qtype: "movetext", text_id: vtextId, step: vstep },
-          callback,
-        );
+          'movetext',
+          'POST',
+          { qtype: 'movetext', text_id: vtextId, step: vstep },
+          callback
+  );
       }
 
-      function showOccurrenceClicked() {
-        const row = document.querySelector("#glossuses .selectedRowClass");
+      function showOccurrenceClicked () {
+        const row = document.querySelector('#glossuses .selectedRowClass');
         if (row) {
           showOccurrence(getColumnValues(row)[1]);
         }
       }
-      function showGlossOccurrencesClicked() {
-        const row = document.querySelector("#test1 .selectedRowClass");
+      function showGlossOccurrencesClicked () {
+        const row = document.querySelector('#test1 .selectedRowClass');
         if (row) {
           showGlossOccurrencesList(getColumnValues(row)[1]);
         }
       }
-      function deleteGlossListClicked() {
-        const row = document.querySelector("#test1 .selectedRowClass");
+      function deleteGlossListClicked () {
+        const row = document.querySelector('#test1 .selectedRowClass');
         if (row) {
           const deleteId = getColumnValues(row)[1];
 
-          function callback(returnObj) {
+          function callback (returnObj) {
             if (!returnObj || returnObj.affectedrows < 1) {
               return;
             }
 
             // S("#" + returnObj.inserted_id + "test1").remove();
-            const eb = document.getElementById(returnObj.inserted_id + "test1");
+            const eb = document.getElementById(returnObj.inserted_id + 'test1');
             if (eb) {
               eb.parentNode.removeChild(eb);
             }
           }
 
           sendXHR(
-            "updategloss",
-            "POST",
+            'updategloss',
+            'POST',
             {
-              qtype: "deletegloss",
+              qtype: 'deletegloss',
               hqid: deleteId,
-              lemma: "",
-              strippedLemma: "",
-              pos: "",
-              def: "",
-              note: "",
+              lemma: '',
+              strippedLemma: '',
+              pos: '',
+              def: '',
+              note: ''
             },
-            callback,
+            callback
           );
         }
       }
 
-      function editGlossListClicked() {
-        const row = document.querySelector("#test1 .selectedRowClass");
+      function editGlossListClicked () {
+        const row = document.querySelector('#test1 .selectedRowClass');
         if (row) {
           editGlossFormToggle(getColumnValues(row)[1]);
         }
       }
-      function selectGlossClicked() {
-        const row = document.querySelector("#test1 .selectedRowClass");
+      function selectGlossClicked () {
+        const row = document.querySelector('#test1 .selectedRowClass');
         if (row) {
-          setGlossForWord("hqvocab", getColumnValues(row));
+          setGlossForWord('hqvocab', getColumnValues(row));
         }
       }
 
-      function selectTextClicked() {
-        const row = document.querySelector("#text .selectedRowClass");
+      function selectTextClicked () {
+        const row = document.querySelector('#text .selectedRowClass');
         if (row) {
-          if (row.firstChild.classList.contains("openCloseBranch")) {
+          if (row.firstChild.classList.contains('openCloseBranch')) {
             /* do not select parent nodes */
             return;
           }
-          queryText("hqvocab", getColumnValues(row));
+          queryText('hqvocab', getColumnValues(row));
         }
       }
 
-      function showOccurrence(wordId) {
+      function showOccurrence (wordId) {
         if (parseInt(wordId) > 1) {
           // word_id == 1 for H&Q: don't try to go to H&Q
           getTextByWordId(wordId);
@@ -1376,7 +1409,7 @@
         }
       }
 
-      function queryText(lex, cols) {
+      function queryText (lex, cols) {
         if (
           Array.isArray(cols) &&
           cols.length > 1 &&
@@ -1388,11 +1421,11 @@
         }
       }
 
-      function isVisible(node) {
+      function isVisible (node) {
         return node.offsetParent !== null;
       }
-      function showUpdateLogClicked() {
-        const ull = document.getElementById("updateloglist"); //if is visible
+      function showUpdateLogClicked () {
+        const ull = document.getElementById('updateloglist'); // if is visible
         if (!ull) {
           return;
         }
@@ -1405,8 +1438,8 @@
           showUpdateLogList();
         }
       }
-      function toggleGlossListClicked() {
-        const ll = document.getElementById("leftlist"); //if is visible
+      function toggleGlossListClicked () {
+        const ll = document.getElementById('leftlist'); // if is visible
         if (!ll) {
           return;
         }
@@ -1420,8 +1453,8 @@
         }
       }
 
-      function selectTextFormToggleClicked() {
-        const tl = document.getElementById("textlist"); //if is visible
+      function selectTextFormToggleClicked () {
+        const tl = document.getElementById('textlist'); // if is visible
         if (!tl) {
           return;
         }
@@ -1435,111 +1468,111 @@
         }
       }
 
-      function showNoClick() {
-        document.getElementById("noclick").style.display = "block";
+      function showNoClick () {
+        document.getElementById('noclick').style.display = 'block';
       }
 
-      function hideNoClick() {
-        document.getElementById("noclick").style.display = "none";
+      function hideNoClick () {
+        document.getElementById('noclick').style.display = 'none';
       }
 
-      function annotateGloss() {
+      // function annotateGloss () {
+      //   if (selectedWordInList === null) {
+      //     alert('You must select a word to edit.');
+      //     return;
+      //   }
+      //   const a = document.getElementById('word' + selectedWordInList);
+      //   if (a === null) {
+      //     alert('Try re-selecting your word and try again.');
+      //     return;
+      //   }
+      //   const fc = document.getElementById('annotateformcontainer'); // if is visible
+      //   if (!fc) {
+      //     return;
+      //   }
+      //   if (isVisible(fc)) {
+      //     annotateFormClose();
+      //   } else {
+      //     getAnnotateData(selectedWordInList);
+      //     annotateFormShow();
+      //   }
+      // }
+      // function annotateFormShow () {
+      //   annotateFormClear();
+      //   document.getElementById('annotateformcontainer').style.display =
+      //     'block';
+      //   document.getElementById('annotateform').style.display = 'block';
+      //   document.getElementById('AnnotateInput').focus();
+      //   showNoClick();
+      // }
+      // function annotateFormClose () {
+      //   document.getElementById('annotateformcontainer').style.display = 'none';
+      //   document.getElementById('annotateform').style.display = 'none';
+      //   hideNoClick();
+      // }
+      // function annotateFormClear () {
+      //   document.getElementById('AnnotateInput').value = '';
+      // }
+
+      function toggleEditGlossFormClicked () {
         if (selectedWordInList === null) {
-          alert("You must select a word to edit.");
+          alert('You must select a word to edit.');
           return;
         }
-        const a = document.getElementById("word" + selectedWordInList);
+        const a = document.getElementById('word' + selectedWordInList);
         if (a === null) {
-          alert("Try re-selecting your word and try again.");
+          alert('Try re-selecting your word and try again.');
           return;
         }
-        const fc = document.getElementById("annotateformcontainer"); //if is visible
-        if (!fc) {
-          return;
-        }
-        if (isVisible(fc)) {
-          annotateFormClose();
-        } else {
-          getAnnotateData(selectedWordInList);
-          annotateFormShow();
-        }
-      }
-      function annotateFormShow() {
-        annotateFormClear();
-        document.getElementById("annotateformcontainer").style.display =
-          "block";
-        document.getElementById("annotateform").style.display = "block";
-        document.getElementById("AnnotateInput").focus();
-        showNoClick();
-      }
-      function annotateFormClose() {
-        document.getElementById("annotateformcontainer").style.display = "none";
-        document.getElementById("annotateform").style.display = "none";
-        hideNoClick();
-      }
-      function annotateFormClear() {
-        document.getElementById("AnnotateInput").value = "";
-      }
-
-      function toggleEditGlossFormClicked() {
-        if (selectedWordInList === null) {
-          alert("You must select a word to edit.");
-          return;
-        }
-        const a = document.getElementById("word" + selectedWordInList);
-        if (a === null) {
-          alert("Try re-selecting your word and try again.");
-          return;
-        }
-        const lemmaid = a.getAttribute("lemmaid");
+        const lemmaid = a.getAttribute('lemmaid');
         if (
-          typeof lemmaid === "undefined" ||
+          typeof lemmaid === 'undefined' ||
           lemmaid === null ||
-          lemmaid === "" ||
-          lemmaid === "0"
+          lemmaid === '' ||
+          lemmaid === '0'
         ) {
           alert(
-            "A gloss must be set on a word before you can edit it.  Use Select Gloss.",
-          );
+            'A gloss must be set on a word before you can edit it.  Use Select Gloss.'
+    );
           return;
         }
 
-        const efc = document.getElementById("editformcontainer"); //if is visible
+        const efc = document.getElementById('editformcontainer'); // if is visible
         if (!efc) {
           return;
         }
         if (isVisible(efc)) {
           newGlossFormClose();
         } else {
-          document.getElementById("editFormTitle").innerHTML = "<b>Edit</b>";
-          document.getElementById("EditInputHQID").innerHTML = ""; // clear before loading
+          document.getElementById('editFormTitle').innerHTML = '<b>Edit</b>';
+          document.getElementById('EditInputHQID').innerHTML = ''; // clear before loading
           getEditLemmaData(lemmaid);
 
           newGlossFormShow();
         }
       }
 
-      function editGlossFormToggle(lemmaid) {
-        document.getElementById("editFormTitle").innerHTML = "<b>Edit</b>";
-        document.getElementById("EditInputHQID").innerHTML = ""; // clear before loading
+      function editGlossFormToggle (lemmaid) {
+        document.getElementById('editFormTitle').innerHTML = '<b>Edit</b>';
+        document.getElementById('EditInputHQID').innerHTML = ''; // clear before loading
         getEditLemmaData(lemmaid);
 
         newGlossFormShow();
       }
 
-      function exporttext() {
-        const row = document.querySelector("#text .selectedRowClass");
+      function exporttext () {
+        const row = document.querySelector('#text .selectedRowClass');
         if (!row) {
           return;
         }
-        if (row.firstChild.classList.contains("openCloseBranch")) {
+        if (row.firstChild.classList.contains('openCloseBranch')) {
           /* do not select parent nodes for now */
           return;
         }
         const id = getColumnValues(row)[1];
-        console.log("exporting text: " + id);
+        console.log('exporting text: ' + id);
         // id = "133,134,135,136,137"; //testing
-        window.location = "exporttext?text_ids=" + id;
+        window.location = 'exporttext?text_ids=' + id;
         /*
         sendXHR(
            "exporttext",
@@ -1550,225 +1583,225 @@
          */
       }
 
-      function uploaddialog() {
-        document.getElementById("importspinner").style.display = "none";
-        document.getElementById("uploadform").style.zIndex = "999";
-        document.getElementById("fileuploadtitle").value = "";
-        document.getElementById("fileupload").value = "";
+      function uploaddialog () {
+        document.getElementById('importspinner').style.display = 'none';
+        document.getElementById('uploadform').style.zIndex = '999';
+        document.getElementById('fileuploadtitle').value = '';
+        document.getElementById('fileupload').value = '';
 
-        const uf = document.getElementById("uploadform"); //if is visible
+        const uf = document.getElementById('uploadform'); // if is visible
         if (!uf) {
           return;
         }
         if (isVisible(uf)) {
-          document.getElementById("uploadform").style.display = "none";
+          document.getElementById('uploadform').style.display = 'none';
           hideNoClick();
         } else {
-          document.getElementById("uploadform").style.display = "block";
+          document.getElementById('uploadform').style.display = 'block';
           showNoClick();
         }
       }
 
-      function toggleNewGlossFormClicked() {
-        const ef = document.getElementById("editformcontainer"); //if is visible
+      function toggleNewGlossFormClicked () {
+        const ef = document.getElementById('editformcontainer'); // if is visible
         if (!ef) {
           return;
         }
         if (isVisible(ef)) {
           newGlossFormClose();
         } else {
-          document.getElementById("editFormTitle").innerHTML = "<b>New</b>";
-          document.getElementById("EditInputHQID").innerHTML = ""; // clear before loading
+          document.getElementById('editFormTitle').innerHTML = '<b>New</b>';
+          document.getElementById('EditInputHQID').innerHTML = ''; // clear before loading
           newGlossFormShow();
         }
       }
-      function newGlossFormShow() {
+      function newGlossFormShow () {
         newGlossFormClear();
-        document.getElementById("arrowedrow").style.display = "none";
-        document.getElementById("editformcontainer").style.display = "block";
-        document.getElementById("editform").style.display = "block";
-        document.getElementById("EditInputLemma").focus();
+        document.getElementById('arrowedrow').style.display = 'none';
+        document.getElementById('editformcontainer').style.display = 'block';
+        document.getElementById('editform').style.display = 'block';
+        document.getElementById('EditInputLemma').focus();
         showNoClick();
       }
-      function newGlossFormClose() {
-        document.getElementById("editformcontainer").style.display = "none";
-        document.getElementById("editform").style.display = "none";
+      function newGlossFormClose () {
+        document.getElementById('editformcontainer').style.display = 'none';
+        document.getElementById('editform').style.display = 'none';
         hideNoClick();
       }
-      function newGlossFormClear() {
-        document.getElementById("EditInputGloss").value = "";
-        document.getElementById("EditInputPOS").value = "";
-        document.getElementById("EditInputNote").value = "";
-        document.getElementById("EditInputLemma").value = "";
+      function newGlossFormClear () {
+        document.getElementById('EditInputGloss').value = '';
+        document.getElementById('EditInputPOS').value = '';
+        document.getElementById('EditInputNote').value = '';
+        document.getElementById('EditInputLemma').value = '';
         document
-          .getElementById("EditInputArrowed")
-          .setAttribute("checked", "false");
+          .getElementById('EditInputArrowed')
+          .setAttribute('checked', 'false');
       }
-      function showGlossList() {
-        lemmaListWordTree.url = "queryglosses";
+      function showGlossList () {
+        lemmaListWordTree.url = 'queryglosses';
         lemmaListWordTree.refresh();
         // let a = '';
         // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-        document.getElementById("leftlist").style.display = "";
-        document.getElementById("test1Entry").focus();
+        document.getElementById('leftlist').style.display = '';
+        document.getElementById('test1Entry').focus();
         // showNoClick();
       }
-      function hideGlossList() {
-        document.getElementById("test1Entry").value = "";
-        document.getElementById("leftlist").style.display = "none";
+      function hideGlossList () {
+        document.getElementById('test1Entry').value = '';
+        document.getElementById('leftlist').style.display = 'none';
         lemmaListWordTree.clearWordTree();
         hideNoClick();
       }
 
-      function showUpdateLogList() {
-        updateLogWordTree.url = "updatelog";
+      function showUpdateLogList () {
+        updateLogWordTree.url = 'updatelog';
         updateLogWordTree.refresh();
         // let a = '';
         // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-        document.getElementById("updateloglist").style.display = "";
-        document.getElementById("updatelogEntry").focus();
+        document.getElementById('updateloglist').style.display = '';
+        document.getElementById('updatelogEntry').focus();
         // showNoClick();
       }
-      function hideUpdateLogList() {
-        document.getElementById("updatelogEntry").value = "";
-        document.getElementById("updateloglist").style.display = "none";
+      function hideUpdateLogList () {
+        document.getElementById('updatelogEntry').value = '';
+        document.getElementById('updateloglist').style.display = 'none';
         updateLogWordTree.clearWordTree();
         hideNoClick();
       }
 
-      function showTextList() {
-        textListWordTree.url = "querytexts";
+      function showTextList () {
+        textListWordTree.url = 'querytexts';
         textListWordTree.refresh();
         // let a = '';
         // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-        document.getElementById("textlist").style.display = "";
-        document.getElementById("textEntry").focus();
+        document.getElementById('textlist').style.display = '';
+        document.getElementById('textEntry').focus();
         // showNoClick();
       }
-      function hideTextList() {
-        document.getElementById("textEntry").value = "";
-        document.getElementById("textlist").style.display = "none";
+      function hideTextList () {
+        document.getElementById('textEntry').value = '';
+        document.getElementById('textlist').style.display = 'none';
         textListWordTree.clearWordTree();
         hideNoClick();
       }
 
-      function showGlossOccurrencesList(glossId) {
+      function showGlossOccurrencesList (glossId) {
         if (parseInt(glossId) > 0) {
           // the argument is set to 0 if there are 0 occurrences
           hideTextList();
           hideGlossList();
           hideUpdateLogList();
-          glossUsesWordTree.url = "glossuses";
+          glossUsesWordTree.url = 'glossuses';
           glossUsesWordTree.params.tag_id = parseInt(glossId);
           glossUsesWordTree.refresh();
 
           // let a = '';
           // let a = '{"wtprefix":"test1","container":"test1Container","requestTime":"99999","selectId":"0","page":"0","lastPage":"0","lastPageUp":"1","scroll":"top","query":"a","cols":"2","arrOptions":[{"i":1,"r":["Α","abc"]},{"i":5,"r":["ἃ","abc"]},{"i":2,"r":["ἀ1","abc"]},{"i":20395,"r":["α1","abc"]},{"i":3,"r":["ἀ2","abc"]},{"i":102761,"r":["α2","abc"]},{"i":4,"r":["ἆ3","abc"]},{"i":6,"r":["ἄα","abc"]},{"i":8,"r":["ἀάβακτοι","abc"]},{"i":9,"r":["ἀαγής","abc"]}]}';
-          document.getElementById("glossuseslist").style.display = "";
-          document.getElementById("glossusesEntry").focus();
+          document.getElementById('glossuseslist').style.display = '';
+          document.getElementById('glossusesEntry').focus();
 
           hideGlossList();
 
           // showNoClick();
         }
       }
-      function hideGlossUsesList() {
-        document.getElementById("glossusesEntry").value = "";
-        document.getElementById("glossuseslist").style.display = "none";
+      function hideGlossUsesList () {
+        document.getElementById('glossusesEntry').value = '';
+        document.getElementById('glossuseslist').style.display = 'none';
         glossUsesWordTree.clearWordTree();
         hideNoClick();
       }
 
       let selectedWordInList = null;
       // click on wordlist
-      function scrollToWordID(id) {
-        if (document.getElementById(id).classList.contains("selectedWord")) {
+      function scrollToWordID (id) {
+        if (document.getElementById(id).classList.contains('selectedWord')) {
           return;
         }
         selectedWordInList = null;
 
         const match = id.match(/word(\d+)/);
         if (match && match.length > 1) {
-          const wordsid = "text" + match[1];
+          const wordsid = 'text' + match[1];
           selectedWordInList = match[1];
-          console.log("Selected word from list: " + selectedWordInList);
+          console.log('Selected word from list: ' + selectedWordInList);
 
           // alert(selectedWordInList);
-          //S(".selectedWord").removeClass("selectedWord");
-          document.querySelectorAll(".selectedWord").forEach((e) => {
-            e.classList.remove("selectedWord");
+          // S(".selectedWord").removeClass("selectedWord");
+          document.querySelectorAll('.selectedWord').forEach((e) => {
+            e.classList.remove('selectedWord');
           });
-          document.getElementById(id).classList.add("selectedWord");
-          document.getElementById(wordsid).classList.add("selectedWord");
+          document.getElementById(id).classList.add('selectedWord');
+          document.getElementById(wordsid).classList.add('selectedWord');
 
           const a = document.getElementById(wordsid);
           if (a) {
             a.scrollIntoView({
-              behavior: "auto",
-              block: "center",
-              inline: "center",
+              behavior: 'auto',
+              block: 'center',
+              inline: 'center'
             });
           }
 
           // S("#editbutton").remove();
-          const eb = document.getElementById("editbutton");
+          const eb = document.getElementById('editbutton');
           if (eb) {
             eb.parentNode.removeChild(eb);
           }
         }
       }
 
-      function scrollToTextID(id) {
+      function scrollToTextID (id) {
         const match = id.match(/text(\d+)/);
         if (match && match.length > 1) {
-          const wordsid = "word" + match[1];
+          const wordsid = 'word' + match[1];
           selectedWordInList = match[1];
-          console.log("Selected word from text: " + selectedWordInList);
+          console.log('Selected word from text: ' + selectedWordInList);
 
           // S(".selectedWord").removeClass("selectedWord");
-          document.querySelectorAll(".selectedWord").forEach((e) => {
-            e.classList.remove("selectedWord");
+          document.querySelectorAll('.selectedWord').forEach((e) => {
+            e.classList.remove('selectedWord');
           });
-          document.getElementById(id).classList.add("selectedWord");
-          document.getElementById(wordsid).classList.add("selectedWord");
+          document.getElementById(id).classList.add('selectedWord');
+          document.getElementById(wordsid).classList.add('selectedWord');
 
           const a = document.getElementById(wordsid);
           if (a) {
             a.scrollIntoView({
-              behavior: "auto",
-              block: "center",
-              inline: "center",
+              behavior: 'auto',
+              block: 'center',
+              inline: 'center'
             });
           }
         }
       }
 
-      function getTextByWordId(wordid) {
-        console.log("getting words from text by wordid: " + wordid);
-        const url = "query?wordid=" + wordid + "&text=0";
+      function getTextByWordId (wordid) {
+        console.log('getting words from text by wordid: ' + wordid);
+        const url = 'query?wordid=' + wordid + '&text=0';
 
-        function callback(returnObj) {
+        function callback (returnObj) {
           procGetWordsResponse(returnObj);
         }
 
-        sendXHR(url, "GET", {}, callback);
+        sendXHR(url, 'GET', {}, callback);
       }
 
       let globalSelectedTextId = null;
-      function getwords(text) {
-        console.log("getting words from text: " + text);
-        const url = "query?text=" + text + "&wordid=0";
+      function getwords (text) {
+        console.log('getting words from text: ' + text);
+        const url = 'query?text=' + text + '&wordid=0';
 
         globalSelectedTextId = text; // FIX ME: should do after success?
-        function callback(returnObj) {
+        function callback (returnObj) {
           procGetWordsResponse(returnObj);
         }
 
-        sendXHR(url, "GET", {}, callback);
+        sendXHR(url, 'GET', {}, callback);
       }
 
-      function insertSpaceAfter(w) {
-        const punc = ["—", "<"];
+      function insertSpaceAfter (w) {
+        const punc = ['—', '<'];
         if (punc.indexOf(w) > -1) {
           return false;
         } else {
@@ -1776,25 +1809,25 @@
         }
       }
 
-      function insertSpaceBefore(w) {
+      function insertSpaceBefore (w) {
         // if (w == ">" || w == ";" || w == ";" || w == "·" || w == "." || w == "," || w == "·" || w == ";") {
 
         const punc = [
-          ">",
-          ";" /* 0x037E */,
-          "·" /* 0x0387 */,
-          "᾽",
-          ":",
-          ";",
-          "·",
-          ".",
-          ",",
-          "·",
-          ";",
-          "’",
-          "—",
-          "'",
-        ];
+          '>',
+          ';' /* 0x037E */,
+          '·' /* 0x0387 */,
+          '᾽',
+          ':',
+          ';',
+          '·',
+          '.',
+          ',',
+          '·',
+          ';',
+          '’',
+          '—',
+          "'"
+  ];
         if (punc.indexOf(w) > -1) {
           return false;
         } else {
@@ -1802,7 +1835,7 @@
         }
       }
 
-      function procGetWordsResponse(returnObj) {
+      function procGetWordsResponse (returnObj) {
         // console.log('Proc Response: ' + str);
         // alert(str);
 
@@ -1811,26 +1844,26 @@
         }
 
         if (returnObj.error) {
-          if (returnObj.error === "Not logged in") {
-            location = "/login";
+          if (returnObj.error === 'Not logged in') {
+            location = '/login';
           }
           console.log(returnObj.error);
           return;
         }
 
-        document.getElementById("showAllGlossesButton").style.display = "";
-        document.getElementById("hideSeenGlossesButton").style.display = "none";
+        document.getElementById('showAllGlossesButton').style.display = '';
+        document.getElementById('hideSeenGlossesButton').style.display = 'none';
         if (
           returnObj.thisText &&
           Number.isInteger(parseInt(returnObj.thisText))
         ) {
-          setCookie("selectedText", returnObj.thisText, 60);
+          setCookie('selectedText', returnObj.thisText, 60);
         }
 
         // alert(returnObj.blah[2].word);
 
         if (returnObj.text_name) {
-          document.getElementById("text_title").innerHTML = returnObj.text_name;
+          document.getElementById('text_title').innerHTML = returnObj.text_name;
         }
 
         const glossFragment = new DocumentFragment();
@@ -1846,19 +1879,19 @@
             // build gloss
             if (i.t === TYPE_WORD) {
               // && !i.l)
-              const b = document.createElement("div");
-              b.id = "word" + i.i;
+              const b = document.createElement('div');
+              b.id = 'word' + i.i;
               if (i.hqid !== null) {
-                b.setAttribute("lemmaid", i.hqid);
+                b.setAttribute('lemmaid', i.hqid);
               }
               // b.setAttribute('seq', i.s);
-              b.classList.add("listword");
+              b.classList.add('listword');
               // b.className += 'listword';
               // b.setAttribute('tabindex','0');
 
               if (i.l) {
                 // parseInt(i.u) < 21)
-                b.classList.add("hqListWord");
+                b.classList.add('hqListWord');
                 // b.className += ' hqListWord';
               }
               if (!i.l) {
@@ -1866,13 +1899,11 @@
                 b.innerHTML =
                   '<div class="clickablelistword"><span class="listheadword">' +
                   i.w +
-                  "</span></div>";
-
-
+                  '</span></div>';
               } else {
-                console.log("arrowed? " + i.l + ": " + i.arrowed_text_seq + ", " + i.word_text_seq + ", " +  i.s2 + ", " +  i.s);
+                console.log('arrowed? ' + i.l + ': ' + i.arrowed_text_seq + ', ' + i.word_text_seq + ', ' + i.s2 + ', ' + i.s);
                 if (i.arrowed_text_seq === i.word_text_seq && i.s2 === i.s) {
-                  b.classList.add("arrowedHere");
+                  b.classList.add('arrowedHere');
                   // b.className += ' arrowedHere';
                 } else if (
                   (i.arrowed_text_seq !== null &&
@@ -1883,7 +1914,7 @@
                     parseInt(i.s2) < parseInt(i.s))
                 ) {
                   // b.className += ' alreadyArrowed'; // hide it
-                  b.classList.add("alreadyArrowed");
+                  b.classList.add('alreadyArrowed');
                 }
                 /*
                 if (i.s2 === i.s) { //if i.a == i.i then arrowed; if i.a < i.i it will be hidden
@@ -1895,7 +1926,7 @@
                 }
                 */
                 if (i.if && parseInt(i.if) === 1) {
-                  b.classList.add("flagged");
+                  b.classList.add('flagged');
                   // b.className += ' flagged';
                 }
                 // setListRow(textwordid, lemmaid, lemma, pos, def, arrowed, seq);
@@ -1906,52 +1937,52 @@
                   i.def,
                   i.rc,
                   i.c,
-                  i.hqid,
+                  i.hqid
                 ); // "<div id='arrow" + i.i + "' class='listarrow'></div><div class='clickablelistword'><span class='listheadword' id='listheadword" + i.i + "'>" + i.l + "</span>.&nbsp;&nbsp;<span class='listposwrapper' style='font-style:italic;'>(<span class='listpos' id='listpos" + i.i + "'>" + i.pos + "</span>) </span><span class='listdef' id='listdef" + i.i + "'>" + i.def + "</span> <a class='listfrequency' href=''>[" + i.rc + " of " + i.c + "]</a></div>";
               }
-              b.setAttribute("textseq", i.word_text_seq);
+              b.setAttribute('textseq', i.word_text_seq);
               if (i.arrowed_text_seq) {
-                b.setAttribute("arrowedtextseq", i.arrowed_text_seq);
+                b.setAttribute('arrowedtextseq', i.arrowed_text_seq);
               }
               glossFragment.appendChild(b);
             }
 
             // build text
             if (i.t === TYPE_INLINE_VERSE_SPEAKER) {
-              const sectionDiv = document.createElement("span");
-              sectionDiv.classList.add("inline-verse-speaker");
-              sectionDiv.innerHTML = i.w.replace("[section]", "") + " ";
+              const sectionDiv = document.createElement('span');
+              sectionDiv.classList.add('inline-verse-speaker');
+              sectionDiv.innerHTML = i.w.replace('[section]', '') + ' ';
               textFragment.appendChild(sectionDiv);
             } else if (i.t === TYPE_SPEAKER || i.t === TYPE_SECTION) {
               if (firstOfSection) {
                 firstOfSection = false;
               } else {
-                const br1 = document.createElement("br");
+                const br1 = document.createElement('br');
                 textFragment.appendChild(br1);
-                const br2 = document.createElement("br");
+                const br2 = document.createElement('br');
                 textFragment.appendChild(br2);
                 // t += '<br><br>'; // not for first section
               }
 
-              const sectionDiv = document.createElement("div");
-              sectionDiv.classList.add("section-label");
-              sectionDiv.innerHTML = i.w.replace("[section]", "");
+              const sectionDiv = document.createElement('div');
+              sectionDiv.classList.add('section-label');
+              sectionDiv.innerHTML = i.w.replace('[section]', '');
               textFragment.appendChild(sectionDiv);
 
               // i.w = '<b>' + i.w + '</b><br>';
               // t += i.w.replace('[section]', '');
             } else if (i.t === TYPE_WORK_TITLE || i.t === TYPE_SECTION_TITLE) {
-              const title = document.createElement("div");
-              title.classList.add("section-title");
+              const title = document.createElement('div');
+              title.classList.add('section-title');
               title.innerHTML = i.w;
               textFragment.appendChild(title);
               // mt += '<b>' + i.w + '</b><br/><br/>';
             } else if (i.t === TYPE_VERSE_LINE) {
-              const br = document.createElement("br");
+              const br = document.createElement('br');
               textFragment.appendChild(br);
-              const line = document.createElement("span");
-              line.classList.add("verse-line-label");
-              line.innerText = i.w.replace("[line]", "");
+              const line = document.createElement('span');
+              line.classList.add('verse-line-label');
+              line.innerText = i.w.replace('[line]', '');
               textFragment.appendChild(line);
 
               // t += '<br/>' + i.w.replace('[line]', '') + '&nbsp;&nbsp;&nbsp;';
@@ -1959,8 +1990,8 @@
               i.t === TYPE_PARA_NO_INDENT ||
               i.t === TYPE_PARA_WITH_INDENT
             ) {
-              const br1 = document.createElement("br");
-              const br2 = document.createElement("br");
+              const br1 = document.createElement('br');
+              const br2 = document.createElement('br');
               textFragment.appendChild(br1);
               textFragment.appendChild(br2);
               // t += '<br/><br/>';
@@ -1970,15 +2001,15 @@
                 lastWord !== false &&
                 insertSpaceAfter(lastWord)
               ) {
-                const space = document.createTextNode(" ");
+                const space = document.createTextNode(' ');
                 textFragment.appendChild(space);
               }
-              const span = document.createElement("span");
-              span.id = "text" + i.i;
-              span.classList.add("textword");
+              const span = document.createElement('span');
+              span.id = 'text' + i.i;
+              span.classList.add('textword');
               span.innerText = i.w;
               if (i.last_word_of_page) {
-                span.classList.add("pagebreak");
+                span.classList.add('pagebreak');
               }
               textFragment.appendChild(span);
 
@@ -1987,39 +2018,39 @@
             }
           });
         }
-        const a = document.getElementById("wordscontents");
-        a.innerHTML = ""; // clear old content
+        const a = document.getElementById('wordscontents');
+        a.innerHTML = ''; // clear old content
         a.appendChild(glossFragment);
 
-        const text = document.getElementById("textcontents");
-        text.innerHTML = ""; // clear old content
+        const text = document.getElementById('textcontents');
+        text.innerHTML = ''; // clear old content
         text.appendChild(textFragment);
 
         if (returnObj.selectedid && parseInt(returnObj.selectedid) > 0) {
-          scrollToWordID("word" + returnObj.selectedid);
-          scrollToTextID("text" + returnObj.selectedid);
+          scrollToWordID('word' + returnObj.selectedid);
+          scrollToTextID('text' + returnObj.selectedid);
         } else {
-          const textElement = document.getElementById("text");
+          const textElement = document.getElementById('text');
           if (textElement) {
             textElement.scrollTop = 0;
           }
-          const wordsElement = document.getElementById("words");
+          const wordsElement = document.getElementById('words');
           if (wordsElement) {
             wordsElement.scrollTop = 0;
           }
           // S("#text").scrollTop(0);
           // S("#words").scrollTop(0);
         }
-        document.querySelectorAll(".textword").forEach((e) => {
-          e.addEventListener("click", function () {
+        document.querySelectorAll('.textword').forEach((e) => {
+          e.addEventListener('click', function () {
             scrollToTextID(this.id);
           });
         });
         // S("").click(function () {
         //   scrollToTextID(this.id);
         // });
-        document.querySelectorAll(".clickablelistword").forEach((e) => {
-          e.addEventListener("click", function () {
+        document.querySelectorAll('.clickablelistword').forEach((e) => {
+          e.addEventListener('click', function () {
             scrollToWordID(this.parentNode.id);
           });
         });
@@ -2027,8 +2058,8 @@
         //   scrollToWordID(this.parentNode.id);
         // });
         // S(".listarrow").click(toggleArrow);
-        document.querySelectorAll(".listarrow").forEach((e) => {
-          e.addEventListener("click", toggleArrow);
+        document.querySelectorAll('.listarrow').forEach((e) => {
+          e.addEventListener('click', toggleArrow);
         });
       }
       /*
@@ -2040,196 +2071,194 @@
       }
       */
 
-      function hideSeenGlossesClicked() {
-        document.querySelectorAll(".alreadyArrowed").forEach((e) => {
-          e.style.display = "none";
+      function hideSeenGlossesClicked () {
+        document.querySelectorAll('.alreadyArrowed').forEach((e) => {
+          e.style.display = 'none';
         });
         // S(".alreadyArrowed").css("display", "none");
-        document.getElementById("hideSeenGlossesButton").style.display = "none";
-        document.getElementById("showAllGlossesButton").style.display = "";
+        document.getElementById('hideSeenGlossesButton').style.display = 'none';
+        document.getElementById('showAllGlossesButton').style.display = '';
       }
-      function showAllGlossesClicked() {
-        document.querySelectorAll(".alreadyArrowed").forEach((e) => {
-          e.style.display = "block";
+      function showAllGlossesClicked () {
+        document.querySelectorAll('.alreadyArrowed').forEach((e) => {
+          e.style.display = 'block';
         });
         // S(".alreadyArrowed").css("display", "block");
-        document.getElementById("showAllGlossesButton").style.display = "none";
-        document.getElementById("hideSeenGlossesButton").style.display = "";
+        document.getElementById('showAllGlossesButton').style.display = 'none';
+        document.getElementById('hideSeenGlossesButton').style.display = '';
       }
 
-      function showToast(msg) {
+      function showToast (msg) {
         // Get the snackbar DIV
         console.log(msg); // also save to console
-        const x = document.getElementById("snackbar");
+        const x = document.getElementById('snackbar');
         if (msg) {
           x.innerHTML = msg;
         }
-        x.className = "show";
+        x.className = 'show';
         // After 3 seconds, remove the show class from DIV
         setTimeout(function () {
-          x.className = x.className.replace("show", "");
+          x.className = x.className.replace('show', '');
         }, 3000);
       }
 
-      function setGlossForWord(lex, id) {
+      function setGlossForWord (lex, id) {
         // alert('blah: ' + lex + ', ' + id);
         if (selectedWordInList === null) {
-          alert("First select a word.");
+          alert('First select a word.');
           return;
         }
         const vlemmaid = id[1];
 
         hideGlossList();
 
-        console.log("setGlossForWord: " + selectedWordInList + ", " + vlemmaid);
+        console.log('setGlossForWord: ' + selectedWordInList + ', ' + vlemmaid);
         realSetGlossForWord(selectedWordInList, vlemmaid);
       }
 
-      function annotateFormSubmit() {
-        alert("Doesn't work yet!");
-        /*
-      annotateFormClose();
-      return;
+      // function annotateFormSubmit () {
+      //   alert("Doesn't work yet!");
 
-      let id = ('#AnnotateWordID').html();
-      let newNote = ('#AnnotateInput').val();
+      //   annotateFormClose();
+      //   return;
 
-      //remove returns, tabs, and trim
-      newNote = newNote.replace(/---/g, '—');
-      newNote = newNote.replace(/[\t\n\r\b]/g, '').replace(/  +/g, ' ').trim();
+      //   let id = ('#AnnotateWordID').html();
+      //   let newNote = ('#AnnotateInput').val();
 
-      if (id !== null && id != '')
-      {
-          console.log('edit annotation: ' + id);
-          realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote);
-      }
-      annotateFormClose();
-      */
-      }
+      //   // remove returns, tabs, and trim
+      //   newNote = newNote.replace(/---/g, '—');
+      //   newNote = newNote.replace(/[\t\n\r\b]/g, '').replace(/  +/g, ' ').trim();
 
-      function newLemmaFormSubmit() {
-        const editHQID = document.getElementById("EditInputHQID").innerHTML;
-        let newLemma = document.getElementById("EditInputLemma").value;
-        let newPOS = document.getElementById("EditInputPOS").value;
-        let newGloss = document.getElementById("EditInputGloss").value;
-        let newNote = document.getElementById("EditInputNote").value;
+      //   if (id !== null && id !== '') {
+      //     console.log('edit annotation: ' + id);
+      //     realEditLemmaFormSubmit(editHQID, newLemma, newPOS, newGloss, newNote);
+      //   }
+      //   annotateFormClose();
+      // }
+
+      function newLemmaFormSubmit () {
+        const editHQID = document.getElementById('EditInputHQID').innerHTML;
+        let newLemma = document.getElementById('EditInputLemma').value;
+        let newPOS = document.getElementById('EditInputPOS').value;
+        let newGloss = document.getElementById('EditInputGloss').value;
+        let newNote = document.getElementById('EditInputNote').value;
 
         if (!newLemma || newLemma.length < 1) {
-          alert("Lemma field cannot be empty.");
+          alert('Lemma field cannot be empty.');
           return;
         }
         if (!newPOS || newPOS.length < 1) {
-          alert("POS field cannot be empty.");
+          alert('POS field cannot be empty.');
           return;
         }
         if (!newGloss || newGloss.length < 1) {
-          alert("Gloss field cannot be empty.");
+          alert('Gloss field cannot be empty.');
           return;
         }
 
         // remove returns, tabs, and trim
-        newLemma = newLemma.replace(/---/g, "—");
+        newLemma = newLemma.replace(/---/g, '—');
         newLemma = newLemma
-          .replace(/[\t\n\r\b]/g, "")
-          .replace(/  +/g, " ")
+          .replace(/[\t\n\r\b]/g, '')
+          .replace(/  +/g, ' ')
           .trim();
         newPOS = newPOS
-          .replace(/[\t\n\r\b]/g, "")
-          .replace(/  +/g, " ")
+          .replace(/[\t\n\r\b]/g, '')
+          .replace(/  +/g, ' ')
           .trim();
-        newGloss = newGloss.replace(/---/g, "—");
+        newGloss = newGloss.replace(/---/g, '—');
         newGloss = newGloss
-          .replace(/[\t\n\r\b]/g, "")
-          .replace(/  +/g, " ")
+          .replace(/[\t\n\r\b]/g, '')
+          .replace(/  +/g, ' ')
           .trim();
-        newNote = newNote.replace(/---/g, "—");
+        newNote = newNote.replace(/---/g, '—');
         newNote = newNote
-          .replace(/[\t\n\r\b]/g, "")
-          .replace(/  +/g, " ")
+          .replace(/[\t\n\r\b]/g, '')
+          .replace(/  +/g, ' ')
           .trim();
 
-        if (editHQID !== null && editHQID !== "") {
-          console.log("edit: " + editHQID);
+        if (editHQID !== null && editHQID !== '') {
+          console.log('edit: ' + editHQID);
           realEditLemmaFormSubmit(
             editHQID,
             newLemma,
             newPOS,
             newGloss,
-            newNote,
-          );
+            newNote
+    );
         } else {
-          console.log("insert");
+          console.log('insert');
           realNewLemmaFormSubmit(newLemma, newPOS, newGloss, newNote);
         }
         newGlossFormClose();
       }
 
       let vToggleArrowPending = false;
-      function toggleArrow() {
+      function toggleArrow () {
         if (vToggleArrowPending) {
           return;
         }
         const arrowID = this.id;
         const textwordid = arrowID.substring(5); // without 'arrow' prefix
-        const lemmaid = this.parentNode.getAttribute("lemmaid");
+        const lemmaid = this.parentNode.getAttribute('lemmaid');
         // const toggleOff = S("#" + arrowID).parents(".arrowedHere").length > 0;
-        const toggleOff = this.parentNode.classList.contains("arrowedHere");
+        const toggleOff = this.parentNode.classList.contains('arrowedHere');
 
         realToggleArrow(textwordid, lemmaid, toggleOff);
       }
 
       /** *** real ajax functions ******/
 
-      function serializeFormData(obj) {
+      function serializeFormData (obj) {
         const str = [];
         for (const p in obj) {
           if (Object.hasOwn(obj, p)) {
-            str.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
+            str.push(encodeURIComponent(p) + '=' + encodeURIComponent(obj[p]));
           }
         }
-        return str.join("&");
+        return str.join('&');
       }
 
-      function procResponseWarning(a) {
-        console.log("warning: " + a);
+      function procResponseWarning (a) {
+        console.log('warning: ' + a);
       }
-      function procResponseError() {
+      function procResponseError () {
         console.log('ajax connection error.');
       }
 
-      //send generic XHR request
+      // send generic XHR request
       // https://stackoverflow.com/questions/8604717/json-vs-form-post
-      function sendXHR(url, method, requestData, callback) {
+      function sendXHR (urlStr, methodStr, requestData, callback) {
         // const useJQuery = false;
         // if (useJQuery) {
         //   $.ajax({
-        //     url: url,
-        //     type: method,
+        //     url: urlStr,
+        //     type: methodStr,
         //     data: requestData,
-        //     dataType: "text", // JSON automatically deserializes json
+        //     dataType: 'text', // JSON automatically deserializes json
         //     success: function (data, textStatus, jqXHR) {
-        //       if (typeof callback == "function") {
+        //       if (typeof callback === 'function') {
         //         let returnObj;
         //         try {
         //           returnObj = JSON.parse(data);
         //         } catch (e) {
-        //           alert("Error: " + e.message + "\n" + data);
+        //           alert('Error: ' + e.message + '\n' + data);
         //           return;
         //         }
         //         callback(returnObj);
         //       }
         //     },
         //     error: function (response) {
-        //       showToast("ajax error");
-        //       console.log("ajax error");
-        //     },
+        //       showToast('ajax error');
+        //       console.log('ajax error');
+        //     }
         //   });
         // } else {
         requestData = serializeFormData(requestData);
         // requestData = JSON.stringify(requestData);
         microAjax({
-          url: url,
-          method: method,
+          url: urlStr,
+          method: methodStr,
           data: requestData,
           success: function (d) {
             callback(JSON.parse(d));
@@ -2237,15 +2266,40 @@
           warning: function (d) {
             procResponseWarning(JSON.parse(d));
           },
-          error: procResponseError,
+          error: procResponseError
         });
         // }
       }
 
-      function getAnnotateData(vWordid) {
-        console.log("get annotation: " + vWordid);
+      // function getAnnotateData (vWordid) {
+      //   console.log('get annotation: ' + vWordid);
 
-        function callback(returnObj) {
+      //   function callback (returnObj) {
+      //     if (!returnObj) {
+      //       return;
+      //     }
+
+      //     const w = returnObj.words;
+      //     if (w) {
+      //       for (let i = 0; i < w.length; i++) {
+      //         document.getElementById('AnnotateWordID').innerHTML(w[i].wid);
+      //         document.getElementById('AnnotateInput').value = w[i].wid;
+      //       }
+      //     }
+      //   }
+
+      //   sendXHR(
+      //     'updatedb',
+      //     'POST',
+      //     { qtype: 'getWordAnnotation', wordid: vWordid },
+      //     callback
+      //   );
+      // }
+
+      function getEditLemmaData (vLemmaid) {
+        console.log('get lemmaid: ' + vLemmaid);
+
+        function callback (returnObj) {
           if (!returnObj) {
             return;
           }
@@ -2253,57 +2307,32 @@
           const w = returnObj.words;
           if (w) {
             for (let i = 0; i < w.length; i++) {
-              document.getElementById("AnnotateWordID").innerHTML(w[i].wid);
-              document.getElementById("AnnotateInput").value = w[i].wid;
+              const lemmaid = w[i].hqid;
+              const lemma = w[i].l;
+              const pos = w[i].pos;
+              const gloss = w[i].g;
+              const note = w[i].n;
+
+              document.getElementById('EditInputHQID').innerHTML = lemmaid;
+              document.getElementById('EditInputLemma').value = lemma;
+              document.getElementById('EditInputPOS').value = pos;
+              document.getElementById('EditInputGloss').value = gloss;
+              document.getElementById('EditInputNote').value = note;
             }
           }
         }
 
         sendXHR(
-          "updatedb",
-          "POST",
-          { qtype: "getWordAnnotation", wordid: vWordid },
-          callback,
-        );
+          'getgloss',
+          'POST',
+          { qtype: 'getLemma', lemmaid: parseInt(vLemmaid) },
+          callback
+  );
       }
 
-      function getEditLemmaData(vLemmaid) {
-        console.log("get lemmaid: " + vLemmaid);
-
-        function callback(returnObj) {
-          if (!returnObj) {
-            return;
-          }
-
-          const w = returnObj.words;
-          if (w) {
-            for (let i = 0; i < w.length; i++) {
-              let lemmaid = w[i].hqid;
-              let lemma = w[i].l;
-              let pos = w[i].pos;
-              let gloss = w[i].g;
-              let note = w[i].n;
-
-              document.getElementById("EditInputHQID").innerHTML = lemmaid;
-              document.getElementById("EditInputLemma").value = lemma;
-              document.getElementById("EditInputPOS").value = pos;
-              document.getElementById("EditInputGloss").value = gloss;
-              document.getElementById("EditInputNote").value = note;
-            }
-          }
-        }
-
-        sendXHR(
-          "getgloss",
-          "POST",
-          { qtype: "getLemma", lemmaid: parseInt(vLemmaid) },
-          callback,
-        );
-      }
-
-      function realSetGlossForWord(vTextWordID, vlemmaid) {
-        function callback(returnObj) {
-          showToast("gloss updated: " + returnObj.success);
+      function realSetGlossForWord (vTextWordID, vlemmaid) {
+        function callback (returnObj) {
+          showToast('gloss updated: ' + returnObj.success);
 
           if (!returnObj || returnObj.affectedrows < 1) {
             return;
@@ -2330,14 +2359,14 @@
                   w[i].fr,
                   w[i].ls,
                   w[i].ws,
-                  w[i].fl,
+                  w[i].fl
                 )
               ) {
                 const node = document.querySelector(
-                  "#word" + wid + " .clickablelistword",
+                  '#word' + wid + ' .clickablelistword'
                 );
                 if (node) {
-                  node.addEventListener("click", function () {
+                  node.addEventListener('click', function () {
                     scrollToWordID(this.parentNode.id);
                   });
                 }
@@ -2345,9 +2374,9 @@
                 //   scrollToWordID(this.parentNode.id);
                 // });
                 // S("#arrow" + wid).click(toggleArrow);
-                const nodeArrow = document.querySelector("#arrow" + wid);
+                const nodeArrow = document.querySelector('#arrow' + wid);
                 if (nodeArrow) {
-                  nodeArrow.addEventListener("click", toggleArrow);
+                  nodeArrow.addEventListener('click', toggleArrow);
                 }
               }
               // alert('(' + w[i].rc + ' of ' + w[i].fr + ') ' + w[i].ws + ', ' + w[i].ls);
@@ -2356,44 +2385,44 @@
         }
 
         sendXHR(
-          "setgloss",
-          "POST",
+          'setgloss',
+          'POST',
           {
-            qtype: "set_gloss",
+            qtype: 'set_gloss',
             word_id: vTextWordID,
-            gloss_id: vlemmaid,
-          },
-          callback,
-        );
+            gloss_id: vlemmaid
+    },
+          callback
+  );
       }
 
-      function updateAllListWordsWithLemmaID(lemma, pos, gloss, lemmaid) {
+      function updateAllListWordsWithLemmaID (lemma, pos, gloss, lemmaid) {
         document
           .querySelectorAll('.listword[lemmaid="' + lemmaid + '"]')
           .forEach((e) => {
-            e.querySelectorAll(".listheadword").forEach((lhw) => {
+            e.querySelectorAll('.listheadword').forEach((lhw) => {
               lhw.innerHTML = lemma;
             });
 
-            e.querySelectorAll(".listpos").forEach((lp) => {
+            e.querySelectorAll('.listpos').forEach((lp) => {
               lp.innerHTML = pos;
             });
 
-            e.querySelectorAll(".listdef").forEach((ld) => {
+            e.querySelectorAll('.listdef').forEach((ld) => {
               ld.innerHTML = gloss;
             });
           });
       }
 
-      function getListWordString(
+      function getListWordString (
         wid,
         lemma,
         pos,
         gloss,
         count,
         total,
-        glossId,
-      ) {
+        glossId
+) {
         return (
           '<div id="arrow' +
           wid +
@@ -2413,13 +2442,13 @@
           glossId +
           ')">(' +
           count +
-          " of " +
+          ' of ' +
           total +
-          ")</a></div>"
+          ')</a></div>'
         );
       }
 
-      function updateListWordByWordID(
+      function updateListWordByWordID (
         wid,
         lemma,
         pos,
@@ -2431,14 +2460,14 @@
         wordSeq,
         flagged,
         arrowedTextSeq,
-        wordTextSeq,
-      ) {
-        const a = document.getElementById("word" + wid);
+        wordTextSeq
+) {
+        const a = document.getElementById('word' + wid);
         if (a !== null) {
-          a.id = "word" + wid;
-          a.className = "";
-          a.classList.add("listword", "hqListWord");
-          a.setAttribute("lemmaid", lemmaid);
+          a.id = 'word' + wid;
+          a.className = '';
+          a.classList.add('listword', 'hqListWord');
+          a.setAttribute('lemmaid', lemmaid);
           // Sa.attr('seq', seq);
 
           /*
@@ -2452,7 +2481,7 @@
           */
 
           if (arrowedTextSeq === wordTextSeq && lemmaSeq === wordSeq) {
-            a.classList.add("arrowedHere");
+            a.classList.add('arrowedHere');
           } else if (
             (arrowedTextSeq !== null && arrowedTextSeq < wordTextSeq) ||
             (arrowedTextSeq !== null &&
@@ -2460,13 +2489,13 @@
               lemmaSeq !== null &&
               parseInt(lemmaSeq) < parseInt(wordSeq))
           ) {
-            a.classList.add("alreadyArrowed");
+            a.classList.add('alreadyArrowed');
           }
 
-          if (flagged === "1") {
-            a.classList.add("flagged");
+          if (flagged === '1') {
+            a.classList.add('flagged');
           } else {
-            a.classList.remove("flagged");
+            a.classList.remove('flagged');
           }
 
           const row = getListWordString(
@@ -2476,39 +2505,39 @@
             gloss,
             count,
             total,
-            lemmaid,
-          );
+            lemmaid
+    );
           a.innerHTML = row;
           return true;
         }
         return false;
       }
 
-      function realEditLemmaFormSubmit(
+      function realEditLemmaFormSubmit (
         editHQID,
         newLemma,
         newPOS,
         newGloss,
-        newNote,
-      ) {
+        newNote
+) {
         // eslint-disable-next-line camelcase
-        if (typeof strip_diacritics !== "function") {
-          console.log("Error: does not support editing: no wasm.");
+        if (typeof strip_diacritics !== 'function') {
+          console.log('Error: does not support editing: no wasm.');
           return;
         }
         const newLemmaStripped = stripDiacriticsLocal(newLemma);
-        console.log("stripped333: " + newLemma + " : " + newLemmaStripped);
+        console.log('stripped333: ' + newLemma + ' : ' + newLemmaStripped);
 
-        let editOrInsert = "";
+        let editOrInsert = '';
         let localEditHQID = 0;
         if (parseInt(editHQID) && parseInt(editHQID) > 0) {
-          editOrInsert = "editlemma";
+          editOrInsert = 'editlemma';
           localEditHQID = editHQID;
         } else {
-          editOrInsert = "newlemma";
+          editOrInsert = 'newlemma';
         }
 
-        function callback(returnObj) {
+        function callback (returnObj) {
           if (!returnObj || returnObj.affectedrows < 1) {
             return;
           }
@@ -2530,8 +2559,8 @@
         }
 
         sendXHR(
-          "updategloss",
-          "POST",
+          'updategloss',
+          'POST',
           {
             qtype: editOrInsert,
             hqid: localEditHQID,
@@ -2539,40 +2568,40 @@
             strippedLemma: newLemmaStripped,
             pos: newPOS,
             def: newGloss,
-            note: newNote,
-          },
-          callback,
-        );
+            note: newNote
+    },
+          callback
+  );
       }
 
-      function realNewLemmaFormSubmit(newLemma, newPOS, newGloss, newNote) {
+      function realNewLemmaFormSubmit (newLemma, newPOS, newGloss, newNote) {
         realEditLemmaFormSubmit(null, newLemma, newPOS, newGloss, newNote);
       }
 
-      function realToggleArrow(vTextWordID, vLemmaID, toggleOff) {
+      function realToggleArrow (vTextWordID, vLemmaID, toggleOff) {
         const vTextWordIdOrZero = toggleOff ? 0 : vTextWordID;
         vToggleArrowPending = true;
 
-        function callback(returnObj) {
+        function callback (returnObj) {
           if (returnObj && returnObj.affectedRows === 1) {
             // clear arrow from all with this lemmaid first, so we never end up with multiple arrows displaying for same lemma
             // S('.listword[lemmaid='' + vLemmaID + ''] > .listarrow').html('');
             document
               .querySelectorAll('.listword[lemmaid="' + vLemmaID + '"]')
               .forEach((e) => {
-                e.classList.remove("arrowedHere");
+                e.classList.remove('arrowedHere');
               });
 
             // add or remove arrow to this word
             if (toggleOff) {
-              const a = document.getElementById("arrow" + vTextWordID);
+              const a = document.getElementById('arrow' + vTextWordID);
               if (a && a.parentNode) {
-                a.parentNode.classList.remove("arrowedHere");
+                a.parentNode.classList.remove('arrowedHere');
               }
             } else {
-              const a = document.getElementById("arrow" + vTextWordID);
+              const a = document.getElementById('arrow' + vTextWordID);
               if (a && a.parentNode) {
-                a.parentNode.classList.add("arrowedHere");
+                a.parentNode.classList.add('arrowedHere');
               }
             }
             // show or hide rows with same lemmaid after this row.
@@ -2593,98 +2622,98 @@
               .forEach((e) => {
                 if (parseInt(e.id.substring(4)) > parseInt(vTextWordID)) {
                   if (toggleOff) {
-                    e.classList.remove("alreadyArrowed");
-                    //S(this).removeClass("alreadyArrowed");
+                    e.classList.remove('alreadyArrowed');
+                    // S(this).removeClass("alreadyArrowed");
                   } else {
-                    e.classList.add("alreadyArrowed");
-                    //S(this).addClass("alreadyArrowed");
+                    e.classList.add('alreadyArrowed');
+                    // S(this).addClass("alreadyArrowed");
                   }
                 }
               });
 
             // console.log(data);
           } else {
-            showToast("error1 updating arrow for: arrow" + vTextWordID);
+            showToast('error1 updating arrow for: arrow' + vTextWordID);
             // console.log(data);
           }
           vToggleArrowPending = false;
         }
 
         sendXHR(
-          "arrowword",
-          "POST",
+          'arrowword',
+          'POST',
           {
-            qtype: "arrowWord",
+            qtype: 'arrowWord',
             setArrowedIDTo: parseInt(vTextWordIdOrZero),
-            forLemmaID: parseInt(vLemmaID),
-          },
-          callback,
-        );
+            forLemmaID: parseInt(vLemmaID)
+    },
+          callback
+  );
       }
 
-      let vToggleFlagPending = false;
-      function realToggleFlag(vTextWordID, flagged) {
-        const vIsFlagged = flagged === 1 ? 1 : 0;
-        vToggleFlagPending = true;
+      // let vToggleFlagPending = false;
+      // function realToggleFlag (vTextWordID, flagged) {
+      //   const vIsFlagged = flagged === 1 ? 1 : 0;
+      //   // vToggleFlagPending = true;
 
-        function callback(returnObj) {
-          if (returnObj && returnObj.success) {
-            // add or remove flag to this word
-            if (returnObj.isFlagged === "1") {
-              const wordNode = document.getElementById("word" + vTextWordID);
-              if (wordNode) {
-                wordNode.classList.add("flagged");
-              }
-              // S("#word" + vTextWordID).addClass("flagged");
-            } else {
-              const wordNode = document.getElementById("word" + vTextWordID);
-              if (wordNode) {
-                wordNode.classList.remove("flagged");
-              }
-              // S("#word" + vTextWordID).removeClass("flagged");
-            }
+      //   function callback (returnObj) {
+      //     if (returnObj && returnObj.success) {
+      //       // add or remove flag to this word
+      //       if (returnObj.isFlagged === '1') {
+      //         const wordNode = document.getElementById('word' + vTextWordID);
+      //         if (wordNode) {
+      //           wordNode.classList.add('flagged');
+      //         }
+      //         // S("#word" + vTextWordID).addClass("flagged");
+      //       } else {
+      //         const wordNode = document.getElementById('word' + vTextWordID);
+      //         if (wordNode) {
+      //           wordNode.classList.remove('flagged');
+      //         }
+      //         // S("#word" + vTextWordID).removeClass("flagged");
+      //       }
 
-            // console.log(data);
-          } else {
-            showToast("error1 updating flag for: " + vTextWordID);
-            // console.log(data);
-          }
-          vToggleFlagPending = false;
-        }
+      //       // console.log(data);
+      //     } else {
+      //       showToast('error1 updating flag for: ' + vTextWordID);
+      //       // console.log(data);
+      //     }
+      //     // vToggleFlagPending = false;
+      //   }
 
-        sendXHR(
-          "updatedb",
-          "POST",
-          {
-            qtype: "flagUnflagWord",
-            isFlagged: vIsFlagged,
-            forWordID: vTextWordID,
-          },
-          callback,
-        );
-      }
+      //   sendXHR(
+      //     'updatedb',
+      //     'POST',
+      //     {
+      //       qtype: 'flagUnflagWord',
+      //       isFlagged: vIsFlagged,
+      //       forWordID: vTextWordID
+      //     },
+      //     callback
+      //   );
+      // }
 
-      function setCookie(name, value, days) {
-        let expires = "";
+      function setCookie (name, value, days) {
+        let expires = '';
         if (days) {
           const date = new Date();
           date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
-          expires = "; expires=" + date.toGMTString();
+          expires = '; expires=' + date.toGMTString();
         } else {
-          expires = "";
+          expires = '';
         }
         document.cookie =
-          name + "=" + value + expires + "; path=/;SameSite=Strict";
+          name + '=' + value + expires + '; path=/;SameSite=Strict';
       }
 
-      function getCookie(name) {
-        const nameEQ = name + "=";
-        const ca = document.cookie.split(";");
+      function getCookie (name) {
+        const nameEQ = name + '=';
+        const ca = document.cookie.split(';');
 
         for (let i = 0; i < ca.length; i++) {
           let c = ca[i];
 
-          while (c.charAt(0) === " ") {
+          while (c.charAt(0) === ' ') {
             c = c.substring(1, c.length);
           }
 
@@ -2699,68 +2728,68 @@
       //   setCookie(name, '', -1);
       // }
 
-      function flagToggle() {
-        if (vToggleFlagPending) {
-          return;
-        }
-        const a = document.getElementById("word" + selectedWordInList);
-        if (a !== null) {
-          const isFlagged = a.classList.contains("flagged") ? 0 : 1; // invert
-          realToggleFlag(selectedWordInList, isFlagged);
-        }
-      }
+      // function flagToggle () {
+      //   if (vToggleFlagPending) {
+      //     return;
+      //   }
+      //   const a = document.getElementById('word' + selectedWordInList);
+      //   if (a !== null) {
+      //     const isFlagged = a.classList.contains('flagged') ? 0 : 1; // invert
+      //     realToggleFlag(selectedWordInList, isFlagged);
+      //   }
+      // }
 
-      async function uploadfile() {
+      async function uploadfile () {
         const formData = new FormData();
         if (
-          document.getElementById("fileuploadtitle").value.length > 0 &&
-          document.getElementById("fileupload").value.length > 0
+          document.getElementById('fileuploadtitle').value.length > 0 &&
+          document.getElementById('fileupload').value.length > 0
         ) {
           formData.append(
-            "title",
-            document.getElementById("fileuploadtitle").value,
+            'title',
+            document.getElementById('fileuploadtitle').value
           );
-          formData.append("file", fileupload.files[0]);
+          formData.append('file', document.getElementById('fileupload').files[0]);
 
-          document.getElementById("importspinner").style.display = "block";
-          document.getElementById("uploadform").style.zIndex = "990"; // 1 less than no click
+          document.getElementById('importspinner').style.display = 'block';
+          document.getElementById('uploadform').style.zIndex = '990'; // 1 less than no click
 
-          const response = await fetch("importtext", {
-            method: "POST",
-            body: formData,
-            //, headers: {'Content-Type': 'text/plain;charset=UTF-8' },  this breaks it, says no TEI.2 tag
+          const response = await fetch('importtext', {
+            method: 'POST',
+            body: formData
+          //, headers: {'Content-Type': 'text/plain;charset=UTF-8' },  this breaks it, says no TEI.2 tag
           });
 
           if (response.status === 200) {
             const jsonResponse = await response.json();
             if (jsonResponse.success) {
               showToast(
-                "Successfully imported text with " +
+                'Successfully imported text with ' +
                   jsonResponse.words_inserted +
-                  " words.",
+                  ' words.'
               );
             } else {
               showToast(
-                "Error importing text (1): " +
-                  (typeof jsonResponse.error !== "undefined")
+                'Error importing text (1): ' +
+                  (typeof jsonResponse.error !== 'undefined')
                   ? jsonResponse.error
-                  : "Unknown error" + ".",
+                  : 'Unknown error' + '.'
               );
             }
           } else {
-            showToast("Error importing text (2).");
+            showToast('Error importing text (2).');
           }
-          document.getElementById("uploadform").style.display = "none";
+          document.getElementById('uploadform').style.display = 'none';
           hideNoClick();
         }
       }
 
-      function onResize() {
+      function onResize () {
         const offset = 38;
-        const w = lookupWT("test1");
-        const w2 = lookupWT("text");
-        const w3 = lookupWT("glossuses");
-        const w4 = lookupWT("updatelog");
+        const w = lookupWT('test1');
+        const w2 = lookupWT('text');
+        const w3 = lookupWT('glossuses');
+        const w4 = lookupWT('updatelog');
 
         const docHeight = document.documentElement.scrollHeight;
         w.setHeight(docHeight - offset);
@@ -2770,69 +2799,70 @@
 
         const width = document.documentElement.scrollWidth / 2;
 
-        document.querySelectorAll(".WordContainer").forEach((e) => {
-          e.style.width = "calc(100% - 30px";
+        document.querySelectorAll('.WordContainer').forEach((e) => {
+          e.style.width = 'calc(100% - 30px';
         });
         // S(".WordContainer").css("width", "calc(100% - 30px");
-        document.querySelectorAll(".wordtree").forEach((e) => {
-          e.style.width = width - 19 + "px";
+        document.querySelectorAll('.wordtree').forEach((e) => {
+          e.style.width = width - 19 + 'px';
         });
         // S(".wordtree").css("width", width - 19 + "px");
       }
 
-      function logout() {
-        location = "/logout";
+      function logout () {
+        location = '/logout';
       }
 
-      function toggleSettingsClicked() {
-        let s = document.getElementById("settingsdiv");
+      function toggleSettingsClicked () {
+        let s = document.getElementById('settingsdiv');
         if (!s) {
-          s = document.createElement("div");
-          s.id = "settingsdiv";
-          s.classList.add("settings");
-          s.style.display = "block";
+          s = document.createElement('div');
+          s.id = 'settingsdiv';
+          s.classList.add('settings');
+          s.style.display = 'block';
           s.innerHTML =
-            'Settings<br><ul><li><div tabindex="0" style="height:70px;">dark mode: <div style="text-align:right;float:right;padding:0px;border:none;">system <input id="darkModeSystem" type="radio" name="darkmode" onclick="darkModeClick(this);" value="system"/><br>dark <input id="darkModeDark" type="radio" name="darkmode" onclick="darkModeClick(this);" value="dark"/><br>light<input id="darkModeLight" type="radio" name="darkmode" onclick="darkModeClick(this);" value="light"/></div></div></li><li><div id="logoutid" onclick="logout()">logout</div></li></ul>';
-          const c = document.createElement("div");
-          c.id = "backdrop";
+            'Settings<br><ul><li><div tabindex="0" style="height:70px;">dark mode: <div style="text-align:right;float:right;padding:0px;border:none;">system <input id="darkModeSystem" type="radio" name="darkmode" onclick="darkModeClick(this);" value="system"/><br>dark <input id="darkModeDark" type="radio" name="darkmode" onclick="darkModeClick(this);" value="dark"/><br>light<input id="darkModeLight" type="radio" name="darkmode" onclick="darkModeClick(this);" value="light"/></div></div></li><li><div id="logoutid">logout</div></li></ul>';
+          const c = document.createElement('div');
+          c.id = 'backdrop';
           c.onclick = function () {
-            document.querySelector("#backdrop").style.display = "none";
+            document.querySelector('#backdrop').style.display = 'none';
             toggleSettingsClicked();
           };
           document.body.appendChild(c);
           document.body.appendChild(s);
-        } else if (s.style.display === "block") {
-          document.querySelector("#backdrop").style.display = "none";
-          s.style.display = "none";
+          document.getElementById('logoutid').addEventListener('click', logout);
+        } else if (s.style.display === 'block') {
+          document.querySelector('#backdrop').style.display = 'none';
+          s.style.display = 'none';
         } else {
-          document.querySelector("#backdrop").style.display = "block";
-          s.style.display = "block";
+          document.querySelector('#backdrop').style.display = 'block';
+          s.style.display = 'block';
         }
 
-        const a = localStorage.getItem("mode");
+        const a = localStorage.getItem('mode');
         switch (a) {
-          case "dark":
-            document.querySelector("#darkModeDark").checked = true;
+          case 'dark':
+            document.querySelector('#darkModeDark').checked = true;
             break;
-          case "light":
-            document.querySelector("#darkModeLight").checked = true;
+          case 'light':
+            document.querySelector('#darkModeLight').checked = true;
             break;
           default:
-            document.querySelector("#darkModeSystem").checked = true;
+            document.querySelector('#darkModeSystem').checked = true;
             break;
         }
       }
       // eslint-disable-next-line no-unused-vars
-      function darkModeClick(radio) {
+      function darkModeClick (radio) {
         switch (radio.value) {
-          case "dark":
-            localStorage.setItem("mode", "dark");
+          case 'dark':
+            localStorage.setItem('mode', 'dark');
             break;
-          case "light":
-            localStorage.setItem("mode", "light");
+          case 'light':
+            localStorage.setItem('mode', 'light');
             break;
           default:
-            localStorage.removeItem("mode");
+            localStorage.removeItem('mode');
             break;
         }
         // eslint-disable-next-line no-undef
