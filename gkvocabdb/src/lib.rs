@@ -697,13 +697,13 @@ pub async fn gkv_update_or_add_gloss(
                     .await?;
                 tx.commit_tx().await?;
 
-                let id = post.hqid.unwrap() as u32;
+                // let id = post.hqid.unwrap();
 
                 return Ok(UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
-                    inserted_id: Some(id.into()),
+                    inserted_id: None, // Some(id.into()),  //change to affected_id
                 });
             }
         }
@@ -713,13 +713,13 @@ pub async fn gkv_update_or_add_gloss(
                 let rows_affected = tx.delete_gloss(post.hqid.unwrap(), info).await?;
                 tx.commit_tx().await?;
 
-                let id = post.hqid.unwrap() as u32;
+                // let id = post.hqid.unwrap();
 
                 return Ok(UpdateGlossResponse {
                     qtype: post.qtype.to_string(),
                     success: true,
                     affectedrows: rows_affected,
-                    inserted_id: Some(id.into()),
+                    inserted_id: None, // Some(id.into()),  //change to affected_id
                 });
             }
         }

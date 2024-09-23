@@ -745,6 +745,10 @@
         font-family: helvetica, arial;
       "
     >
+      <select id="selectActiveSequence">
+        <option value="1">ULG</option>
+        <option value="2">H&Q + Hiero</option>
+      </select>
       <button id="getTexts">
         Select Text
       </button>
@@ -1196,6 +1200,8 @@
 
         document.getElementById('hamburger').addEventListener('click', toggleSettingsClicked);
 
+        document.getElementById('selectActiveSequence').addEventListener('click', activeSequenceChanged);
+
         w2.onEnterActivate = queryText;
         // w2.onClickActivate = act;
         // w2.onSelectionChanged = act;
@@ -1245,6 +1251,12 @@
         // w2.onClickActivate = act;
         // w2.onSelectionChanged = act;
         onResize();
+      }
+
+      let activeSequence = 1;
+      function activeSequenceChanged () {
+        activeSequence = parseInt(this.value);
+        console.log('active sequence: ' + activeSequence);
       }
 
       function textUpClicked () {
@@ -2210,12 +2222,15 @@
       /** *** real ajax functions ******/
 
       function serializeFormData (obj) {
+        // const formData = new FormData();
         const str = [];
         for (const p in obj) {
           if (Object.hasOwn(obj, p)) {
+            // formData.append(p, obj[p]);
             str.push(encodeURIComponent(p) + '=' + encodeURIComponent(obj[p]));
           }
         }
+        // return formData;
         return str.join('&');
       }
 
