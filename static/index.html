@@ -745,7 +745,7 @@
         font-family: helvetica, arial;
       "
     >
-      <select id="selectActiveSequence">
+      <select id="selectCourseId">
         <option value="1">ULG</option>
         <option value="2">H&Q + Hiero</option>
       </select>
@@ -1125,6 +1125,13 @@
         if (thisText === null || parseInt(thisText) < 1) {
           thisText = 1;
         }
+        let thisCourseId = getCookie('selectedCourse');
+        if (thisCourseId === null || parseInt(thisCourseId) < 1) {
+          thisCourseId = 1;
+        }
+        activeCourseId = parseInt(thisCourseId);
+        // set courseId dropdown
+        document.getElementById('selectCourseId').value = activeCourseId;
 
         getwords(parseInt(thisText));
 
@@ -1200,7 +1207,7 @@
 
         document.getElementById('hamburger').addEventListener('click', toggleSettingsClicked);
 
-        document.getElementById('selectActiveSequence').addEventListener('click', activeSequenceChanged);
+        document.getElementById('selectCourseId').addEventListener('change', courseIdChanged);
 
         w2.onEnterActivate = queryText;
         // w2.onClickActivate = act;
@@ -1253,10 +1260,11 @@
         onResize();
       }
 
-      let activeSequence = 1;
-      function activeSequenceChanged () {
-        activeSequence = parseInt(this.value);
-        console.log('active sequence: ' + activeSequence);
+      let activeCourseId = 1;
+      function courseIdChanged () {
+        activeCourseId = parseInt(this.value);
+        console.log('active course id: ' + activeCourseId);
+        setCookie('selectedCourse', activeCourseId, 60);
       }
 
       function textUpClicked () {
@@ -1913,7 +1921,7 @@
                   i.w +
                   '</span></div>';
               } else {
-                console.log('arrowed? ' + i.l + ': ' + i.arrowed_text_seq + ', ' + i.word_text_seq + ', ' + i.s2 + ', ' + i.s);
+                // console.log('arrowed? ' + i.l + ': ' + i.arrowed_text_seq + ', ' + i.word_text_seq + ', ' + i.s2 + ', ' + i.s);
                 if (i.arrowed_text_seq === i.word_text_seq && i.s2 === i.s) {
                   b.classList.add('arrowedHere');
                   // b.className += ' arrowedHere';
