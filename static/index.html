@@ -1260,7 +1260,7 @@
         onResize();
       }
 
-      let activeCourseId = 1;
+      let activeCourseId = null;
       function courseIdChanged () {
         console.log('try to set active course id from ' + activeCourseId + ' to ' + this.value);
 
@@ -1270,6 +1270,17 @@
             activeCourseId = returnedCourseId;
             setCookie('selectedCourse', activeCourseId, 60);
             console.log('set active course id: ' + activeCourseId);
+
+            const text = document.getElementById('textcontents');
+            text.innerHTML = ''; // clear old content
+            const a = document.getElementById('wordscontents');
+            a.innerHTML = ''; // clear old content
+
+            selectedWordInList = null;
+            hideGlossList();
+            hideTextList();
+            hideGlossUsesList();
+            hideUpdateLogList();
           } else {
             console.log('failed to set active course id: ' + returnedCourseId);
           }
