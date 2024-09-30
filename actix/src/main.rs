@@ -142,7 +142,7 @@ async fn import_text(
 ) -> Result<HttpResponse> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let course_id = 1;
+    let course_id = session.get("course_id").unwrap().unwrap();
 
     // let user_id = db::insert_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com").await.unwrap();
     // let user_info = ConnectionInfo {
@@ -287,7 +287,7 @@ async fn export_text(
 ) -> Result<HttpResponse> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
     let bold_glosses = false;
-    let course_id = 1;
+    let course_id = session.get("course_id").unwrap().unwrap();
 
     //println!("host: {:?}", req.connection_info().host());
 
@@ -376,11 +376,10 @@ async fn update_or_add_gloss(
 async fn arrow_word_req(
     (session, post, req): (Session, web::Form<ArrowWordRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
+    let course_id = session.get("course_id").unwrap().unwrap();
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
-        let course_id = 1;
-
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
@@ -401,10 +400,9 @@ async fn set_gloss(
     (session, post, req): (Session, web::Form<SetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
+    let course_id = session.get("course_id").unwrap().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
-        let course_id = 1;
-
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
@@ -425,10 +423,9 @@ async fn move_text(
     (session, post, req): (Session, web::Form<MoveTextRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
+    let course_id = session.get("course_id").unwrap().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
-        let course_id = 1;
-
         let info = ConnectionInfo {
             user_id,
             timestamp: get_timestamp(),
@@ -452,6 +449,29 @@ async fn move_text(
     }
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct SetCourseRequest {
+    pub qtype: String,
+    pub course_id: u32,
+    pub success: bool,
+}
+
+async fn set_course_id(
+    (session, post, _req): (Session, web::Form<SetCourseRequest>, HttpRequest),
+) -> Result<HttpResponse, AWError> {
+    let mut res = SetCourseRequest {
+        qtype: String::from("setcourseresponse"),
+        course_id: post.course_id,
+        success: false,
+    };
+    if session.insert("course_id", post.course_id).is_ok() {
+        res.success = true;
+        return Ok(HttpResponse::Ok().json(res));
+    }
+
+    Ok(HttpResponse::Ok().json(res))
+}
+
 async fn get_gloss(
     (post, req): (web::Form<GetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
@@ -463,11 +483,12 @@ async fn get_gloss(
 }
 
 async fn get_glosses(
-    (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
+    (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
+    let course_id = session.get("course_id").unwrap().unwrap();
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_get_glosses(db, &info)
+    let res = gkv_get_glosses(db, &info, course_id)
         .await
         .map_err(map_glosser_error)?;
 
@@ -475,11 +496,12 @@ async fn get_glosses(
 }
 
 async fn gloss_occurrences(
-    (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
+    (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
+    let course_id = session.get("course_id").unwrap().unwrap();
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_get_occurrences(db, &info)
+    let res = gkv_get_occurrences(db, &info, course_id)
         .await
         .map_err(map_glosser_error)?;
 
@@ -487,21 +509,27 @@ async fn gloss_occurrences(
 }
 
 async fn update_log(
-    (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
+    (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
+    let course_id = session.get("course_id").unwrap().unwrap();
 
-    let res = gkv_update_log(db, &info).await.map_err(map_glosser_error)?;
+    let res = gkv_update_log(db, &info, course_id)
+        .await
+        .map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
 
 async fn get_texts(
-    (info, req): (web::Query<WordtreeQueryRequest>, HttpRequest),
+    (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
-    let res = gkv_get_texts(db, &info).await.map_err(map_glosser_error)?;
+    let course_id = session.get("course_id").unwrap().unwrap();
+    let res = gkv_get_texts(db, &info, course_id)
+        .await
+        .map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -518,12 +546,13 @@ async fn fix_assignments_web(req: HttpRequest) -> Result<HttpResponse, AWError> 
 async fn get_text_words(
     (session, info, req): (Session, web::Query<QueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
+    let course_id = session.get("course_id").unwrap().unwrap();
     let db = req.app_data::<GlosserDbSqlite>().unwrap();
 
     let selected_word_id: Option<u32> = Some(info.wordid);
 
     if login::get_user_id(session).is_some() {
-        let res = gkv_get_text_words(db, &info, selected_word_id)
+        let res = gkv_get_text_words(db, &info, selected_word_id, course_id)
             .await
             .map_err(map_glosser_error)?;
 
@@ -544,7 +573,7 @@ async fn get_text_words(
 /*
 async fn get_assignments(req: HttpRequest) -> Result<HttpResponse, AWError> {
     let db = req.app_data::<SqlitePool>().unwrap();
-    let course_id = 1;
+    let course_id = session.get("course_id").unwrap().unwrap();
     let w = get_assignment_rows(db, course_id).await.map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(w))
@@ -770,6 +799,7 @@ fn config(cfg: &mut web::ServiceConfig) {
             web::resource("/assignments")
                 .route(web::get().to(get_assignments)),
         )*/
+        .service(web::resource("/setcourse").route(web::post().to(set_course_id)))
         .service(web::resource("/getgloss").route(web::post().to(get_gloss)))
         .service(web::resource("/hqvocab").route(web::get().to(hqvocab::hqvocab)))
         .service(web::resource("/arrowword").route(web::post().to(arrow_word_req)))

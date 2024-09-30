@@ -557,16 +557,15 @@ pub trait GlosserDbTrx {
         gloss_id: u32,
     ) -> Result<Vec<GlossOccurrence>, GlosserError>;
 
-    async fn get_update_log(
-        &mut self,
-        _course_id: u32,
-    ) -> Result<Vec<AssignmentTree>, GlosserError>;
+    async fn get_update_log(&mut self, course_id: u32)
+        -> Result<Vec<AssignmentTree>, GlosserError>;
 
     async fn get_before(
         &mut self,
         searchprefix: &str,
         page: i32,
         limit: u32,
+        course_id: u32,
     ) -> Result<Vec<(String, u32, String, u32)>, GlosserError>;
 
     async fn get_equal_and_after(
@@ -574,6 +573,7 @@ pub trait GlosserDbTrx {
         searchprefix: &str,
         page: i32,
         limit: u32,
+        course_id: u32,
     ) -> Result<Vec<(String, u32, String, u32)>, GlosserError>;
 
     async fn create_user(
@@ -767,6 +767,7 @@ pub async fn gkv_get_gloss(
 pub async fn gkv_get_glosses(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
+    course_id: u32,
 ) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
 
@@ -777,7 +778,9 @@ pub async fn gkv_get_glosses(
     let mut before_rows = vec![];
     let mut after_rows = vec![];
     if info.page <= 0 {
-        before_rows = tx.get_before(&query_params.w, info.page, info.n).await?;
+        before_rows = tx
+            .get_before(&query_params.w, info.page, info.n, course_id)
+            .await?;
         if info.page == 0 {
             //only reverse if page 0. if < 0, each row is inserted under top of container one-by-one in order
             before_rows.reverse();
@@ -785,7 +788,7 @@ pub async fn gkv_get_glosses(
     }
     if info.page >= 0 {
         after_rows = tx
-            .get_equal_and_after(&query_params.w, info.page, info.n)
+            .get_equal_and_after(&query_params.w, info.page, info.n, course_id)
             .await?;
     }
     tx.commit_tx().await?;
@@ -847,6 +850,7 @@ pub async fn gkv_get_glosses(
 pub async fn gkv_get_occurrences(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
+    course_id: u32,
 ) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
 
@@ -855,7 +859,6 @@ pub async fn gkv_get_occurrences(
     //only check page 0 or page greater than 0
     let vlast_page = 1;
 
-    let course_id = 1;
     let gloss_id = query_params.tag_id.unwrap_or(0);
     let mut tx = db.begin_tx().await?;
     let result_rows = tx.get_gloss_occurrences(course_id, gloss_id).await?;
@@ -909,9 +912,10 @@ pub async fn gkv_get_occurrences(
 pub async fn gkv_update_log(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
+    course_id: u32,
 ) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
-    let course_id = 1;
+
     let mut tx = db.begin_tx().await?;
     let log = tx.get_update_log(course_id).await?;
     tx.commit_tx().await?;
@@ -935,9 +939,10 @@ pub async fn gkv_update_log(
 pub async fn gkv_get_texts(
     db: &dyn GlosserDb,
     info: &WordtreeQueryRequest,
+    course_id: u32,
 ) -> Result<WordtreeQueryResponse, GlosserError> {
     let query_params: WordQuery = serde_json::from_str(&info.query).map_err(map_json_error)?;
-    let course_id = 1;
+
     //let seq = get_seq_by_prefix(db, table, &query_params.w).await?;
 
     //only check page 0 or page less than 0
@@ -1050,8 +1055,8 @@ pub async fn gkv_get_text_words(
     db: &dyn GlosserDb,
     info: &QueryRequest,
     selected_word_id: Option<u32>,
+    course_id: u32,
 ) -> Result<MiscErrorResponse, GlosserError> {
-    let course_id = 1;
     let mut tx = db.begin_tx().await?;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
@@ -1426,7 +1431,7 @@ mod tests {
         //check gkv_get_text_words
         let info = QueryRequest { text: 1, wordid: 0 };
         let selected_word_id = None;
-        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
 
         assert_eq!(
             res.unwrap(),
@@ -1518,7 +1523,7 @@ mod tests {
         //     wordid: 0,
         // };
         //let selected_word_id = None;
-        //let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        //let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         //println!("words: {:?}", res);
 
         let post = ArrowWordRequest {
@@ -1542,7 +1547,7 @@ mod tests {
         );
         //println!("arrow: {:?}", res);
 
-        // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        // let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         // println!("words: {:?}", res);
     }
 
@@ -1680,7 +1685,7 @@ mod tests {
         //check gkv_get_text_words
         let info = QueryRequest { text: 1, wordid: 0 };
         let selected_word_id = None;
-        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
 
         assert_eq!(
             res.unwrap(),
@@ -2331,7 +2336,7 @@ mod tests {
 
         let info = QueryRequest { text: 2, wordid: 0 };
         let selected_word_id = None;
-        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         assert_eq!(
             *res.as_ref().unwrap(),
             MiscErrorResponse {
@@ -2549,7 +2554,7 @@ mod tests {
         );
 
         //check
-        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         assert_eq!(
             *res.as_ref().unwrap(),
             MiscErrorResponse {
@@ -2638,7 +2643,7 @@ mod tests {
             lex: Some(String::from("hqvocab")),
         };
 
-        let res = gkv_get_texts(&db, &info).await;
+        let res = gkv_get_texts(&db, &info, course_id).await;
         assert_eq!(
             *res.as_ref().unwrap(),
             WordtreeQueryResponse {
@@ -2694,7 +2699,7 @@ mod tests {
             lex: Some(String::from("hqvocab")),
         };
 
-        let res = gkv_get_texts(&db, &info).await;
+        let res = gkv_get_texts(&db, &info, course_id).await;
         assert_eq!(
             *res.as_ref().unwrap(),
             WordtreeQueryResponse {
@@ -2730,7 +2735,7 @@ mod tests {
 
         let info = QueryRequest { text: 2, wordid: 0 };
         let selected_word_id = None;
-        let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         assert_eq!(
             *res.as_ref().unwrap(),
             MiscErrorResponse {
@@ -2822,7 +2827,7 @@ mod tests {
         // };
         // let selected_word_id = None;
 
-        // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        // let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         // println!("words: {:?}", res);
 
         //set an already existing gloss
@@ -2859,12 +2864,13 @@ mod tests {
         );
         // println!("arrow: {:?}", res);
 
-        // let res = gkv_get_text_words(&db, &info, selected_word_id).await;
+        // let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
         // println!("words: {:?}", res);
     }
 
     #[tokio::test]
     async fn insert_and_update_gloss() {
+        let course_id = 1;
         let (db, user_info) = set_up().await;
 
         let post = UpdateGlossRequest {
@@ -2930,7 +2936,7 @@ mod tests {
             lex: None,
         };
 
-        let res = gkv_update_log(&db, &info).await;
+        let res = gkv_update_log(&db, &info, course_id).await;
         //just check number of update records to avoid having to match up timestamps
         assert_eq!(res.unwrap().arr_options.len(), 2);
     }

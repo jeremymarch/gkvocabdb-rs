@@ -1479,8 +1479,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         searchprefix: &str,
         page: i32,
         limit: u32,
+        course_id: u32,
     ) -> Result<Vec<(String, u32, String, u32)>, GlosserError> {
-        let course_id = 1;
         let query = format!("WITH gloss_total AS (
             SELECT gloss_id, COUNT(gloss_id) AS total_count
             FROM words a2
@@ -1509,15 +1509,16 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         searchprefix: &str,
         page: i32,
         limit: u32,
+        course_id: u32,
     ) -> Result<Vec<(String, u32, String, u32)>, GlosserError> {
-        let course_id = 1;
         let query = format!("WITH gloss_total AS (
             SELECT gloss_id, COUNT(gloss_id) AS total_count
             FROM words a2
             INNER JOIN course_x_text b2 ON a2.text_id = b2.text_id AND course_id = {}
             GROUP BY gloss_id
         )
-        SELECT a.gloss_id, a.lemma, a.def, b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id = b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' AND status > 0 AND pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {}, {};", course_id, searchprefix, page * limit as i32, limit);
+        SELECT a.gloss_id, a.lemma, a.def, b.total_count FROM glosses a LEFT JOIN gloss_total b ON a.gloss_id = b.gloss_id WHERE a.sortalpha COLLATE PolytonicGreek >= '{}' AND status > 0 AND pos != 'gloss' ORDER BY a.sortalpha COLLATE PolytonicGreek LIMIT {}, {};",
+        course_id, searchprefix, page * limit as i32, limit);
         let res: Result<Vec<(String, u32, String, u32)>, GlosserError> = sqlx::query(&query)
             .map(|rec: SqliteRow| {
                 (

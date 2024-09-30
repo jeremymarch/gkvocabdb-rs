@@ -1262,9 +1262,25 @@
 
       let activeCourseId = 1;
       function courseIdChanged () {
-        activeCourseId = parseInt(this.value);
-        console.log('active course id: ' + activeCourseId);
-        setCookie('selectedCourse', activeCourseId, 60);
+        console.log('try to set active course id from ' + activeCourseId + ' to ' + this.value);
+
+        function callback (returnObj) {
+          const returnedCourseId = parseInt(returnObj.course_id);
+          if (returnObj.success) {
+            activeCourseId = returnedCourseId;
+            setCookie('selectedCourse', activeCourseId, 60);
+            console.log('set active course id: ' + activeCourseId);
+          } else {
+            console.log('failed to set active course id: ' + returnedCourseId);
+          }
+        }
+
+        sendXHR(
+          'setcourse',
+          'POST',
+          { qtype: 'setcourse', course_id: this.value, success: true },
+          callback
+        );
       }
 
       function textUpClicked () {
@@ -1308,7 +1324,7 @@
           'POST',
           { word_id: parseInt(selectedWordInList) },
           callback
-  );
+        );
       }
 
       function deletePagebreak () {
