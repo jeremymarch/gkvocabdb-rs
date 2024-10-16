@@ -21,6 +21,7 @@ use actix_web::web;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
+use gkvocabdb::dbpostgres::GlosserDbPostgres;
 use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use gkvocabdb::GlosserDb;
 use regex::Regex;
@@ -37,7 +38,7 @@ pub struct HQVocabRequest {
 pub async fn hqvocab(
     (info, req): (web::Query<HQVocabRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbSqlite>().unwrap();
+    let db = req.app_data::<GlosserDbPostgres>().unwrap();
     let mut template = include_str!("hqvocab.html").to_string();
 
     // let mut rows = String::from("");

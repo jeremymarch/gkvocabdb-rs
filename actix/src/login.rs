@@ -24,6 +24,7 @@ use actix_web::web;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
+use gkvocabdb::dbpostgres::GlosserDbPostgres;
 use secrecy::Secret;
 
 use gkvocabdb::dbsqlite::GlosserDbSqlite;
@@ -86,7 +87,7 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
             <table>
                 <tbody>
                     <tr>
-                        <td>               
+                        <td>
                             <label for="username">Username</label>
                         </td>
                         <td>
@@ -117,7 +118,7 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 pub async fn login_post(
     (session, form, req): (Session, web::Form<LoginFormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbSqlite>().unwrap();
+    let db = req.app_data::<GlosserDbPostgres>().unwrap();
 
     let credentials = Credentials {
         username: form.0.username,

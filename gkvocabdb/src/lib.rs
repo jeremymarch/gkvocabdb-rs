@@ -23,6 +23,7 @@ vscode find/replace regex to change "...".to_string() to String::from("...")
 String::from("$1")
 */
 
+pub mod dbpostgres;
 pub mod dbsqlite;
 pub mod export_text;
 pub mod import_text;
@@ -57,6 +58,12 @@ pub enum GlosserError {
     ImportError(String),
     AuthenticationError,
     UnknownError,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LemmatizerRecord {
+    pub form: String,
+    pub gloss_id: u32,
 }
 
 impl std::fmt::Display for GlosserError {
@@ -1060,7 +1067,7 @@ pub async fn gkv_get_text_words(
     let mut tx = db.begin_tx().await?;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
-
+    println!("abcz1");
     let text_id = match info.wordid {
         0 => info.text,
         _ => tx.get_text_id_for_word_id(info.wordid).await?,
@@ -1208,10 +1215,16 @@ fn map_json_error(e: serde_json::Error) -> GlosserError {
 mod tests {
     use super::*;
     use crate::dbsqlite::GlosserDbSqlite;
+    use serial_test::serial;
     use sqlx::sqlite::SqliteConnectOptions;
     use sqlx::SqlitePool;
+
+    use crate::dbpostgres::GlosserDbPostgres;
+    use sqlx::postgres::PgPoolOptions;
+
     use std::str::FromStr;
 
+    #[cfg(not(feature = "postgres"))]
     async fn set_up() -> (GlosserDbSqlite, ConnectionInfo) {
         let options = SqliteConnectOptions::from_str("sqlite::memory:")
             .expect("Could not connect to db.")
@@ -1223,6 +1236,48 @@ mod tests {
             });
         let db = GlosserDbSqlite {
             db: SqlitePool::connect_with(options)
+                .await
+                .expect("Could not connect to db."),
+        };
+
+        gkv_create_db(&db).await.expect("Could not create db.");
+
+        let user_id = gkv_create_user(&db, "testuser", "tu", 0, "12341234", "tu@blah.com")
+            .await
+            .unwrap();
+
+        let info = ConnectionInfo {
+            user_id,
+            timestamp: get_timestamp(),
+            ip_address: String::from("0.0.0.0"),
+            user_agent: String::from("test_agent"),
+        };
+        (db, info)
+    }
+
+    #[cfg(feature = "postgres")]
+    async fn set_up() -> (GlosserDbPostgres, ConnectionInfo) {
+        let db_string = "postgres://jwm:1234@localhost/gkvocabdb";
+
+        let db = GlosserDbPostgres {
+            db: PgPoolOptions::new()
+                .max_connections(5)
+                .connect(db_string)
+                .await
+                .expect("Could not connect to db."),
+        };
+
+        let query = r#"DROP DATABASE IF EXISTS gkvocabdbtesting;"#;
+        let _res = sqlx::query(query).execute(&db.db).await.unwrap();
+        let query = r#"CREATE DATABASE gkvocabdbtesting;"#;
+        let _res = sqlx::query(query).execute(&db.db).await.unwrap();
+        db.db.close().await;
+
+        let db_string = "postgres://jwm:1234@localhost/gkvocabdbtesting";
+        let db = GlosserDbPostgres {
+            db: PgPoolOptions::new()
+                .max_connections(5)
+                .connect(db_string)
                 .await
                 .expect("Could not connect to db."),
         };
@@ -1272,6 +1327,7 @@ mod tests {
                 def: String::from("newdef"),
                 note: String::from("newnote"),
             };
+
             let _ = gkv_update_or_add_gloss(db, &post, user_info).await;
         }
 
@@ -1313,6 +1369,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_login() {
         let (db, _user_info) = set_up().await;
 
@@ -1338,6 +1395,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn import_basic_text() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -1384,6 +1442,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn lemmatizer_test() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -1511,6 +1570,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn arrow_word() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -1552,6 +1612,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn arrow_word2() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -2814,6 +2875,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn set_gloss() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
@@ -2838,6 +2900,7 @@ mod tests {
         };
         let res =
             gkv_update_gloss_id(&db, post.gloss_id, post.word_id, &user_info, course_id).await;
+
         //println!("arrow: {:?}", res);
         assert_eq!(
             res.unwrap(),
@@ -2862,6 +2925,7 @@ mod tests {
                 affectedrows: 1
             }
         );
+
         // println!("arrow: {:?}", res);
 
         // let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
@@ -2869,6 +2933,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn insert_and_update_gloss() {
         let course_id = 1;
         let (db, user_info) = set_up().await;
@@ -2882,6 +2947,7 @@ mod tests {
             def: String::from("newdef"),
             note: String::from("newnote"),
         };
+
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
         //println!("words: {:?}", res);
 
@@ -2913,6 +2979,7 @@ mod tests {
             note: String::from("newnote2"),
         };
         let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+
         //println!("words: {:?}", res);
         assert_eq!(
             *res.as_ref().unwrap(),
@@ -2937,6 +3004,7 @@ mod tests {
         };
 
         let res = gkv_update_log(&db, &info, course_id).await;
+
         //just check number of update records to avoid having to match up timestamps
         assert_eq!(res.unwrap().arr_options.len(), 2);
     }

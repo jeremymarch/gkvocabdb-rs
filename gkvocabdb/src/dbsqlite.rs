@@ -24,13 +24,13 @@ use crate::GlossOccurrence;
 use crate::GlosserDb;
 use crate::GlosserDbTrx;
 use crate::GlosserError;
+use crate::LemmatizerRecord;
 use crate::SmallWord;
 use crate::TextWord;
 use crate::UpdateType;
 use crate::WordRow;
 use secrecy::ExposeSecret;
 use secrecy::Secret;
-use serde::Deserialize;
 use sqlx::sqlite::SqliteRow;
 use sqlx::Transaction;
 use sqlx::{Row, SqlitePool};
@@ -92,12 +92,6 @@ pub fn map_sqlx_error(err: sqlx::Error) -> GlosserError {
         sqlx::Error::Migrate(e) => GlosserError::Database(format!("sqlx Migrate: {}", e)),
         _ => GlosserError::Database(String::from("sqlx unknown error")),
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct LemmatizerRecord {
-    pub form: String,
-    pub gloss_id: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -188,6 +182,28 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             .map_err(map_sqlx_error)?;
         Ok(())
     }
+
+    // async fn get_courses(&mut self) -> Result<Vec<(u32, String)>, GlosserError> {
+
+    //     let query = "SELECT course_id, name FROM courses;";
+    //     match sqlx::query(query)
+    //         .map(|rec: SqliteRow| LemmatizerRecord {
+    //             form: rec.get("form"),
+    //             gloss_id: rec.get("gloss_id"),
+    //         })
+    //         .fetch_all(&mut *self.tx)
+    //         .await
+    //         .map_err(map_sqlx_error)
+    //     {
+    //         Ok(res) => {
+    //             for r in res {
+    //                 lemmatizer.insert(r.form, r.gloss_id);
+    //             }
+    //             Ok(lemmatizer)
+    //         }
+    //         Err(e) => Err(e),
+    //     }
+    // }
 
     async fn get_lemmatizer(&mut self) -> Result<HashMap<String, u32>, GlosserError> {
         let mut lemmatizer = HashMap::new();
