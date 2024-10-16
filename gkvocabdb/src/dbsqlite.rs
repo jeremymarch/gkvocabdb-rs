@@ -895,8 +895,8 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 hqid: rec.get("gloss_id"),
                 seq: rec.get("seq"),
                 arrowed_seq: rec.get("arrowedSeq"),
-                freq: 0,
-                runningcount: 0,
+                freq: None,
+                runningcount: None,
                 is_flagged: rec.get("isFlagged"),
                 word_text_seq: rec.get("text_order"),
                 arrowed_text_seq: rec.get("arrowed_text_order"),
@@ -973,7 +973,18 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
                 seq: rec.get("seq"),
                 arrowed_seq: rec.get("arrowedSeq"),
                 freq: rec.get("total_count"),
-                runningcount: rec.get("running_count"),
+                runningcount: {
+                    let rc: Option<i64> = rec.get("running_count");
+                    if let Some(rc_unwraped) = rc {
+                        if rc_unwraped > 0 {
+                            Some(u32::try_from(rc_unwraped).unwrap())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                },
                 is_flagged: rec.get("isFlagged"),
                 word_text_seq: rec.get("text_order"),
                 arrowed_text_seq: rec.get("arrowed_text_order"),

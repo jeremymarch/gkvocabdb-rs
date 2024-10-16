@@ -22,7 +22,7 @@ use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use gkvocabdb::dbpostgres::GlosserDbPostgres;
-use gkvocabdb::dbsqlite::GlosserDbSqlite;
+// use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use gkvocabdb::GlosserDb;
 use regex::Regex;
 use serde::Deserialize;

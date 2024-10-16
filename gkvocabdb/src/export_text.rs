@@ -300,7 +300,11 @@ pub async fn gkv_export_texts_as_latex(
             //last_seq = w.seq as i64;
             //last_word_id = w.wordid as i64;
 
-            if !w.lemma.is_empty() && !w.def.is_empty() && !glosses.contains_key(&w.hqid) {
+            if w.hqid.is_some()
+                && w.lemma.is_some()
+                && w.def.is_some()
+                && !glosses.contains_key(&w.hqid.unwrap())
+            {
                 // if (!is_null($row["arrowedSeq"]) && (int)$row["seq"] > (int)$row["arrowedSeq"]) {
                 //     //echo $row["seq"] . ", " . $row["arrowedSeq"] . "\n";
                 //     continue; //skip
@@ -312,6 +316,9 @@ pub async fn gkv_export_texts_as_latex(
                 // else {
                 //     $g->arrow = FALSE;
                 // }
+                let the_lemma = w.lemma.unwrap();
+                let gloss_id = w.hqid.unwrap();
+                let the_sort_alpha = w.sort_alpha.unwrap_or(String::from(""));
 
                 let is_arrowed;
                 if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
@@ -319,8 +326,8 @@ pub async fn gkv_export_texts_as_latex(
                                        //$arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
                     if build_index {
                         arrowed_words_index.push(ArrowedWordsIndex {
-                            gloss_lemma: w.lemma.to_owned(),
-                            gloss_sort: w.sort_alpha.to_owned(),
+                            gloss_lemma: the_lemma.to_owned(),
+                            gloss_sort: the_sort_alpha.to_owned(),
                             page_number: page_idx + index_page_offset,
                         });
                     }
@@ -339,9 +346,8 @@ pub async fn gkv_export_texts_as_latex(
                 }
 
                 let gloss = Gloss {
-                    id: w.hqid,
-                    lemma: w
-                        .lemma
+                    id: gloss_id,
+                    lemma: the_lemma
                         .replace('\u{1F71}', "\u{03AC}") //acute -> tonos, etc...
                         .replace('\u{1FBB}', "\u{0386}")
                         .replace('\u{1F73}', "\u{03AD}")
@@ -361,11 +367,11 @@ pub async fn gkv_export_texts_as_latex(
                         .replace('\u{037E}', "\u{003B}") //semicolon
                         .replace('\u{0387}', "\u{00B7}") //middle dot
                         .replace('\u{0344}', "\u{0308}\u{0301}"), //combining diaeresis with acute,
-                    def: w.def,
-                    sort_alpha: w.sort_alpha,
+                    def: w.def.unwrap_or(String::from("")),
+                    sort_alpha: the_sort_alpha,
                     arrow: is_arrowed,
                 };
-                glosses.insert(w.hqid, gloss);
+                glosses.insert(gloss_id, gloss);
             }
 
             last_type = WordType::from_i32(w.word_type.into());

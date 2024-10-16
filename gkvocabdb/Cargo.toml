@@ -33,8 +33,7 @@ rand = "0.8.5"
 
 [features]
 # default = ["postgres"]
-sqlite = []
-postgres = []
+postgres = [] #if not, use sqlite
 
 [dev-dependencies]
 tokio = { version = "1.40.0", features = ["rt", "macros"] }

@@ -40,10 +40,11 @@ use thiserror::Error;
 use gkvocabdb::dbpostgres::GlosserDbPostgres;
 use sqlx::postgres::PgPoolOptions;
 
-use gkvocabdb::dbsqlite::GlosserDbSqlite;
-use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
-use std::str::FromStr;
+// #[cfg(not(feature = "postgres"))]
+// use gkvocabdb::dbsqlite::GlosserDbSqlite;
+// use sqlx::sqlite::SqliteConnectOptions;
+// use sqlx::SqlitePool;
+// use std::str::FromStr;
 
 use gkvocabdb::ExportRequest;
 use gkvocabdb::*;

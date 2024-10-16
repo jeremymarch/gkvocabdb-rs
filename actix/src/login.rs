@@ -27,7 +27,7 @@ use actix_web::HttpResponse;
 use gkvocabdb::dbpostgres::GlosserDbPostgres;
 use secrecy::Secret;
 
-use gkvocabdb::dbsqlite::GlosserDbSqlite;
+// use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use gkvocabdb::gkv_validate_credentials;
 use gkvocabdb::Credentials;
 
