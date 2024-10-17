@@ -8,7 +8,7 @@ RUN cargo install --features "postgres" --path actix
 
 FROM gcr.io/distroless/cc-debian12
 
-COPY --from=build /usr/local/cargo/bin/gkvocabdb /usr/local/bin/gkvocabdb
+COPY --from=build /usr/local/cargo/bin/actix /usr/local/bin/actix
 COPY --from=build /usr/src/gkvocabdb/static/ /usr/local/bin/static/
 
 # ENV GKVOCABDB_DB_PATH= set from outside
@@ -18,4 +18,4 @@ EXPOSE 8088
 
 WORKDIR /usr/local/bin
 
-CMD ["gkvocabdb"]
+CMD ["actix"]
