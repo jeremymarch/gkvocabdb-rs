@@ -199,6 +199,7 @@ async fn import_text(
             Err(e) => {
                 let res = ImportResponse {
                     success: false,
+                    text_id: 0,
                     words_inserted: 0,
                     error: format!(
                         "Error importing text: invalid utf8. Valid up to position: {}.",
@@ -357,6 +358,7 @@ async fn export_text(
         } else {
             let res = ImportResponse {
                 success: false,
+                text_id: 0,
                 words_inserted: 0,
                 error: String::from("Export failed"),
             };

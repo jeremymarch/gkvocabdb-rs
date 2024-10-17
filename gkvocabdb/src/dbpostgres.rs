@@ -574,7 +574,7 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         text_name: &str,
         words: Vec<TextWord>,
         info: &ConnectionInfo,
-    ) -> Result<u64, GlosserError> {
+    ) -> Result<(u64, i32), GlosserError> {
         let course_id = i32::try_from(course_id).unwrap();
 
         let query =
@@ -667,7 +667,7 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
 
         //println!("id: {}, count: {}", text_id, count);
 
-        Ok(count)
+        Ok((count, text_id))
     }
 
     async fn insert_gloss(

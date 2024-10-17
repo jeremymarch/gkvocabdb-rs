@@ -57,11 +57,12 @@ pub async fn gkv_import_text(
             "Error importing text: File is empty.",
         )))
     } else {
-        let affected_rows = tx.add_text(course_id, title, words, info).await?;
+        let (affected_rows, text_id) = tx.add_text(course_id, title, words, info).await?;
         tx.commit_tx().await?;
 
         Ok(ImportResponse {
             success: true,
+            text_id,
             words_inserted: affected_rows,
             error: String::from(""),
         })

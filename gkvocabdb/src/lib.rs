@@ -424,6 +424,7 @@ pub struct ArrowWordRequest {
 #[derive(Debug, Serialize)]
 pub struct ImportResponse {
     pub success: bool,
+    pub text_id: i32,
     pub words_inserted: u64,
     pub error: String,
 }
@@ -490,7 +491,7 @@ pub trait GlosserDbTrx {
         text_name: &str,
         words: Vec<TextWord>,
         info: &ConnectionInfo,
-    ) -> Result<u64, GlosserError>;
+    ) -> Result<(u64, i32), GlosserError>;
 
     async fn insert_gloss(
         &mut self,
@@ -1373,6 +1374,48 @@ mod tests {
         import_text::gkv_import_text(db, course_id, user_info, title, xml_string)
             .await
             .unwrap()
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_basic_export() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+        let text1_res = setup_small_text_test(&db, course_id, &user_info).await;
+        let text2_res = setup_small_text_test(&db, course_id, &user_info).await;
+
+        let text_ids_to_export = format!("{},{}", text1_res.text_id, text2_res.text_id);
+        let bold_glosses = true;
+        let res = export_text::gkv_export_texts_as_latex(
+            &db,
+            &text_ids_to_export,
+            course_id,
+            bold_glosses,
+        )
+        .await;
+
+        assert!(res.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_basic_select_glosses() {
+        let (db, _user_info) = set_up().await;
+
+        let timestamp = 1667191605; //get_timestamp().try_into().unwrap(),
+        let info = WordtreeQueryRequest {
+            n: 101,
+            idprefix: String::from("test1"),
+            x: String::from("0.2813670904164459"),
+            request_time: timestamp,
+            page: 0, //can be negative for pages before
+            mode: String::from("context"),
+            query: r#"{"lexicon":"hqvocab","mode":"normal","w":""}"#.to_string(), //WordQuery,
+            lex: Some(String::from("hqvocab")),
+        };
+        let course_id = 1;
+        let res = gkv_get_glosses(&db, &info, course_id).await;
+        assert!(res.is_ok());
     }
 
     #[tokio::test]

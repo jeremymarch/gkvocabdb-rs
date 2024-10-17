@@ -528,7 +528,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
         text_name: &str,
         words: Vec<TextWord>,
         info: &ConnectionInfo,
-    ) -> Result<u64, GlosserError> {
+    ) -> Result<(u64, i32), GlosserError> {
         let query =
             "INSERT INTO texts (text_id, name, parent_id, display) VALUES (NULL, $1, NULL, 1);";
         let text_id = sqlx::query(query)
@@ -605,7 +605,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
 
         //println!("id: {}, count: {}", text_id, count);
 
-        Ok(count)
+        Ok((count, i32::try_from(text_id).unwrap()))
     }
 
     async fn insert_gloss(
