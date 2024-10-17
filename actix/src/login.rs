@@ -16,15 +16,17 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-
 use actix_session::Session;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
 use actix_web::web;
+use actix_web::web::Data;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
+#[cfg(feature = "postgres")]
 use gkvocabdb::dbpostgres::GlosserDbPostgres;
+use gkvocabdb::GlosserDb;
 use secrecy::Secret;
 
 // use gkvocabdb::dbsqlite::GlosserDbSqlite;
@@ -118,14 +120,14 @@ pub async fn login_get() -> Result<HttpResponse, AWError> {
 pub async fn login_post(
     (session, form, req): (Session, web::Form<LoginFormData>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     let credentials = Credentials {
         username: form.0.username,
         password: form.0.password,
     };
 
-    if let Ok(user_id) = gkv_validate_credentials(db, credentials)
+    if let Ok(user_id) = gkv_validate_credentials(db.as_ref(), credentials)
         .await
         .map_err(map_glosser_error)
     {

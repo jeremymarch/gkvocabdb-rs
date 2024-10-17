@@ -10,7 +10,7 @@ name = "main"
 path = "src/main.rs"
 
 [dependencies]
-gkvocabdb = { path = "../gkvocabdb", features = ["postgres"] }
+gkvocabdb = { path = "../gkvocabdb", features = [] }
 actix-web = { version = "4.9.0" }
 actix-files = "0.6.6"
 actix-session = { version = "0.10.1", features = ["cookie-session"] }

@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+use actix_web::web::Data;
+use std::sync::Arc;
+
 use actix_files as fs;
 use actix_multipart::Multipart;
 use actix_session::config::PersistentSession;
@@ -36,15 +39,19 @@ use std::io;
 use thiserror::Error;
 //use std::time::{SystemTime, UNIX_EPOCH};
 //use mime;
-
+#[cfg(feature = "postgres")]
 use gkvocabdb::dbpostgres::GlosserDbPostgres;
+#[cfg(feature = "postgres")]
 use sqlx::postgres::PgPoolOptions;
 
-// #[cfg(not(feature = "postgres"))]
-// use gkvocabdb::dbsqlite::GlosserDbSqlite;
-// use sqlx::sqlite::SqliteConnectOptions;
-// use sqlx::SqlitePool;
-// use std::str::FromStr;
+#[cfg(not(feature = "postgres"))]
+use gkvocabdb::dbsqlite::GlosserDbSqlite;
+#[cfg(not(feature = "postgres"))]
+use sqlx::sqlite::SqliteConnectOptions;
+#[cfg(not(feature = "postgres"))]
+use sqlx::SqlitePool;
+#[cfg(not(feature = "postgres"))]
+use std::str::FromStr;
 
 use gkvocabdb::ExportRequest;
 use gkvocabdb::*;
@@ -144,7 +151,7 @@ fn not_logged_in_response() -> Result<HttpResponse, AWError> {
 async fn import_text(
     (session, payload, req): (Session, Multipart, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     let course_id = session.get("course_id").unwrap().unwrap();
 
@@ -178,9 +185,15 @@ async fn import_text(
 
         match get_xml_string(payload).await {
             Ok((xml_string, title)) => {
-                let res = import_text::gkv_import_text(db, course_id, &info, &title, &xml_string)
-                    .await
-                    .map_err(map_glosser_error)?;
+                let res = import_text::gkv_import_text(
+                    db.as_ref(),
+                    course_id,
+                    &info,
+                    &title,
+                    &xml_string,
+                )
+                .await
+                .map_err(map_glosser_error)?;
                 Ok(HttpResponse::Ok().json(res))
             }
             Err(e) => {
@@ -247,7 +260,7 @@ async fn get_xml_string(mut payload: Multipart) -> Result<(String, String), std:
 async fn insert_pagebreak(
     (info, session, req): (web::Form<PagebreakRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     if let Some(_user_id) = login::get_user_id(session) {
         let mut tx = db.begin_tx().await.unwrap();
@@ -268,7 +281,7 @@ async fn insert_pagebreak(
 async fn delete_pagebreak(
     (info, session, req): (web::Form<PagebreakRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     if let Some(_user_id) = login::get_user_id(session) {
         let mut tx = db.begin_tx().await.unwrap();
@@ -289,7 +302,7 @@ async fn delete_pagebreak(
 async fn export_text(
     (info, session, req): (web::Query<ExportRequest>, Session, HttpRequest),
 ) -> Result<HttpResponse> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
     let bold_glosses = false;
     let course_id = session.get("course_id").unwrap().unwrap();
 
@@ -316,7 +329,7 @@ async fn export_text(
         };
 
         if let Ok(latex) = export_text::gkv_export_texts_as_latex(
-            db,
+            db.as_ref(),
             /*lysias*/ //"133,134,135,136,137",
             /*xenophon*/ //"129,130,131,132"
             /*phaedrus*/ //"228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269", //"129,130,131,132", //info.text_ids.as_str(),
@@ -357,7 +370,7 @@ async fn export_text(
 async fn update_or_add_gloss(
     (session, post, req): (Session, web::Form<UpdateGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let info = ConnectionInfo {
@@ -367,7 +380,7 @@ async fn update_or_add_gloss(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        let res = gkv_update_or_add_gloss(db, &post, &info)
+        let res = gkv_update_or_add_gloss(db.as_ref(), &post, &info)
             .await
             .map_err(map_glosser_error)?;
 
@@ -381,7 +394,7 @@ async fn arrow_word_req(
     (session, post, req): (Session, web::Form<ArrowWordRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let course_id = session.get("course_id").unwrap().unwrap();
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
         let info = ConnectionInfo {
@@ -391,7 +404,7 @@ async fn arrow_word_req(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        let res = gkv_arrow_word(db, &post, &info, course_id)
+        let res = gkv_arrow_word(db.as_ref(), &post, &info, course_id)
             .await
             .map_err(map_glosser_error)?;
         Ok(HttpResponse::Ok().json(res))
@@ -403,7 +416,7 @@ async fn arrow_word_req(
 async fn set_gloss(
     (session, post, req): (Session, web::Form<SetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
     let course_id = session.get("course_id").unwrap().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
@@ -414,7 +427,7 @@ async fn set_gloss(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        let res = gkv_update_gloss_id(db, post.gloss_id, post.word_id, &info, course_id)
+        let res = gkv_update_gloss_id(db.as_ref(), post.gloss_id, post.word_id, &info, course_id)
             .await
             .map_err(map_glosser_error)?;
         Ok(HttpResponse::Ok().json(res))
@@ -426,7 +439,7 @@ async fn set_gloss(
 async fn move_text(
     (session, post, req): (Session, web::Form<MoveTextRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
     let course_id = session.get("course_id").unwrap().unwrap();
 
     if let Some(user_id) = login::get_user_id(session) {
@@ -437,7 +450,7 @@ async fn move_text(
             user_agent: get_user_agent(&req).unwrap_or("").to_string(),
         };
 
-        gkv_move_text(db, post.text_id, post.step, &info, course_id)
+        gkv_move_text(db.as_ref(), post.text_id, post.step, &info, course_id)
             .await
             .map_err(map_glosser_error)?;
         let res = MiscErrorResponse {
@@ -479,9 +492,11 @@ async fn set_course_id(
 async fn get_gloss(
     (post, req): (web::Form<GetGlossRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
-    let res = gkv_get_gloss(db, &post).await.map_err(map_glosser_error)?;
+    let res = gkv_get_gloss(db.as_ref(), &post)
+        .await
+        .map_err(map_glosser_error)?;
 
     Ok(HttpResponse::Ok().json(res))
 }
@@ -490,9 +505,9 @@ async fn get_glosses(
     (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let course_id = session.get("course_id").unwrap().unwrap();
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
-    let res = gkv_get_glosses(db, &info, course_id)
+    let res = gkv_get_glosses(db.as_ref(), &info, course_id)
         .await
         .map_err(map_glosser_error)?;
 
@@ -503,9 +518,9 @@ async fn gloss_occurrences(
     (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let course_id = session.get("course_id").unwrap().unwrap();
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
-    let res = gkv_get_occurrences(db, &info, course_id)
+    let res = gkv_get_occurrences(db.as_ref(), &info, course_id)
         .await
         .map_err(map_glosser_error)?;
 
@@ -515,10 +530,10 @@ async fn gloss_occurrences(
 async fn update_log(
     (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
     let course_id = session.get("course_id").unwrap().unwrap();
 
-    let res = gkv_update_log(db, &info, course_id)
+    let res = gkv_update_log(db.as_ref(), &info, course_id)
         .await
         .map_err(map_glosser_error)?;
 
@@ -528,10 +543,10 @@ async fn update_log(
 async fn get_texts(
     (session, info, req): (Session, web::Query<WordtreeQueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     let course_id = session.get("course_id").unwrap().unwrap();
-    let res = gkv_get_texts(db, &info, course_id)
+    let res = gkv_get_texts(db.as_ref(), &info, course_id)
         .await
         .map_err(map_glosser_error)?;
 
@@ -551,12 +566,12 @@ async fn get_text_words(
     (session, info, req): (Session, web::Query<QueryRequest>, HttpRequest),
 ) -> Result<HttpResponse, AWError> {
     let course_id = session.get("course_id").unwrap().unwrap();
-    let db = req.app_data::<GlosserDbPostgres>().unwrap();
+    let db = req.app_data::<Data<dyn GlosserDb>>().unwrap();
 
     let selected_word_id: Option<u32> = Some(info.wordid);
 
     if login::get_user_id(session).is_some() {
-        let res = gkv_get_text_words(db, &info, selected_word_id, course_id)
+        let res = gkv_get_text_words(db.as_ref(), &info, selected_word_id, course_id)
             .await
             .map_err(map_glosser_error)?;
 
@@ -679,32 +694,32 @@ async fn main() -> io::Result<()> {
         panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
     });
 
-    // let options = SqliteConnectOptions::from_str(&db_path)
-    //     .expect("Could not connect to db.")
-    //     .foreign_keys(true)
-    //     .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-    //     .read_only(false)
-    //     .collation("PolytonicGreek", |l, r| {
-    //         l.to_lowercase().cmp(&r.to_lowercase())
-    //     });
+    let options = SqliteConnectOptions::from_str(&db_path)
+        .expect("Could not connect to db.")
+        .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .read_only(false)
+        .collation("PolytonicGreek", |l, r| {
+            l.to_lowercase().cmp(&r.to_lowercase())
+        });
 
-    // let db_pool = GlosserDbSqlite {
-    //     db: SqlitePool::connect_with(options)
-    //         .await
-    //         .expect("Could not connect to db."),
-    // };
-
-    let db_pool = GlosserDbPostgres {
-        db: PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&db_path)
+    let db_pool = GlosserDbSqlite {
+        db: SqlitePool::connect_with(options)
             .await
             .expect("Could not connect to db."),
     };
 
+    // let db_pool = GlosserDbPostgres {
+    //     db: PgPoolOptions::new()
+    //         .max_connections(5)
+    //         .connect(&db_path)
+    //         .await
+    //         .expect("Could not connect to db."),
+    // };
+
     gkv_create_db(&db_pool).await.expect("Could not create db.");
     let mut tx = db_pool.begin_tx().await.unwrap();
-    tx.load_lemmatizer().await.unwrap();
+    //tx.load_lemmatizer().await.unwrap();
     tx.commit_tx().await.unwrap();
 
     //insert_thuc_paras(&db_pool).await;
@@ -770,12 +785,14 @@ async fn main() -> io::Result<()> {
         let secret_key = Key::from(&key);
 
         let cookie_secure = !cfg!(debug_assertions); //cookie is secure for release, not secure for debug builds
-
+        let db_arc: Arc<dyn GlosserDb> = Arc::new(db_pool.clone());
+        let db_data: Data<dyn GlosserDb> = Data::from(db_arc);
         App::new()
             //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
             //    err, HttpResponse::Conflict().finish()).into()))
             //.wrap(json_cfg)
-            .app_data(db_pool.clone())
+            //.app_data(db_pool.clone())
+            .app_data(db_data.clone())
             .wrap(middleware::Compress::default())
             //.wrap(auth_basic) //this blocks healthcheck
             .wrap(
