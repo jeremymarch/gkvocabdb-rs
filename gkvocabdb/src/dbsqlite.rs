@@ -247,7 +247,7 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
         let query = format!(
-            "SELECT lemma, unit, def FROM glosses \
+            "SELECT lemma, unit, def FROM glosses a \
             LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id}) \
             WHERE {} AND unit >= $1 AND unit <= $2 AND status = 1 ORDER BY {};",
             p, s

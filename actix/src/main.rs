@@ -729,7 +729,7 @@ async fn main() -> io::Result<()> {
 
     gkv_create_db(&db_pool).await.expect("Could not create db.");
     let mut tx = db_pool.begin_tx().await.unwrap();
-    //tx.load_lemmatizer().await.unwrap();
+    tx.load_lemmatizer().await.unwrap();
     tx.commit_tx().await.unwrap();
 
     //insert_thuc_paras(&db_pool).await;

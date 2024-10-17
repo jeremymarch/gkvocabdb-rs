@@ -1378,6 +1378,23 @@ mod tests {
 
     #[tokio::test]
     #[serial]
+    async fn test_hqvocab_query() {
+        let (db, _user_info) = set_up().await;
+        let mut tx = db.begin_tx().await.unwrap();
+        let lower_unit = 1;
+        let unit = 20;
+
+        for p in ["noun", "verb", "adjective", "other"] {
+            for sort in ["unit", "alpha"] {
+                let res = tx.get_hqvocab_column(p, lower_unit, unit, sort).await;
+                assert!(res.is_ok());
+            }
+        }
+        tx.rollback_tx().await.unwrap();
+    }
+
+    #[tokio::test]
+    #[serial]
     async fn test_basic_export() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
