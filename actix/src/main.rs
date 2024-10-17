@@ -707,7 +707,7 @@ async fn get_db(db_path: &str) -> GlosserDbPostgres {
     GlosserDbPostgres {
         db: PgPoolOptions::new()
             .max_connections(5)
-            .connect(&db_path)
+            .connect(db_path)
             .await
             .expect("Could not connect to db."),
     }
@@ -793,8 +793,12 @@ async fn main() -> io::Result<()> {
         let secret_key = Key::from(&key);
 
         let cookie_secure = !cfg!(debug_assertions); //cookie is secure for release, not secure for debug builds
+
+        //this is the way to add unsized types, i.e. by trait
+        //https://docs.rs/actix-web/latest/actix_web/web/struct.Data.html
         let db_arc: Arc<dyn GlosserDb> = Arc::new(db_pool.clone());
         let db_data: Data<dyn GlosserDb> = Data::from(db_arc);
+
         App::new()
             //.app_data(web::JsonConfig::default().error_handler(|err, _req| actix_web::error::InternalError::from_response(
             //    err, HttpResponse::Conflict().finish()).into()))
