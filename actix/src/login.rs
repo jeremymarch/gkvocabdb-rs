@@ -24,8 +24,6 @@ use actix_web::web::Data;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
-#[cfg(feature = "postgres")]
-use gkvocabdb::dbpostgres::GlosserDbPostgres;
 use gkvocabdb::GlosserDb;
 use secrecy::Secret;
 

@@ -684,6 +684,35 @@ async fn health_check(_req: HttpRequest) -> Result<HttpResponse, AWError> {
     Ok(HttpResponse::Ok().finish()) //send 200 with empty body
 }
 
+#[cfg(not(feature = "postgres"))]
+async fn get_db(db_path: &str) -> GlosserDbSqlite {
+    let options = SqliteConnectOptions::from_str(db_path)
+        .expect("Could not connect to db.")
+        .foreign_keys(true)
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .read_only(false)
+        .collation("PolytonicGreek", |l, r| {
+            l.to_lowercase().cmp(&r.to_lowercase())
+        });
+
+    GlosserDbSqlite {
+        db: SqlitePool::connect_with(options)
+            .await
+            .expect("Could not connect to db."),
+    }
+}
+
+#[cfg(feature = "postgres")]
+async fn get_db(db_path: &str) -> GlosserDbPostgres {
+    GlosserDbPostgres {
+        db: PgPoolOptions::new()
+            .max_connections(5)
+            .connect(&db_path)
+            .await
+            .expect("Could not connect to db."),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
@@ -694,28 +723,7 @@ async fn main() -> io::Result<()> {
         panic!("Environment variable for sqlite path not set: GKVOCABDB_DB_PATH.")
     });
 
-    let options = SqliteConnectOptions::from_str(&db_path)
-        .expect("Could not connect to db.")
-        .foreign_keys(true)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        .read_only(false)
-        .collation("PolytonicGreek", |l, r| {
-            l.to_lowercase().cmp(&r.to_lowercase())
-        });
-
-    let db_pool = GlosserDbSqlite {
-        db: SqlitePool::connect_with(options)
-            .await
-            .expect("Could not connect to db."),
-    };
-
-    // let db_pool = GlosserDbPostgres {
-    //     db: PgPoolOptions::new()
-    //         .max_connections(5)
-    //         .connect(&db_path)
-    //         .await
-    //         .expect("Could not connect to db."),
-    // };
+    let db_pool = get_db(&db_path).await;
 
     gkv_create_db(&db_pool).await.expect("Could not create db.");
     let mut tx = db_pool.begin_tx().await.unwrap();
