@@ -4,7 +4,7 @@ FROM rust:1.81.0 AS build
 WORKDIR /usr/src/gkvocabdb
 COPY . .
 
-RUN cargo install --path gkvocabdb
+RUN cargo install --features "postgres" --path actix
 
 FROM gcr.io/distroless/cc-debian12
 
