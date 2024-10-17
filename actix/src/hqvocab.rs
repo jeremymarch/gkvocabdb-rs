@@ -18,12 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 use crate::map_glosser_error;
 use actix_web::web;
+use actix_web::web::Data;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
-//use gkvocabdb::dbpostgres::GlosserDbPostgres;
-// use gkvocabdb::dbsqlite::GlosserDbSqlite;
-use actix_web::web::Data;
 use gkvocabdb::GlosserDb;
 use regex::Regex;
 use serde::Deserialize;

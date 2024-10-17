@@ -24,12 +24,11 @@ use actix_web::web::Data;
 use actix_web::Error as AWError;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
-use gkvocabdb::GlosserDb;
 use secrecy::Secret;
 
-// use gkvocabdb::dbsqlite::GlosserDbSqlite;
 use gkvocabdb::gkv_validate_credentials;
 use gkvocabdb::Credentials;
+use gkvocabdb::GlosserDb;
 
 use crate::map_glosser_error;
 
