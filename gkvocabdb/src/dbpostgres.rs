@@ -751,15 +751,15 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         gloss_id: u32,
         info: &ConnectionInfo,
     ) -> Result<u64, GlosserError> {
+        //don't delete gloss if linked to a word
         let query = "SELECT COUNT(*) FROM glosses a INNER JOIN words b ON a.gloss_id = b.gloss_id WHERE a.gloss_id = $1;";
-        let count: (i32,) = sqlx::query_as(query)
+        let count: (i64,) = sqlx::query_as(query)
             .bind(i32::try_from(gloss_id).unwrap())
             .fetch_one(&mut *self.tx)
             .await
             .map_err(map_sqlx_error)?;
 
         if count.0 == 0 {
-            //jwm2
             self.update_log_trx(
                 UpdateType::DeleteGloss,
                 Some(gloss_id.into()),

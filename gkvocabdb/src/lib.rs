@@ -1395,6 +1395,40 @@ mod tests {
 
     #[tokio::test]
     #[serial]
+    async fn test_delete_gloss() {
+        let (db, user_info) = set_up().await;
+
+        let post = UpdateGlossRequest {
+            qtype: String::from("newlemma"),
+            hqid: None,
+            lemma: String::from("newword"),
+            stripped_lemma: String::from("newword"),
+            pos: String::from("newpos"),
+            def: String::from("newdef"),
+            note: String::from("newnote"),
+        };
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        assert!(res.is_ok());
+
+        let gloss_id = res.unwrap().inserted_id.unwrap();
+
+        let post = UpdateGlossRequest {
+            qtype: String::from("deletegloss"),
+            hqid: Some(gloss_id as u32),
+            lemma: String::from(""),
+            stripped_lemma: String::from(""),
+            pos: String::from(""),
+            def: String::from(""),
+            note: String::from(""),
+        };
+
+        let res = gkv_update_or_add_gloss(&db, &post, &user_info).await;
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().affectedrows, 1);
+    }
+
+    #[tokio::test]
+    #[serial]
     async fn test_basic_export() {
         let (db, user_info) = set_up().await;
         let course_id = 1;
