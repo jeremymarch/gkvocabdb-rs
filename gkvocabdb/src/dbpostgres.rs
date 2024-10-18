@@ -242,21 +242,22 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
     ) -> Result<Vec<(String, u32, String)>, GlosserError> {
         let course_id = 1;
         let s = match sort {
-            "alpha" => "sortalpha COLLATE PolytonicGreek ASC",
-            _ => "unit, sortalpha COLLATE PolytonicGreek ASC",
+            "alpha" => "sortalpha ASC",
+            _ => "unit, sortalpha ASC",
         };
         let p = match pos {
-            "noun" => "pos == 'noun'",
-            "verb" => "pos == 'verb'",
-            "adjective" => "pos == 'adjective'",
+            "noun" => "pos = 'noun'",
+            "verb" => "pos = 'verb'",
+            "adjective" => "pos = 'adjective'",
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
         let query = format!(
-            "SELECT lemma, unit, def FROM glosses \
+            "SELECT lemma, unit, def FROM glosses a \
             LEFT JOIN arrowed_words d ON (a.gloss_id = d.gloss_id AND d.course_id = {course_id}) \
             WHERE {} AND unit >= $1 AND unit <= $2 AND status = 1 ORDER BY {};",
             p, s
         );
+
         let words: Vec<(String, u32, String)> = sqlx::query(&query)
             .bind(i32::try_from(lower_unit).unwrap())
             .bind(i32::try_from(unit).unwrap())
@@ -269,7 +270,8 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
             })
             .fetch_all(&mut *self.tx)
             .await
-            .map_err(map_sqlx_error)?;
+            .unwrap();
+        //.map_err(map_sqlx_error)?;
 
         Ok(words)
     }

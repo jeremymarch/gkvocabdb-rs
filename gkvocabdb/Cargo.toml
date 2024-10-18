@@ -1,6 +1,6 @@
 [package]
 name = "gkvocabdb"
-version = "0.2.0"
+version.workspace = true
 edition = "2021"
 authors = ["Jeremy March <jmarch@gradcenter.cuny.edu>"]
 license = "AGPL-3.0"
@@ -11,7 +11,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-quick-xml = "0.36.1"
+quick-xml = "0.36.2"
 unicode-normalization = { version = "0.1.23", default-features = false }
 chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
 sqlx = { version = "0.8.2", features = [

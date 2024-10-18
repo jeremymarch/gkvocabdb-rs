@@ -400,9 +400,9 @@ mod tests {
         </TEI.2>"#;
         let r = process_imported_text(xml_string, &lemmatizer).unwrap();
         //to see this: cargo test -- --nocapture
-        for a in &r {
-            println!("{:?}", a);
-        }
+        // for a in &r {
+        //     println!("{:?}", a);
+        // }
         assert_eq!(r.len(), 30);
         assert_eq!(r[0].word_type, WordType::WorkTitle as u32);
         assert_eq!(r[1].word_type, WordType::Speaker as u32);

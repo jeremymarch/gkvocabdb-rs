@@ -241,9 +241,9 @@ impl GlosserDbTrx for GlosserDbSqliteTrx<'_> {
             _ => "unit, sortalpha COLLATE PolytonicGreek ASC",
         };
         let p = match pos {
-            "noun" => "pos == 'noun'",
-            "verb" => "pos == 'verb'",
-            "adjective" => "pos == 'adjective'",
+            "noun" => "pos = 'noun'",
+            "verb" => "pos = 'verb'",
+            "adjective" => "pos = 'adjective'",
             _ => "pos != 'noun' AND pos != 'verb' AND pos != 'adjective'",
         };
         let query = format!(

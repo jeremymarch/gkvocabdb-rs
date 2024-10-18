@@ -1069,7 +1069,7 @@ pub async fn gkv_get_text_words(
     let mut tx = db.begin_tx().await?;
 
     //let query_params: WordQuery = serde_json::from_str(&info.query)?;
-    println!("abcz1");
+
     let text_id = match info.wordid {
         0 => info.text,
         _ => tx.get_text_id_for_word_id(info.wordid).await?,
