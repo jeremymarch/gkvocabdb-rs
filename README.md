@@ -38,3 +38,13 @@
     - probably overly difficult: update log can rollback changes to previous verions
   - clean up db schema: there are a lot of columns which are no longer used and can be removed
   - improve the error messages passed back to browser if something goes wrong
+
+
+  az login
+  az acr login -n philologuscontainerregistry
+  docker build --load --builder multi-platform-builder --platform=linux/amd64 -t gkvocabdb:0.1.5 .
+  docker tag gkvocabdb:0.1.5 philologuscontainerregistry.azurecr.io/gkvocabdb:0.1.5
+  docker push philologuscontainerregistry.azurecr.io/gkvocabdb:0.1.5
+
+pg_dump -h philologuspostgresdb.postgres.database.azure.com -p 5432 -U philuserdb -f pgdump-gkvocabdb-bk1.sql gkvocabdb
+psql -h philologuspostgresdb.postgres.database.azure.com -p 5432 -U philuserdb gkvocabdb

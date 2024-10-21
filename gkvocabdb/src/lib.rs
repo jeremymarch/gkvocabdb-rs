@@ -169,7 +169,7 @@ pub struct SmallWord {
     #[serde(rename(serialize = "if"))]
     pub is_flagged: bool,
     #[serde(rename(serialize = "wtseq"))]
-    pub word_text_seq: u32,
+    pub word_text_seq: Option<u32>,
     #[serde(rename(serialize = "atseq"))]
     pub arrowed_text_seq: Option<u32>,
 }
@@ -1766,7 +1766,7 @@ mod tests {
                     total: Some(1),
                     seq: 17,
                     is_flagged: false,
-                    word_text_seq: 1,
+                    word_text_seq: Some(1),
                     arrowed_text_seq: None
                 }]
                 .to_vec(),
@@ -1799,7 +1799,7 @@ mod tests {
                         total: Some(2),
                         seq: 17,
                         is_flagged: false,
-                        word_text_seq: 1,
+                        word_text_seq: Some(1),
                         arrowed_text_seq: None
                     },
                     SmallWord {
@@ -1813,7 +1813,7 @@ mod tests {
                         total: Some(2),
                         seq: 20,
                         is_flagged: false,
-                        word_text_seq: 1,
+                        word_text_seq: Some(1),
                         arrowed_text_seq: None
                     }
                 ]
@@ -2601,7 +2601,7 @@ mod tests {
                         total: Some(3),
                         seq: 17,
                         is_flagged: false,
-                        word_text_seq: 1,
+                        word_text_seq: Some(1),
                         arrowed_text_seq: Some(1)
                     },
                     SmallWord {
@@ -2615,7 +2615,7 @@ mod tests {
                         total: Some(3),
                         seq: 20,
                         is_flagged: false,
-                        word_text_seq: 1,
+                        word_text_seq: Some(1),
                         arrowed_text_seq: Some(1)
                     },
                     SmallWord {
@@ -2629,7 +2629,7 @@ mod tests {
                         total: Some(3),
                         seq: 1,
                         is_flagged: false,
-                        word_text_seq: 2,
+                        word_text_seq: Some(2),
                         arrowed_text_seq: Some(1)
                     }
                 ]
@@ -2663,7 +2663,7 @@ mod tests {
                         total: Some(4),
                         seq: 17,
                         is_flagged: false,
-                        word_text_seq: 1,
+                        word_text_seq: Some(1),
                         arrowed_text_seq: Some(1)
                     },
                     SmallWord {
@@ -2677,7 +2677,7 @@ mod tests {
                         total: Some(4),
                         seq: 20,
                         is_flagged: false,
-                        word_text_seq: 1,
+                        word_text_seq: Some(1),
                         arrowed_text_seq: Some(1)
                     },
                     SmallWord {
@@ -2691,7 +2691,7 @@ mod tests {
                         total: Some(4),
                         seq: 1,
                         is_flagged: false,
-                        word_text_seq: 2,
+                        word_text_seq: Some(2),
                         arrowed_text_seq: Some(1)
                     },
                     SmallWord {
@@ -2705,7 +2705,7 @@ mod tests {
                         total: Some(4),
                         seq: 3,
                         is_flagged: false,
-                        word_text_seq: 2,
+                        word_text_seq: Some(2),
                         arrowed_text_seq: Some(1)
                     }
                 ]
@@ -3018,7 +3018,7 @@ mod tests {
                     total: Some(1),
                     seq: 17,
                     is_flagged: false,
-                    word_text_seq: 1,
+                    word_text_seq: Some(1),
                     arrowed_text_seq: None
                 }]
                 .to_vec(),

@@ -488,6 +488,7 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         //this requests all the places this word shows up, so we can update them in the displayed page.
         //fix me: need to limit this by course_id
         //fix me: need to limit this to the assignment displayed on the page, else this could return huge number of rows for e.g. article/kai/etc
+
         let query = format!("WITH gloss_total AS (
             SELECT gloss_id, COUNT(gloss_id) AS total_count
             FROM words a2
@@ -495,7 +496,7 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
             GROUP BY gloss_id
         )
         SELECT B.gloss_id, B.lemma, B.pos, B.def, total_count, A.seq, A.word_id, \
-    D.word_id as arrowedID, E.seq AS arrowedseq, A.isflagged, G.text_order,F.text_order AS arrowed_text_order, \
+    D.word_id as arrowedID, E.seq AS arrowedseq, A.isflagged, G.text_order, F.text_order AS arrowed_text_order, \
     COUNT(A.gloss_id) OVER (PARTITION BY A.gloss_id ORDER BY G.text_order,A.seq ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
         AS running_count
     FROM words A \
@@ -505,7 +506,8 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
     LEFT JOIN course_x_text F ON (E.text_id = F.text_id AND F.course_id = {course_id}) \
     LEFT JOIN course_x_text G ON (A.text_id = G.text_id AND G.course_id = {course_id}) \
     LEFT JOIN gloss_total ON A.gloss_id = gloss_total.gloss_id \
-    WHERE A.gloss_id = {gloss_id} AND A.type > -1 \
+    WHERE G.course_id = {course_id}
+    AND A.gloss_id = {gloss_id} AND A.type > -1 \
     ORDER BY G.text_order,A.seq \
     LIMIT 400;", gloss_id = gloss_id, course_id = course_id);
 
@@ -535,7 +537,11 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
                 },
                 seq: u32::try_from(rec.get::<i32, _>("seq")).unwrap(),
                 is_flagged: (rec.get::<i32, _>("isflagged") > 0),
-                word_text_seq: u32::try_from(rec.get::<i32, _>("text_order")).unwrap(),
+                word_text_seq: if rec.get::<Option<i32>, _>("text_order").is_some() {
+                    Some(u32::try_from(rec.get::<Option<i32>, _>("text_order").unwrap()).unwrap())
+                } else {
+                    None
+                },
                 arrowed_text_seq: if rec.get::<Option<i32>, _>("arrowed_text_order").is_some() {
                     Some(
                         u32::try_from(rec.get::<Option<i32>, _>("arrowed_text_order").unwrap())
