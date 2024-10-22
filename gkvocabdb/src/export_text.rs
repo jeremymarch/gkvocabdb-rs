@@ -546,6 +546,10 @@ fn apply_latex_templates(
 
     if include_text {
         if text.contains("%VERSELINESTART%") {
+            //inline speakers
+            *text = text.replace("%StartInnerSubTitle%", "\\par \\textbf{");
+            *text = text.replace("%EndInnerSubTitle%", "} ");
+
             *text = text.replace("%StartSubTitle%", "");
             *text = text.replace("%EndSubTitle%", " \\\\ "); //add this even if no %StartSubTitle%
             *text = text.replace("%LINEEND%", " \\\\ \n");
@@ -577,6 +581,7 @@ fn apply_latex_templates(
             *text = text.replace("%EndSubSubSection%", "}");
             *text = text.replace("%para%", "\n\\par\n");
 
+            //inline speakers
             *text = text.replace("%StartInnerSubTitle%", "\\par \\textbf{"); //\hspace{0pt} solves problem when \par\marginsec{} come together
             *text = text.replace("%EndInnerSubTitle%", "} ");
 
