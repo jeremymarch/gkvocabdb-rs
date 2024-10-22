@@ -205,10 +205,15 @@ pub async fn gkv_export_texts_as_latex(
                 }
                 WordType::InlineSpeaker => {
                     //9
-                    res.push_str(
-                        format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str(),
-                    );
-                    verse_line = String::from("reset");
+                    if verse_line == "reset" {
+                        res.push_str(
+                            format!("%StartInnerSubTitle%{}%EndInnerSubTitle%", word).as_str(),
+                        );
+                    } else {
+                        verse_text.push_str(format!(" {}", word).as_str());
+                    }
+
+                    //verse_line = String::from("reset");
                 }
                 WordType::InlineVerseSpeaker => {
                     //all but lines 91, 134, 201, 719, 864, 872, , 974, 1047, 1226, 1318
