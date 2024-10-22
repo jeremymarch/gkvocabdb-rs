@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "actix"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "actix-files",
  "actix-multipart",
@@ -1205,7 +1205,7 @@ checksum = "6fb8d784f27acf97159b40fc4db5ecd8aa23b9ad5ef69cdd136d3bc80665f0c0"
 
 [[package]]
 name = "gkvocabdb"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "argon2",
  "async-trait",

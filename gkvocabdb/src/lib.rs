@@ -1714,6 +1714,68 @@ mod tests {
 
     #[tokio::test]
     #[serial]
+    async fn unarrow_word() {
+        let (db, user_info) = set_up().await;
+        let course_id = 1;
+
+        let res = setup_text_test(&db, course_id, &user_info).await;
+        assert!(res.success);
+
+        // let info = QueryRequest {
+        //     text: 1,
+        //     wordid: 0,
+        // };
+        //let selected_word_id = None;
+        //let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
+        //println!("words: {:?}", res);
+
+        let post = ArrowWordRequest {
+            qtype: String::from("arrowWord"),
+            for_lemma_id: Some(30),     //gloss_id
+            set_arrowed_id_to: Some(5), //word_id
+            textwordid: None,
+            lemmaid: None,
+            lemmastr: None,
+        };
+
+        let res = gkv_arrow_word(&db, &post, &user_info, course_id).await;
+        assert_eq!(
+            res.unwrap(),
+            ArrowWordResponse {
+                success: true,
+                affected_rows: 1,
+                arrowed_value: 1,
+                lemmaid: 1
+            }
+        );
+
+        let post = ArrowWordRequest {
+            qtype: String::from("arrowWord"),
+            for_lemma_id: Some(30),     //gloss_id
+            set_arrowed_id_to: Some(0), //word_id
+            textwordid: None,
+            lemmaid: None,
+            lemmastr: None,
+        };
+
+        let res = gkv_arrow_word(&db, &post, &user_info, course_id).await;
+        assert_eq!(
+            res.unwrap(),
+            ArrowWordResponse {
+                success: true,
+                affected_rows: 1,
+                arrowed_value: 1,
+                lemmaid: 1
+            }
+        );
+        //println!("arrow: {:?}", res);
+
+        // let res = gkv_get_text_words(&db, &info, selected_word_id, course_id).await;
+        // println!("words: {:?}", res);
+    }
+
+    #[tokio::test]
+    #[serial]
     async fn arrow_word2() {
         let (db, user_info) = set_up().await;
         let course_id = 1;

@@ -328,10 +328,11 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
             .map_err(map_sqlx_error)?;
 
         let history_id: Option<i64> = if history_id_rows.is_some() {
-            Some(history_id_rows.unwrap().get(0))
+            Some(history_id_rows.unwrap().get::<i32, _>(0).into())
         } else {
             None
         };
+
         //.last_insert_rowid();
 
         //println!("rows: {}",r.rows_affected());
