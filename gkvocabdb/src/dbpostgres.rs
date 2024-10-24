@@ -210,6 +210,23 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
     //     }
     // }
 
+    /*
+        //looks for arrowed rows in arrowed_words where the gloss_id does
+        //not match the gloss_id assigned in the words table for that word_id
+        async fn check_arrowed_words(&mut self) -> Result<(), GlosserError> {
+            // or just delete incorrectly arrowed words?
+            let query = "SELECT course_id, gloss_id, word_id \
+                FROM arrowed_words a \
+                INNER JOIN words b ON a.word_id = b.word_id \
+                WHERE a.gloss_id != b.gloss_id;";
+            let res = sqlx::query(query)
+                .fetch_all(&mut *self.tx)
+                .await
+                .map_err(map_sqlx_error)?;
+
+            Ok(())
+        }
+    */
     async fn get_lemmatizer(&mut self) -> Result<HashMap<String, u32>, GlosserError> {
         let mut lemmatizer = HashMap::new();
 
@@ -283,13 +300,14 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         word_id: u32,
         info: &ConnectionInfo,
     ) -> Result<(), GlosserError> {
-        let query = "SELECT word_id \
-    FROM arrowed_words \
-    WHERE course_id = $1 AND gloss_id = $2;";
         let course_id = i32::try_from(course_id).unwrap();
         let gloss_id = i32::try_from(gloss_id).unwrap();
         let word_id = i32::try_from(word_id).unwrap();
         let user_id = i32::try_from(info.user_id).unwrap();
+
+        let query = "SELECT word_id \
+            FROM arrowed_words \
+            WHERE course_id = $1 AND gloss_id = $2;";
 
         let res: Result<(i32,), sqlx::Error> = sqlx::query_as(query)
             .bind(course_id)
