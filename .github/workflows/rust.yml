@@ -108,3 +108,18 @@ jobs:
               run: npx eslint .
                   --config .eslintrc.js
                   --ext .js,.html
+
+    jobs:
+        name: Jest Unit Tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v2
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                node-version: '22.11'
+            - name: Install dependencies
+              run: npm install
+            - name: Run Jest tests
+              run: npm test
