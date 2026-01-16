@@ -1,4 +1,4 @@
-### glosser
+### Glosser
 
 ## Installing and running
 
