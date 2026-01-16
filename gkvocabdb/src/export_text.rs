@@ -327,8 +327,8 @@ pub async fn gkv_export_texts_as_latex(
 
                 let is_arrowed;
                 if w.arrowed_text_seq == Some(w.word_text_seq) && w.arrowed_seq == Some(w.seq) {
-                    is_arrowed = true; //this instance is arrowed
-                                       //$arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
+                    is_arrowed = true; //this instance is arrowed; //$arrowedIndex[] = array($row["lemma"], $row["sortalpha"], $currentPageNum);
+
                     if build_index {
                         arrowed_words_index.push(ArrowedWordsIndex {
                             gloss_lemma: the_lemma.to_owned(),

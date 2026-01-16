@@ -29,7 +29,6 @@ pub mod dbsqlite;
 pub mod export_text;
 pub mod import_text;
 
-use argon2::password_hash::SaltString;
 use argon2::Algorithm;
 use argon2::Argon2;
 use argon2::Params;
@@ -37,6 +36,7 @@ use argon2::PasswordHash;
 use argon2::PasswordHasher;
 use argon2::PasswordVerifier;
 use argon2::Version;
+use argon2::password_hash::SaltString;
 use chrono::Utc;
 use secrecy::ExposeSecret;
 use secrecy::Secret;
@@ -567,7 +567,7 @@ pub trait GlosserDbTrx {
     ) -> Result<Vec<GlossOccurrence>, GlosserError>;
 
     async fn get_update_log(&mut self, course_id: u32)
-        -> Result<Vec<AssignmentTree>, GlosserError>;
+    -> Result<Vec<AssignmentTree>, GlosserError>;
 
     async fn get_before(
         &mut self,
@@ -738,7 +738,7 @@ pub async fn gkv_update_or_add_gloss(
                 success: false,
                 affectedrows: 0,
                 inserted_id: None,
-            })
+            });
         }
     }
     Ok(UpdateGlossResponse {
@@ -1221,9 +1221,9 @@ mod tests {
     #[cfg(not(feature = "postgres"))]
     use crate::dbsqlite::GlosserDbSqlite;
     #[cfg(not(feature = "postgres"))]
-    use sqlx::sqlite::SqliteConnectOptions;
-    #[cfg(not(feature = "postgres"))]
     use sqlx::SqlitePool;
+    #[cfg(not(feature = "postgres"))]
+    use sqlx::sqlite::SqliteConnectOptions;
     #[cfg(not(feature = "postgres"))]
     use std::str::FromStr;
 

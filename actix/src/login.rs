@@ -17,18 +17,18 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 use actix_session::Session;
+use actix_web::Error as AWError;
+use actix_web::HttpRequest;
+use actix_web::HttpResponse;
 use actix_web::http::header::ContentType;
 use actix_web::http::header::LOCATION;
 use actix_web::web;
 use actix_web::web::Data;
-use actix_web::Error as AWError;
-use actix_web::HttpRequest;
-use actix_web::HttpResponse;
 use secrecy::Secret;
 
-use gkvocabdb::gkv_validate_credentials;
 use gkvocabdb::Credentials;
 use gkvocabdb::GlosserDb;
+use gkvocabdb::gkv_validate_credentials;
 
 use crate::map_glosser_error;
 
