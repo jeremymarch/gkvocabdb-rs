@@ -21,17 +21,17 @@ use std::sync::Arc;
 
 use actix_files as fs;
 use actix_multipart::Multipart;
-use actix_session::config::PersistentSession;
-use actix_session::storage::CookieSessionStore;
 use actix_session::Session;
 use actix_session::SessionMiddleware;
-use actix_web::cookie::time::Duration;
-use actix_web::cookie::Key;
-use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
-use actix_web::http::StatusCode;
+use actix_session::config::PersistentSession;
+use actix_session::storage::CookieSessionStore;
 use actix_web::ResponseError;
+use actix_web::cookie::Key;
+use actix_web::cookie::time::Duration;
+use actix_web::http::StatusCode;
+use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
 use actix_web::{
-    middleware, web, App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result,
+    App, Error as AWError, HttpRequest, HttpResponse, HttpServer, Result, middleware, web,
 };
 use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
@@ -47,9 +47,9 @@ use sqlx::postgres::PgPoolOptions;
 #[cfg(not(feature = "postgres"))]
 use gkvocabdb::dbsqlite::GlosserDbSqlite;
 #[cfg(not(feature = "postgres"))]
-use sqlx::sqlite::SqliteConnectOptions;
-#[cfg(not(feature = "postgres"))]
 use sqlx::SqlitePool;
+#[cfg(not(feature = "postgres"))]
+use sqlx::sqlite::SqliteConnectOptions;
 #[cfg(not(feature = "postgres"))]
 use std::str::FromStr;
 
@@ -63,6 +63,7 @@ const SECS_IN_YEAR: i64 = 60 * 60 * 24 * 7 * 4 * 12;
 //https://stackoverflow.com/questions/64348528/how-can-i-pass-multi-variable-by-actix-web-appdata
 //https://doc.rust-lang.org/rust-by-example/generics/new_types.html
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginRequest {
     username: String,
@@ -81,12 +82,14 @@ struct PagebreakRequest {
     word_id: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoginResponse {
     success: bool,
 }
 
 //type TreeRow = (String, u32, Option<Vec<TreeRow>>)
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct TreeRow {
     v: String,
@@ -100,6 +103,7 @@ struct InsertDeletePageBreak {
     word_id: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct WordtreeQueryResponseTree {
     #[serde(rename(serialize = "selectId"), rename(deserialize = "selectId"))]
@@ -310,7 +314,7 @@ async fn export_text(
     //println!("host: {:?}", req.connection_info().host());
 
     if let Some(_user_id) = login::get_user_id(session) {
-        let text_ids_to_export = if !info.text_ids.contains(',') {
+        let _text_ids_to_export = if !info.text_ids.contains(',') {
             //if single text_id passed in we want to get all of its sibling texts and return them as a comma separated string
             if let Ok(id) = info.text_ids.parse::<u32>() {
                 let mut tx = db.begin_tx().await.unwrap();
@@ -717,7 +721,9 @@ async fn get_db(db_path: &str) -> GlosserDbPostgres {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    unsafe {
+        std::env::set_var("RUST_LOG", "actix_web=info");
+    }
     env_logger::init();
 
     //e.g. export GKVOCABDB_DB_PATH=sqlite://gkvocabnew.sqlite?mode=rwc

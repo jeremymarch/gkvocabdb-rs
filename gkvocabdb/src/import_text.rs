@@ -25,9 +25,9 @@ use crate::GlosserError;
 use crate::ImportResponse;
 use crate::TextWord;
 use crate::WordType;
+use quick_xml::Reader;
 use quick_xml::events::Event;
 use quick_xml::name::QName;
-use quick_xml::Reader;
 use std::collections::HashMap;
 
 fn map_xml_error(e: quick_xml::Error) -> GlosserError {
@@ -230,19 +230,17 @@ fn process_imported_text(
                         }
                     }
 
-                    if subtype.is_some() && n.is_some() {
+                    if let Some(subtype_loc) = subtype
+                        && let Some(n_loc) = n
+                    {
                         //if found both subtype and n attributes on div
-                        match subtype.unwrap().as_str() {
-                            "chapter" => chapter_value = Some(n.unwrap()),
+                        match subtype_loc.as_str() {
+                            "chapter" => chapter_value = Some(n_loc),
                             "section" => {
-                                let reference = if chapter_value.is_some() {
-                                    Some(format!(
-                                        "{}.{}",
-                                        chapter_value.as_ref().unwrap(),
-                                        n.unwrap()
-                                    ))
+                                let reference = if let Some(chap) = chapter_value.as_ref() {
+                                    Some(format!("{}.{}", chap, n_loc))
                                 } else {
-                                    Some(n.unwrap())
+                                    Some(n_loc)
                                 };
 
                                 if let Some(ref_value) = reference {
@@ -295,18 +293,16 @@ fn process_imported_text(
             }
             // unescape and decode the text event using the reader encoding
             Ok(Event::Text(ref e)) => {
-                if in_text {
-                    if let Ok(s) = e.unescape() {
-                        //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
-                        let clean_string = sanitize_greek(&s);
-                        words.extend_from_slice(
-                            &split_words(&clean_string, in_speaker, in_head, in_desc, lemmatizer)[..],
-                        );
+                if in_text && let Ok(s) = e.unescape() {
+                    //let seperator = Regex::new(r"([ ,.;]+)").expect("Invalid regex");
+                    let clean_string = sanitize_greek(&s);
+                    words.extend_from_slice(
+                        &split_words(&clean_string, in_speaker, in_head, in_desc, lemmatizer)[..],
+                    );
 
-                        //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
-                        //words2.word.extend_from_slice(&words.word[..]);
-                        //words2.word_type.extend_from_slice(&words.word_type[..]);
-                    }
+                    //let mut splits: Vec<String> = s.split_inclusive(&['\t','\n','\r',' ',',', ';','.']).map(|s| s.to_string()).collect();
+                    //words2.word.extend_from_slice(&words.word[..]);
+                    //words2.word_type.extend_from_slice(&words.word_type[..]);
                 }
             }
             Ok(Event::Empty(ref e)) => {

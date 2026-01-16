@@ -31,11 +31,11 @@ use crate::UpdateType;
 use crate::WordRow;
 use secrecy::ExposeSecret;
 use secrecy::Secret;
-use sqlx::postgres::PgPool;
-use sqlx::postgres::PgRow;
 use sqlx::Postgres;
 use sqlx::Row;
 use sqlx::Transaction;
+use sqlx::postgres::PgPool;
+use sqlx::postgres::PgRow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use unicode_normalization::UnicodeNormalization;
@@ -345,11 +345,8 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
             .await
             .map_err(map_sqlx_error)?;
 
-        let history_id: Option<i64> = if history_id_rows.is_some() {
-            Some(history_id_rows.unwrap().get::<i32, _>(0).into())
-        } else {
-            None
-        };
+        let history_id: Option<i64> =
+            history_id_rows.map(|hist_rows| hist_rows.get::<i32, _>(0).into());
 
         //.last_insert_rowid();
 
@@ -447,8 +444,7 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         info: &ConnectionInfo,
     ) -> Result<Vec<SmallWord>, GlosserError> {
         //1a check if the word whose gloss is being changed is arrowed
-        let query =
-        "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
+        let query = "SELECT gloss_id FROM arrowed_words WHERE course_id = $1 AND gloss_id = $2 AND word_id = $3;";
         let arrowed_word_id: Result<(i32,), sqlx::Error> = sqlx::query_as(query)
             .bind(i32::try_from(course_id).unwrap())
             .bind(i32::try_from(gloss_id).unwrap())
@@ -959,7 +955,8 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         text_id: u32,
         course_id: u32,
     ) -> Result<Vec<WordRow>, GlosserError> {
-        let query = format!("SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.sortalpha, b.unit, b.pos, d.word_id as arrowedid, \
+        let query = format!(
+            "SELECT a.word_id, a.word, a.type, b.lemma, b.def, b.sortalpha, b.unit, b.pos, d.word_id as arrowedid, \
         b.gloss_id, a.seq, e.seq AS arrowedseq, \
         a.isFlagged, g.text_order, f.text_order AS arrowed_text_order, c.word_id as page_break, h.entry AS appcrit_entry \
         FROM words a \
@@ -972,7 +969,10 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
         LEFT JOIN appCrit h on h.word_id = A.word_id \
         WHERE a.text_id = {text_id} AND a.type > -1 \
         ORDER BY a.seq \
-        LIMIT 550000;", text_id = text_id, course_id = course_id);
+        LIMIT 550000;",
+            text_id = text_id,
+            course_id = course_id
+        );
 
         let res: Result<Vec<WordRow>, GlosserError> = sqlx::query(&query)
             .map(|rec: PgRow| WordRow {
@@ -1447,8 +1447,7 @@ impl GlosserDbTrx for GlosserDbPostgresTrx<'_> {
                 .map_err(map_sqlx_error)?;
         }
         //set new text order
-        let query =
-            "UPDATE course_x_text SET text_order = text_order + $1 WHERE course_id = $2 AND text_id = $3;";
+        let query = "UPDATE course_x_text SET text_order = text_order + $1 WHERE course_id = $2 AND text_id = $3;";
         sqlx::query(query)
             .bind(step)
             .bind(course_id)
